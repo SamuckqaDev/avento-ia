@@ -1,0 +1,60 @@
+# Frases-exemplo por intenção, usadas pelo IntentEmbeddingClassifier para
+# comparar significado (via embedding) em vez de palavra exata. Cada secao
+# [NOME] precisa bater com um valor do enum AgentIntent. Frases completas e
+# naturais funcionam melhor aqui do que palavras soltas — o objetivo e cobrir
+# formas de pedir que uma lista de palavras-chave nunca vai prever.
+
+[FILE_READ]
+Mostra a estrutura de pastas do projeto
+Le o conteudo desse arquivo pra mim
+Procura onde essa funcao e usada no codigo
+Quero ver o que tem dentro dessa pasta
+Analisa esse projeto e me diz o que encontrou
+Qual e a arvore de arquivos desse repositorio
+
+[FILE_WRITE]
+Corrige esse bug no arquivo
+Cria um componente novo em React
+Edita essa funcao pra aceitar um parametro a mais
+Apaga esse arquivo que nao uso mais
+Cria um projeto novo com Vite
+Reescreve esse trecho de codigo
+
+[TERMINAL]
+Roda os testes desse projeto
+Executa o build
+Sobe o servidor de desenvolvimento
+Faz um commit dessas mudancas
+Roda o npm install
+Compila o projeto pra mim
+
+[AUTOMATION]
+Abre o VS Code pra mim
+Fecha essa aba do navegador
+Tira um print da minha tela agora
+Abre essa URL no navegador padrao
+Mostra esse arquivo no Finder
+Fecha esse aplicativo
+
+[IMAGE]
+Desenha uma paisagem ao por do sol
+Quero uma imagem de um cachorro correndo na praia
+Faz uma arte de um personagem de fantasia
+Renderiza uma cena futurista de uma cidade
+Cria um retrato realista de uma mulher sorrindo
+Gera uma ilustracao estilo anime
+Pinta um quadro abstrato pra mim
+Manda uma foto de um por do sol na montanha
+
+[WEB]
+Pesquisa na internet sobre esse assunto
+Acessa esse site e me diz o que encontrou
+Busca noticias recentes sobre isso
+Navega ate essa pagina e resume o conteudo
+
+[EXTERNAL_MCP]
+Usa o git pra ver o historico de commits
+Conecta no Chrome e navega ate essa pagina
+Verifica os containers Docker rodando
+Manda uma mensagem pelo Mensagens do Mac
+Confere meus contatos no Mac

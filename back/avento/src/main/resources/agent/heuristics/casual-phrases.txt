@@ -1,0 +1,51 @@
+# Frases de conversa casual (saudacoes, small talk). Usado por AgentService
+# para responder em texto puro, sem acionar ferramentas nem contexto de
+# projeto. Uma frase por linha, sem acento (o texto do usuario e normalizado
+# antes de comparar). Comparacao e por igualdade ou prefixo da frase.
+oi
+ola
+comervais
+comer vais
+bom dia
+boa tarde
+boa noite
+e ai
+fala
+salve
+hey
+hello
+hi
+tudo bem
+beleza
+valeu
+obrigado
+obrigada
+como voce esta
+como vc esta
+como voce ta
+como vc ta
+como vai
+como vais
+o que voce pode fazer
+o que vc pode fazer
+o q voce pode fazer
+o q vc pode fazer
+que voce pode fazer
+que vc pode fazer
+com o que voce pode me ajudar
+com o que vc pode me ajudar
+com o q voce pode me ajudar
+com o q vc pode me ajudar
+com que voce pode me ajudar
+com que vc pode me ajudar
+com q voce pode me ajudar
+com q vc pode me ajudar
+no que voce pode me ajudar
+no que vc pode me ajudar
+no q voce pode me ajudar
+no q vc pode me ajudar
+o que mais voce pode fazer
+o que mais vc pode fazer
+tudo certo
+ta tudo bem
+esta tudo bem

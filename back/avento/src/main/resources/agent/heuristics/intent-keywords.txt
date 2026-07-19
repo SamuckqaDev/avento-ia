@@ -1,0 +1,135 @@
+# Palavras-chave que o IntentRouter usa para decidir quais ferramentas expor
+# ao modelo por mensagem (expor so o necessario reduz chamada de ferramenta
+# alucinada). Cada secao [NOME] precisa bater com um valor do enum
+# AgentIntent. Uma palavra ou frase por linha, sem acento.
+
+[FILE_READ]
+analisa
+analisar
+projeto
+codigo
+arquivo
+arquivos
+documento
+documentos
+pdf
+docx
+xlsx
+pptx
+pasta
+diretorio
+estrutura
+tree
+listar
+verificar
+busca
+procur
+
+[FILE_WRITE]
+cria
+criar
+corrige
+corrigir
+altera
+alterar
+edita
+editar
+apaga
+apagar
+remove
+remover
+vite
+
+[TERMINAL]
+roda
+rodar
+executa
+executar
+terminal
+teste
+testes
+build
+lint
+maven
+mvn
+npm
+docker
+git
+
+[AUTOMATION]
+abre
+abrir
+fecha
+fechar
+app
+aplicativo
+finder
+navegador
+browser
+safari
+chrome
+brave
+url
+atalho
+shortcut
+print
+screenshot
+captura tela
+capturar tela
+
+[IMAGE]
+imagem
+imagens
+foto
+fotos
+arte
+ilustracao
+ilustrar
+mockup
+desenho
+visual
+gerar imagem
+gera imagem
+criar imagem
+cria imagem
+generate image
+create image
+image generation
+picture
+photo
+illustration
+
+[WEB]
+pesquisa
+pesquisar
+pesquise
+busca
+buscar
+busque
+procura
+procurar
+procure
+google
+site
+website
+pagina
+internet
+navega
+navegar
+acessa
+acessar
+acesse
+
+[EXTERNAL_MCP]
+mcp
+playwright
+puppeteer
+desktop commander
+automator
+memoria
+lembrar
+lembre
+memorizar
+esquecer
+raciocina
+passo a passo

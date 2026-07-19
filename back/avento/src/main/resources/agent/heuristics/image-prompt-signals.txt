@@ -1,0 +1,61 @@
+# Standalone visual prompts must contain multiple style and composition signals.
+[VISUAL_STYLE]
+photorealistic
+realistic
+realista
+photography
+fotografia
+photo
+illustration
+ilustracao
+digital art
+concept art
+3d render
+4k
+8k
+
+[COMPOSITION]
+background
+fundo
+close-up
+closeup
+macro
+portrait
+retrato
+landscape
+paisagem
+lens
+lente
+depth of field
+profundidade de campo
+lighting
+iluminacao
+shadow
+sombra
+centered
+centralizado
+composition
+composicao
+frame
+enquadramento
+sharp focus
+foco nitido
+
+[DISCUSSION]
+analise
+analisa
+explique
+explica
+como faco
+como fazer
+por que
+porque saiu
+me de um prompt
+me da um prompt
+monte um prompt
+monta um prompt
+melhore o prompt
+melhora o prompt
+traduza
+traduz
+o que significa

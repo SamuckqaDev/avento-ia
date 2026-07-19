@@ -1,0 +1,32 @@
+# Palavras que indicam pedido de acao real (nao e so conversa casual). Se
+# qualquer uma aparecer na mensagem, AgentService NAO trata como small talk,
+# mesmo que a frase tambem contenha uma saudacao. Uma palavra por linha.
+analisa
+analisar
+projeto
+codigo
+arquivo
+pasta
+abre
+abrir
+app
+aplicativo
+atalho
+browser
+finder
+navegador
+cria
+criar
+corrige
+corrigir
+roda
+rodar
+executa
+terminal
+vite
+react
+mcp
+docker
+commit
+erro
+falha

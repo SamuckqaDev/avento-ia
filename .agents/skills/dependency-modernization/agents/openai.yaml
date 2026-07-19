@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dependency Modernization"
+  short_description: "Upgrade dependencies with compatibility evidence"
+  default_prompt: "Use $dependency-modernization to modernize these dependencies incrementally and validate compatibility."

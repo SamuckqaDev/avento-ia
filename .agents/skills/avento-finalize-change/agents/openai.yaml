@@ -1,0 +1,4 @@
+interface:
+  display_name: "Avento Finalize Change"
+  short_description: "Validate, document, and commit finished changes"
+  default_prompt: "Use $avento-finalize-change to finish this repository change with validation, documentation, and a semantic commit."

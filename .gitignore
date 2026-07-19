@@ -1,0 +1,56 @@
+target/
+tmp/
+data/metrics.csv
+data/skills/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Logs and runtime output
+*.log
+stdout.txt
+stderr.txt
+
+# Local databases
+*.mv.db
+*.trace.db
+avento_db*
+
+# Local machine configuration
+back/avento/src/main/resources/application-local.properties
+back/avento/src/main/resources/application-local.yml
+.env
+
+# Patch/reject leftovers
+*.orig
+*.rej
+*.patch
+
+# Local media/test captures
+*.wav
+*.webm
+*.mp3
+*.mp4
+
+# Frontend generated artifacts
+front/node_modules/
+front/dist/
+front/dist-ssr/
+
+# Playwright MCP runtime captures
+.playwright-mcp/
+
+# Local Python/voice runtime artifacts
+.avento-tools/
+piper_tts/
+piper_tts/.venv/
+piper_tts/piper_macos_aarch64.tar.gz
+piper_tts/test.wav
+
+# Vendored/native build outputs
+back/whisper.cpp/
+back/whisper.cpp/build/
+back/whisper.cpp/models/*.bin

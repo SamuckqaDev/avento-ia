@@ -1,0 +1,4 @@
+interface:
+  display_name: "Media Pipeline Maintenance"
+  short_description: "Diagnose ComfyUI image and video pipelines"
+  default_prompt: "Use $media-pipeline-maintenance to diagnose and improve this local media generation pipeline."

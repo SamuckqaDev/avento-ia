@@ -1,0 +1,4 @@
+interface:
+  display_name: "Database Migration"
+  short_description: "Design and validate safe database migrations"
+  default_prompt: "Use $database-migration to implement and validate this database schema change safely."

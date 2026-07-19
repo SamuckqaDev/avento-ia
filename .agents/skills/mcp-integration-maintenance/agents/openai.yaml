@@ -1,0 +1,4 @@
+interface:
+  display_name: "MCP Integration Maintenance"
+  short_description: "Maintain MCP servers, tools, scopes, and contracts"
+  default_prompt: "Use $mcp-integration-maintenance to inspect and improve this MCP integration."

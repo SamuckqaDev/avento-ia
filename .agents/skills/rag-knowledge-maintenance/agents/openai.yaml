@@ -1,0 +1,4 @@
+interface:
+  display_name: "RAG Knowledge Maintenance"
+  short_description: "Maintain document ingestion, vectors, and retrieval"
+  default_prompt: "Use $rag-knowledge-maintenance to diagnose and improve this Avento RAG knowledge flow."

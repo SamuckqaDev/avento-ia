@@ -1,0 +1,4 @@
+interface:
+  display_name: "Avento Frontend Maintenance"
+  short_description: "Maintain responsive React chat behavior and UI"
+  default_prompt: "Use $avento-frontend-maintenance to improve this Avento frontend behavior and verify it responsively."

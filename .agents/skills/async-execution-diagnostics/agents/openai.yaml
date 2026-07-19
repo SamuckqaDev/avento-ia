@@ -1,0 +1,4 @@
+interface:
+  display_name: "Async Execution Diagnostics"
+  short_description: "Trace Redis jobs, events, SSE, and workers"
+  default_prompt: "Use $async-execution-diagnostics to diagnose this asynchronous Avento execution end to end."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Avento Java Maintenance"
+  short_description: "Enforce Java architecture and maintenance standards"
+  default_prompt: "Use $avento-java-maintenance to review and improve this Java change with the project architecture standards."

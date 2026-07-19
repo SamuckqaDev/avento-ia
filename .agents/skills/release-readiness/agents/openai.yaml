@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release Readiness"
+  short_description: "Run the complete Avento release gate"
+  default_prompt: "Use $release-readiness to audit this Avento version before publishing it."

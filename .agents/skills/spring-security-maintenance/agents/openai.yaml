@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spring Security Maintenance"
+  short_description: "Maintain JWT cookie authentication and authorization"
+  default_prompt: "Use $spring-security-maintenance to diagnose and improve this Spring Security authentication flow."

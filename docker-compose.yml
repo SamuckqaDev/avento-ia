@@ -1,0 +1,35 @@
+name: avento-ia
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: avento-postgres
+    environment:
+      POSTGRES_DB: ${AVENTO_POSTGRES_DB:-avento}
+      POSTGRES_USER: ${AVENTO_POSTGRES_USER:-avento}
+      POSTGRES_PASSWORD: ${AVENTO_POSTGRES_PASSWORD:-avento_dev_password}
+    ports:
+      - "${AVENTO_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - avento-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AVENTO_POSTGRES_USER:-avento} -d ${AVENTO_POSTGRES_DB:-avento}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis-stack:
+    image: redis/redis-stack-server:latest
+    container_name: avento-redis-stack
+    ports:
+      - "6379:6379"
+    volumes:
+      - avento-redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  avento-postgres-data:
+    name: avento-postgres-data
+  avento-redis-data:
+    name: avento-redis-data

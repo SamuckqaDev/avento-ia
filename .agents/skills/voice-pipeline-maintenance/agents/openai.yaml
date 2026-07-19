@@ -1,0 +1,4 @@
+interface:
+  display_name: "Voice Pipeline Maintenance"
+  short_description: "Diagnose local speech recognition and synthesis"
+  default_prompt: "Use $voice-pipeline-maintenance to improve and validate Avento voice input and output."

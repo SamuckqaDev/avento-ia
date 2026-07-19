@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avento - Documentação</title>
+    <link rel="icon" type="image/svg+xml" href="avento-logo.svg">
+    <style type="text/css">
+        :root {
+            --bg-color: #081c19;
+            --sidebar-bg: #102a26;
+            --text-main: #f2fffb;
+            --text-muted: #9fb8b1;
+            --accent: #d94675;
+            --border: #21433d;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Menu Hamburguer (Mobile) */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 1000;
+            background: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Sidebar Responsivo com Rolagem */
+        .sidebar {
+            width: 300px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Rolagem do menu */
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-logo {
+            width: 42px;
+            height: 42px;
+            flex: 0 0 auto;
+        }
+
+        .sidebar-title {
+            min-width: 0;
+        }
+
+        .sidebar-title h2 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .sidebar-title span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin-top: 2px;
+        }
+
+        .sidebar-nav {
+            padding: 20px;
+            flex: 1;
+        }
+
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            display: block;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .sidebar-nav a:hover, .sidebar-nav a.active {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--accent);
+        }
+
+        /* Area de Conteúdo */
+        .content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        .content h1 {
+            color: var(--accent);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .content h2 {
+            margin-top: 40px;
+            color: #fff;
+        }
+
+        .code-block {
+            background-color: #1e293b;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+        }
+
+        .metric-card {
+            background-color: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background-color: rgba(217, 70, 117, 0.12);
+            color: #ffd7e2;
+            font-size: 0.85rem;
+            margin-right: 6px;
+        }
+
+        .brand-lockup {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 18px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(102, 230, 200, 0.12), rgba(217, 70, 117, 0.08));
+        }
+
+        .brand-mark {
+            width: 76px;
+            height: 76px;
+            flex: 0 0 auto;
+        }
+
+        .swatch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .swatch {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--sidebar-bg);
+        }
+
+        .swatch-color {
+            height: 42px;
+        }
+
+        .swatch p {
+            margin: 0;
+            padding: 10px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .card {
+            background-color: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 14px;
+        }
+
+        th, td {
+            border: 1px solid var(--border);
+            padding: 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #1e293b;
+            color: #fff;
+        }
+
+        code {
+            color: #bfdbfe;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 999;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .content {
+                padding: 60px 20px 20px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="menu-toggle" id="menuToggle">☰ Menu</button>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img class="sidebar-logo" src="avento-logo.svg" alt="Logo do Avento">
+            <div class="sidebar-title">
+                <h2>Avento Docs</h2>
+                <span>Local AI workbench</span>
+            </div>
+        </div>
+        <div class="sidebar-nav">
+            <ul>
+                <li><a href="#intro" class="active">Visão Geral</a></li>
+                <li><a href="#brand">Identidade Visual</a></li>
+                <li><a href="#quickstart">Subir Tudo</a></li>
+                <li><a href="#architecture">Arquitetura</a></li>
+                <li><a href="#redis-execution">Redis, Jobs e Streaming</a></li>
+                <li><a href="#agent">Agente e Projetos</a></li>
+                <li><a href="#hub-agent">Arquitetura Hub + Dispositivo</a></li>
+                <li><a href="#mcp-tools">Ferramentas Planejadas (MCP)</a></li>
+                <li><a href="#security">Segurança Local</a></li>
+                <li><a href="#voice">Voz em Tempo Quase Real</a></li>
+                <li><a href="#ollama">Ollama, Colima e NPU/GPU</a></li>
+                <li><a href="#images">Imagens e Vídeos</a></li>
+                <li><a href="#interface-prototypes">Mockups de Interface</a></li>
+                <li><a href="#documents">Documentos no Chat</a></li>
+                <li><a href="#endpoints">Endpoints</a></li>
+                <li><a href="#validation">Validação</a></li>
+                <li><a href="#roadmap">Próximos Passos</a></li>
+                <li style="margin-top: 40px;"><a href="index.html" style="color: #fff; background: var(--accent); text-align: center;">← Voltar para o Chat</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="content" id="content">
+        <div class="doc-section" id="intro">
+            <h1>Avento - Documentação Técnica</h1>
+            <p><span class="status-pill">Atualizado em 18/07/2026</span><span class="status-pill">Local-first</span><span class="status-pill">Auth + Projetos + Voz + Ferramentas</span><span class="status-pill">ComfyUI para mídia</span></p>
+            <p>O Avento é um assistente local para projetos de software e fluxos pessoais. A meta atual é ele trabalhar como um parceiro de desenvolvimento: analisar um projeto apontado pelo usuário, dar feedback em tempo real, usar ferramentas locais com segurança, ler e editar arquivos autorizados, rodar validações permitidas e conversar por voz.</p>
+            <p>O sistema roda com backend Spring Boot, frontend React/Vite, login local com JWT em cookie HttpOnly, PostgreSQL e Redis Stack via Docker/Colima, Ollama nativo no macOS, análise local de projetos, RAG, backups de arquivos, WebSocket para voz e serviços opcionais de Whisper.cpp/Piper.</p>
+        </div>
+
+        <div class="doc-section" id="brand">
+            <h2>Identidade Visual</h2>
+            <div class="brand-lockup">
+                <img class="brand-mark" src="avento-logo.svg" alt="Logo oficial do Avento">
+                <div>
+                    <h3>Avento</h3>
+                    <p>Identidade oficial do workbench local. O símbolo forma um A com dois planos inclinados, representando movimento e evolução. O caminho central expressa a ligação entre contexto, ferramentas e execução; o nó rosa marca o ponto em que o usuário autoriza e acompanha uma ação.</p>
+                    <p>O verde profundo comunica operação local e confiança, a menta destaca inteligência e fluxo, e o rosa identifica ações, alertas e momentos de decisão.</p>
+                </div>
+            </div>
+            <div class="swatch-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#104E45"></div><p>Verde profundo<br><code>#104E45</code></p></div>
+                <div class="swatch"><div class="swatch-color" style="background:#66E6C8"></div><p>Menta viva<br><code>#66E6C8</code></p></div>
+                <div class="swatch"><div class="swatch-color" style="background:#D94675"></div><p>Rosa ação<br><code>#D94675</code></p></div>
+                <div class="swatch"><div class="swatch-color" style="background:#F7FBF8"></div><p>Fundo claro<br><code>#F7FBF8</code></p></div>
+                <div class="swatch"><div class="swatch-color" style="background:#081C19"></div><p>Fundo escuro<br><code>#081C19</code></p></div>
+            </div>
+        </div>
+
+        <div class="doc-section" id="quickstart">
+            <h2>Subir Tudo com Um Script</h2>
+            <p>O comando principal do projeto agora é:</p>
+            <div class="code-block">
+                ./scripts/dev-up.sh
+            </div>
+            <p>Se você estiver dentro da pasta <code>scripts/</code>, use:</p>
+            <div class="code-block">./dev-up.sh</div>
+            <p>Esse script checa dependências, reconcilia containers antigos sem perder os volumes persistentes, sobe PostgreSQL e Redis Stack via Docker/Colima, confirma Ollama, mata processos antigos do próprio Avento, sobe ComfyUI, backend e frontend e roda o smoke test autenticado. O terminal mostra as URLs, a credencial root local e os logs ao vivo; os mesmos logs também ficam em <code>tmp/dev/</code>. Cada rodada do agente registra início, conclusão ou falha, e o ComfyUI informa fila, progresso a cada 10 segundos e arquivo final. Para encerrar, use <code>Ctrl+C</code>; o script finaliza os processos que ele abriu.</p>
+            <div class="metric-card">
+                <strong>Portas padrão</strong>
+                <p>Backend: <code>http://127.0.0.1:8000</code><br>Frontend: <code>http://127.0.0.1:5173</code><br>PostgreSQL: <code>127.0.0.1:5432</code><br>Redis Stack: <code>127.0.0.1:6379</code><br>Ollama: <code>http://127.0.0.1:11434</code></p>
+            </div>
+        </div>
+
+        <div class="doc-section" id="architecture">
+            <h2>Arquitetura Atual</h2>
+            <div class="grid">
+                <div class="card">
+                    <strong>Frontend</strong>
+                    <p>React + Vite em <code>front</code>. Conversa, seleção de workspace, árvore de arquivos, streaming do chat e controles de voz.</p>
+                </div>
+                <div class="card">
+                    <strong>Backend</strong>
+                    <p>Spring Boot em <code>back/avento/src/main/java/com/avento</code>. Orquestra LLM, ferramentas, arquivos, projetos, RAG, voz e segurança local.</p>
+                </div>
+                <div class="card">
+                    <strong>IA local</strong>
+                    <p>Ollama nativo no host. O agente usa <code>/api/chat</code> para streaming e chamadas de ferramenta.</p>
+                </div>
+                <div class="card">
+                    <strong>Infra local</strong>
+                    <p>PostgreSQL e Redis Stack via Docker/Colima. PostgreSQL guarda os dados duráveis; Redis transporta jobs e eventos e acelera contexto, RAG e voz.</p>
+                </div>
+            </div>
+            <p>O frontend usa proxy do Vite para <code>/api</code> e <code>/ws</code>. Assim, o navegador conversa com o backend sem precisar expor a máquina inteira na rede.</p>
+            <div class="metric-card">
+                <strong>Memoização: Sidebar e bolhas de mensagem</strong>
+                <p><span class="status-pill">Implementado</span> <code>Sidebar</code> e <code>MessageBubble</code> agora usam <code>React.memo</code> — antes, qualquer re-render do <code>Home</code> (inclusive o nível de áudio do microfone atualizando ~12x/s) re-renderizava a sidebar inteira e toda bolha de mensagem da conversa, mesmo sem relação nenhuma com o que mudou. Pré-requisito corrigido junto: <code>handleChunkReceived</code> mutava o objeto da última mensagem no lugar durante o streaming, o que teria quebrado a atualização visual do texto assim que a bolha virou memoizada — agora cria um objeto novo a cada chunk. Handlers passados como prop pra esses dois componentes (<code>onOpenDiff</code>, <code>onOpenMedia</code>, <code>startNewChat</code>, <code>handleLoadChat</code>) foram estabilizados com <code>useCallback</code>, já que uma prop de função nova a cada render invalida o memo mesmo com as outras props iguais.</p>
+            </div>
+        </div>
+
+        <div class="doc-section" id="redis-execution">
+            <h2>Redis, Jobs e Streaming</h2>
+            <p>O chat não mantém mais o trabalho preso ao mesmo <code>POST</code> do navegador. O frontend cria um job com <code>POST /api/ai/runs</code>, recebe o <code>runId</code> e acompanha <code>GET /api/ai/runs/{runId}/events</code> por SSE autenticado.</p>
+            <ol>
+                <li><strong>Persistência:</strong> job e Outbox são salvos juntos no PostgreSQL.</li>
+                <li><strong>Publicação:</strong> o dispatcher envia apenas <code>jobId</code> e <code>runId</code> para <code>avento:jobs:agent</code>.</li>
+                <li><strong>Execução:</strong> <code>AgentRunWorker</code> consome com o group <code>avento-agent-workers</code> e chama Ollama, ferramentas MCP ou ComfyUI.</li>
+                <li><strong>Feedback:</strong> texto, thinking, ferramentas e estados entram em <code>avento:events:{runId}</code>, expiram após o TTL configurado e voltam ao chat por SSE sem reler eventos de outras execuções.</li>
+                <li><strong>Confirmação:</strong> o worker executa <code>XACK</code> depois de persistir o estado final.</li>
+            </ol>
+            <div class="metric-card">
+                <strong>PostgreSQL continua sendo a fonte oficial</strong>
+                <p>Redis não é a única cópia da conversa. As últimas 20 mensagens ficam em <code>avento:context:{userId}:{chatId}</code> por até 24 horas; em cache miss ou reinício, o backend reconstrói a janela pelo PostgreSQL. Imagens, PDF, vídeo, áudio e base64 não entram nos Streams.</p>
+            </div>
+            <div class="metric-card">
+                <strong>Jedis é necessário nesta versão</strong>
+                <p>O Spring Data usa <code>client-type: jedis</code> porque o Spring AI 1.1.8 exige um <code>JedisConnectionFactory</code> para criar o <code>VectorStore</code>. Com Lettuce, o backend falha na criação do <code>RagService</code>.</p>
+            </div>
+            <div class="metric-card">
+                <strong>Cancelamento e exclusão</strong>
+                <p><code>POST /api/ai/runs/{runId}/cancel</code> grava a solicitação e descarta a execução reativa ativa. Apagar o chat cancela runs, remove jobs, Outboxes e cache, além das mensagens e mídias já tratadas pelo fluxo de exclusão.</p>
+            </div>
+            <div class="metric-card">
+                <strong>Watchdog contra execução travada</strong>
+                <p>O limite total padrão continua em 15 minutos, mas o worker também observa atividade. Se nenhum token, evento ou progresso surgir por 3 minutos, o run vira <code>FAILED</code>, o SSE encerra e o próximo item da fila pode executar. Respostas baseadas no bloco <code>[Project Analysis]</code> também não são descartadas para uma segunda tentativa cega com todas as ferramentas MCP.</p>
+            </div>
+            <p>Configuração, comandos <code>redis-cli</code>, consultas SQL e diagnóstico completo: <code>docs/REDIS_EXECUTION.md</code>.</p>
+        </div>
+
+        <div class="doc-section" id="agent">
+            <h2>Agente, Projetos e Feedback em Tempo Real</h2>
+            <p>O Avento agora tenta agir como um assistente de projeto, não apenas como chat. Quando um workspace é selecionado, o frontend injeta no prompt o contexto autorizado da máquina e a análise do projeto. Se o usuário colar um caminho absoluto como <code>/Users/.../meu-projeto</code>, o app tenta autorizar, carregar a árvore e analisar automaticamente.</p>
+            <ul>
+                <li><strong>Análise de projeto:</strong> detecta stack, scripts, entrypoints, arquivos importantes, riscos e recomendações.</li>
+                <li><strong>Ferramentas MCP/locais:</strong> o agente pode executar ferramentas com limite de rodadas e eventos de timeline.</li>
+                <li><strong>Comandos seguros:</strong> qualquer comando <code>npm</code> ou <code>npx</code> é permitido por inteiro (não é mais uma lista fixa de subcomandos — o usuário já sabe o que tá pedindo, não precisa ensinar cada ferramenta npm existente pro Avento). <code>mvn {test, package, verify}</code>, <code>git {status, diff, log --oneline}</code> e <code>docker compose {ps, up -d, down, logs}</code> continuam na lista fixa. Todo comando de terminal, de qualquer lista, ainda exige aprovação visual antes de rodar — ninguém executa nada sem você ver e confirmar. O <code>ProcessBuilder</code> recebe os argumentos já separados (sem invocar shell), então não há risco de injeção por <code>;</code>, <code>&amp;&amp;</code>, <code>|</code> etc. mesmo com a lista mais aberta.</li>
+                <li><strong>Arquivos:</strong> leitura/escrita somente em pastas autorizadas pelo usuário, com backup automático antes de alterar.</li>
+                <li><strong>Histórico com contexto:</strong> conversas salvas persistem as pastas do projeto; ao abrir pelo histórico, o app revalida se cada pasta ainda existe antes de restaurar análise, árvore e painel lateral.</li>
+                <li><strong>Roteamento casual:</strong> saudações e conversas curtas como <code>oi</code>, <code>bom dia</code>, <code>tudo bem</code> e <code>como você está</code> não recebem contexto de projeto, não disparam RAG e não executam ferramentas.</li>
+                <li><strong>Filtro de tool markup:</strong> pseudo-chamadas como <code>{function &lt;directory_tree&gt; ...}</code> são tratadas internamente e não devem aparecer como resposta do chat.</li>
+                <li><strong>Resposta local consciente:</strong> o system prompt foi ajustado para evitar a resposta genérica "não tenho acesso" quando há contexto local autorizado.</li>
+                <li><strong>Streaming isolado por conversa:</strong> cada execução mantém seu próprio <code>chatId</code>, <code>AbortController</code> e rascunho. Trocar de chat deixa a origem trabalhando em segundo plano sem mover <code>Thinking</code>, resposta, eventos, mídia ou voz para a conversa aberta; ao voltar, o rascunho é restaurado. O botão de enviar vira parar apenas no chat que está respondendo e cancela somente os streams daquela conversa.</li>
+                <li><strong>Fila de mensagens:</strong> mandar uma mensagem enquanto o Avento ainda está respondendo não descarta mais o texto — ela entra numa fila visível acima do campo de digitação, com prévia do texto e botão pra remover, e é enviada automaticamente assim que a resposta atual terminar. A fila é só da conversa aberta: trocar de chat ou começar uma nova descarta o que estava na fila (com aviso) em vez de deixar a mensagem vazar para a conversa seguinte.</li>
+                <li><strong>Árvore de arquivos isolada por conversa:</strong> <code>fileTree</code> (a árvore mostrada na sidebar) só era sobrescrita quando o chat novo tinha projeto — trocar para um chat sem projeto, ou começar um novo, deixava a árvore/seleção de arquivos do chat anterior visível. <code>clearFileTree()</code> agora limpa isso no início de <code>startNewChat</code> e <code>handleLoadChat</code>, antes de qualquer carregamento condicional.</li>
+                <li><strong>Indicador de "ainda pensando":</strong> os pontinhos de digitação agora aparecem em duas situações que antes ficavam mudas — quando a única coisa gerada até agora é um bloco <code>plan</code> (que não aparece no chat) e durante o intervalo entre chamadas de ferramenta, quando já existe texto visível mas o agente ainda está trabalhando.</li>
+                <li><strong>Contagem de tokens real:</strong> o contador de tokens exibido no rodapé de cada resposta contava chunks de streaming recebidos, sem relação real com tokens (um chunk pode ter zero, um ou vários). Agora usa o <code>eval_count</code> real que o Ollama reporta ao final de cada rodada (evento <code>agent.tokens.usage</code>); a estimativa por chunk continua só como número que se move durante o streaming, substituída pelo valor real assim que cada rodada termina.</li>
+            </ul>
+            <div class="code-block">
+                [Workspace Roots] + [Project Analysis] + conversa do usuário -> AgentService -> Ollama + ferramentas locais
+            </div>
+            <p>Diretórios grandes ou de runtime, como <code>whisper.cpp</code>, <code>piper_tts</code>, <code>tmp</code> e <code>logs</code>, são ignorados na análise para evitar ruído.</p>
+        </div>
+
+        <div class="doc-section" id="hub-agent">
+            <h2>Arquitetura Planejada: Hub + Agente de Dispositivo</h2>
+            <p><span class="status-pill">Planejado — ainda não implementado</span></p>
+            <p>Hoje o backend roda tudo no mesmo processo: o LLM, o chat, e também a execução de ações físicas (abrir app, tirar print, automação macOS via <code>SystemAutomationService</code>). Isso só funciona porque backend e usuário estão na mesma máquina. O próximo passo de arquitetura separa essas duas responsabilidades:</p>
+            <div class="grid">
+                <div class="card">
+                    <strong>Hub (este backend)</strong>
+                    <p>Continua central, rodando num PC: Ollama/LLM, orquestração do agente, RAG, chat, timeline, aprovações, políticas, e ferramentas ligadas a código/projeto (git, terminal, banco de dados).</p>
+                </div>
+                <div class="card">
+                    <strong>Agente Windows</strong>
+                    <p>Processo leve pareado ao Hub. Executa: abrir/fechar apps, notificações, captura de tela, seletor de pasta nativo.</p>
+                </div>
+                <div class="card">
+                    <strong>Agente Linux</strong>
+                    <p>Mesma responsabilidade do Agente Windows, com implementação própria (<code>xdg-open</code>, <code>notify-send</code>, <code>zenity</code>/<code>kdialog</code>).</p>
+                </div>
+                <div class="card">
+                    <strong>Agente macOS</strong>
+                    <p>Sucessor do <code>SystemAutomationService</code> atual: AppleScript/<code>osascript</code>, Finder, apps, print de tela — extraído do Hub para rodar como agente pareado.</p>
+                </div>
+                <div class="card">
+                    <strong>Agente Android</strong>
+                    <p>App nativo com Accessibility Service, conectado ao Hub por WebSocket. Vira um alvo de automação real, não apenas um cliente de leitura.</p>
+                </div>
+            </div>
+            <p>Fluxo de uma ação física: o agente de IA decide chamar uma ferramenta como <code>capture_screen</code>; em vez de executar no processo do Hub, o pedido é despachado para o Agente do dispositivo ativo daquele usuário, que executa localmente e devolve o resultado. A aprovação continua acontecendo na conversa central, nunca silenciosamente no dispositivo remoto.</p>
+            <div class="code-block">
+                Hub (LLM + aprovação) --[WebSocket pareado]--&gt; Agente do dispositivo --[executa]--&gt; devolve resultado --&gt; Hub continua o raciocínio
+            </div>
+            <p>Cada dispositivo precisa de pareamento explícito (código/QR) e recebe um token próprio, revogável a qualquer momento. Um usuário pode ter vários dispositivos pareados; a conversa escolhe qual é o "dispositivo alvo" de cada ação.</p>
+            <div class="metric-card">
+                <strong>Ponto de atenção</strong>
+                <p>O canal Hub↔dispositivo é uma superfície de rede nova, separada da guarda loopback-only que protege a API HTTP atual. Precisa nascer com token por dispositivo e transporte criptografado (WSS) desde o primeiro protótipo — não é algo para adicionar depois.</p>
+            </div>
+        </div>
+
+        <div class="doc-section" id="mcp-tools">
+            <h2>Ferramentas MCP e nativas</h2>
+            <p>Ferramentas de autonomia do agente, com status atual. As marcadas "Hub" rodam hoje na mesma máquina do backend — a separação real "Hub + Agente de Dispositivo" da seção anterior ainda não existe, então nada aqui é executado remotamente ainda.</p>
+            <table summary="Ferramentas MCP e nativas, status e onde rodam">
+                <thead>
+                    <tr>
+                        <th>Ferramenta</th>
+                        <th>Onde roda</th>
+                        <th>Status</th>
+                        <th>Para quê</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Git MCP (<code>@cyanheads/git-mcp-server</code>)</td><td>Hub</td><td><span class="status-pill">Implementado</span></td><td>Diff, commit, branch e stage nativos, além da allowlist fixa de <code>git status/diff/log</code>.</td></tr>
+                    <tr><td>Postgres MCP (<code>@modelcontextprotocol/server-postgres</code>)</td><td>Hub</td><td><span class="status-pill">Implementado</span></td><td>Inspeção/consulta somente-leitura de bancos. Exige <code>avento.mcp.postgres.connection-string</code> configurado.</td></tr>
+                    <tr><td>Docker MCP Gateway oficial</td><td>Docker CLI</td><td><span class="status-pill">Implementado</span></td><td>Usa o servidor <code>docker</code> do gateway oficial, com preparação automática e compatibilidade com Colima.</td></tr>
+                    <tr><td>Apple MCP (<code>apple-mcp</code>)</td><td>Hub (macOS)</td><td><span class="status-pill">Implementado</span></td><td>Contatos, Notas, Mensagens, Calendário. Projeto recomenda rodar via <code>bun</code>; pode falhar via <code>npx</code> puro se o Bun não estiver instalado.</td></tr>
+                    <tr><td>Chrome DevTools MCP (<code>chrome-devtools-mcp</code>)</td><td>Hub</td><td><span class="status-pill">Implementado</span></td><td>Controla um Chrome real via CDP — ainda não o navegador com as sessões logadas do cliente (isso depende do Agente de Dispositivo).</td></tr>
+                    <tr><td>Fetch MCP</td><td>Hub</td><td>Planejado — P2</td><td>Converte uma URL em markdown limpo para leitura de docs/links.</td></tr>
+                    <tr><td>Busca web (Brave/Tavily)</td><td>Hub</td><td>Não planejado</td><td>Único item não 100% local; precisa de chave de API paga.</td></tr>
+                    <tr><td>Abrir/fechar apps, notificações, print de tela</td><td>Dispositivo</td><td>Planejado — P1</td><td>Migra do <code>SystemAutomationService</code> (hoje só macOS) para capacidade padrão de todo Agente de Dispositivo.</td></tr>
+                    <tr><td>Automação Android (Accessibility Service)</td><td>Dispositivo</td><td>Planejado — P2</td><td>Viabilizado pelo modelo Hub + Agente; o app Android expõe as ações possíveis naquele SO restrito.</td></tr>
+                </tbody>
+            </table>
+            <div class="metric-card">
+                <strong>Toda ferramenta desconhecida agora exige aprovação por padrão</strong>
+                <p><span class="status-pill">Correção de segurança</span> Antes, <code>ToolCapabilityRegistry.requiresApproval()</code> liberava sem aprovação qualquer ferramenta que não estivesse cadastrada nas ~20 nativas — incluindo tudo que vem de MCP externo (Desktop Commander, Automator, Playwright, Puppeteer, e as 5 novas acima). Isso foi invertido: ferramenta desconhecida agora exige aprovação por padrão, e só roda livre se estiver explicitamente marcada <code>AUTO</code> no registro.</p>
+            </div>
+            <div class="metric-card">
+                <strong>Orquestrador único e SDK MCP oficial</strong>
+                <p><span class="status-pill">Implementado</span> Toda solicitação cria um <code>runId</code> no <code>AgentOrchestrator</code>, atravessa o mesmo gateway de ferramentas e fica em <code>RUNNING</code>, <code>AWAITING_APPROVAL</code>, <code>COMPLETED</code>, <code>FAILED</code> ou <code>CANCELLED</code>. Servidores externos usam o SDK Java oficial do MCP por stdio; descoberta, colisão de nomes e execução deixam de depender do parser manual legado. O resultado de comandos, escrita de arquivo e scaffolds é verificado antes de o agente anunciar sucesso.</p>
+                <p>Use <code>AVENTO_MCP_SDK_ENABLED=false</code> apenas como fallback temporário e <code>AVENTO_MCP_SDK_REQUEST_TIMEOUT=10s</code> para ajustar o tempo de inicialização e chamada. Conexões repetidas são idempotentes e não reiniciam um servidor já ativo. O Desktop Commander continua no catálogo para conexão manual, sem bloquear a subida automática.</p>
+            </div>
+            <div class="metric-card">
+                <strong>Geração de imagem: instrução direta, não só política</strong>
+                <p><span class="status-pill">Corrigido</span> <code>generate_image</code> nunca era mencionado em <code>agent/instructions/tools.md</code> — a única instrução vivia misturada dentro do texto de política de conteúdo (<code>agent/policies/*.md</code>), que fala de critérios como "nudez artística vs sexualizada". O modelo tendia a "avaliar" esses critérios em texto em vez de simplesmente chamar a ferramenta. Agora <code>tools.md</code> tem uma linha direta ("pedido de imagem → generate_image, decida internamente, nunca narre a política").</p>
+            </div>
+            <div class="metric-card">
+                <strong>Política pública e configuração pessoal separadas</strong>
+                <p><span class="status-pill">Atualizado</span> <code>agent/policies/maximum.md</code> mantém uma política pública adequada para o repositório. Tradução, transcrição, resumo, revisão, classificação e análise de material fornecido continuam tratadas como transformação: preservam significado, intensidade, palavrões e linguagem adulta ou explícita, sem censura ou eufemismo.</p>
+                <p><span class="status-pill">Local</span> Uma máquina pode substituir a política embutida com <code>~/.avento/policies/{modo}.md</code> ou configurar outro diretório por <code>AVENTO_AGENT_POLICY_OVERRIDE_DIR</code>. O conteúdo pessoal não entra no Git; sem o arquivo local, o backend usa a política pública versionada.</p>
+                <p><span class="status-pill">Modelo</span> As políticas e os procedimentos internos de imagem e tradução são escritos em inglês para melhorar a aderência de modelos locais. A interface e as respostas continuam acompanhando o idioma do usuário.</p>
+            </div>
+            <div class="metric-card">
+                <strong>Exposição de ferramentas: baratas sempre visíveis, caras filtradas</strong>
+                <p><span class="status-pill">Implementado</span> <code>generate_image</code> e <code>capture_screen</code> (schema pequeno, alto valor) agora ficam sempre expostas ao modelo — não dependem mais de bater com uma palavra-chave. O filtro de intenção continua só para os clusters caros (MCP externo com dezenas de ferramentas cada). Complementa isso uma rede de segurança: se a primeira rodada não usar nenhuma ferramenta numa mensagem que não é conversa casual, o backend tenta de novo automaticamente com o conjunto completo de ferramentas, uma única vez por resposta.</p>
+                <p><span class="status-pill">Aviso de ação não confirmada</span> O modelo pode descrever uma ação como concluída em texto ("✅ criado com sucesso") sem ter chamado nenhuma ferramenta de verdade — já aconteceu com pedidos grandes (ex.: gerar vários serviços NestJS de uma vez). Não dá pra impedir isso só por instrução de prompt, e tentar detectar a mentira no texto seria frágil. Em vez disso, o backend usa a única fonte confiável que existe — <code>state.executedToolCalls</code>, que só sobe quando uma ferramenta é de fato executada — e anexa um aviso visível na resposta sempre que o pedido era acionável (não é conversa casual) e o turno inteiro, já com o retry tentado, executou zero ferramentas.</p>
+            </div>
+            <div class="metric-card">
+                <strong>Classificação de intenção por significado, não só palavra-chave</strong>
+                <p><span class="status-pill">Implementado</span> <code>IntentEmbeddingClassifier</code> usa o mesmo modelo de embedding do RAG (<code>nomic-embed-text</code>) para comparar o significado da mensagem do usuário com frases-exemplo por categoria (<code>agent/heuristics/intent-examples.txt</code>), em vez de exigir bater a palavra exata. Funciona como sinal adicional ao <code>IntentRouter</code> por palavra-chave — os dois sinais se somam (união, não substituição), e se o Ollama estiver indisponível ou lento, cai de volta sozinho para o classificador por palavra-chave sem quebrar nada.</p>
+                <p><span class="status-pill">Corrigido</span> Achado de performance: <code>IntentRouter.classify()</code> era chamado uma vez por ferramenta dentro do loop de seleção de tools — com MCP externo conectado (dezenas de ferramentas), isso virava dezenas de chamadas de embedding redundantes ao Ollama pra mesma mensagem, a cada turno. Agora <code>AgentService.selectToolsForCurrentRequest</code> classifica a mensagem uma única vez e reusa o resultado (<code>IntentProfile</code>) pra todas as ferramentas do loop.</p>
+            </div>
+            <div class="metric-card">
+                <strong>Aprovação por plano, não ação por ação</strong>
+                <p><span class="status-pill">Implementado</span> Antes de agir em pedidos com mais de um passo, o agente escreve um plano (ver <code>agent/instructions/execution.md</code>). Ao aprovar a primeira ação, o backend libera as próximas ações da mesma resposta automaticamente — sem novo popup — exceto <code>delete_file</code>, <code>terminal_stop</code> e <code>close_app</code>, que sempre pedem confirmação própria mesmo com o plano já aprovado. A liberação vale só para aquela resposta (<code>runId</code>); a próxima mensagem do usuário começa sem nada pré-aprovado.</p>
+                <p><span class="status-pill">Atualizado</span> O plano não aparece mais como texto solto no chat — o modelo escreve os passos dentro de um bloco <code>```plan```</code>, o frontend remove esse bloco do balão de mensagem (mesmo padrão já usado pro bloco <code>```file-edit```</code>) e mostra os passos numerados na aba "Tarefas e Contexto". A aba abre uma vez quando o plano aparece e respeita o fechamento manual durante o restante da execução, mesmo que novos chunks ou eventos de ferramenta atualizem o plano. O plano some da aba assim que uma mensagem nova é enviada.</p>
+                <p><span class="status-pill">Fallback</span> O modelo local nem sempre usa o bloco <code>```plan```</code> pedido — às vezes escreve os passos como lista numerada solta mesmo. <code>extractLooseNumberedList</code> detecta esse padrão também e duplica na aba, mas <strong>não esconde do chat</strong> nesse caso (uma lista numerada solta pode ser só uma explicação normal, não necessariamente um plano de execução — só o bloco <code>```plan```</code> explícito é removido, por ser um sinal inequívoco).</p>
+            </div>
+            <div class="metric-card">
+                <strong>Skills — procedimentos reutilizáveis via <code>/nome</code></strong>
+                <p><span class="status-pill">Implementado</span> Um pedido comum e repetido não precisa fazer o modelo reconstruir o procedimento do zero. Arquivos <code>.md</code> em <code>agent/skills/</code> são carregados pelo <code>SkillRegistry</code>; digitar <code>/nome argumento</code> injeta o procedimento no turno e mantém o mesmo modelo, Permission Engine e fluxo de ferramentas.</p>
+                <p><span class="status-pill">Pacote padrão</span> O Avento inclui procedimentos para analisar, corrigir, diagnosticar, executar e criar projetos; manter Java/Spring, Spring Security, banco/Flyway, integrações MCP, jobs Redis/SSE, frontend, mídia, voz, RAG e dependências; ler documentos; traduzir fielmente conteúdo fornecido; consultar bancos; gerenciar memória, Git e Docker; pesquisar na web; finalizar mudanças e validar releases. Use <code>/skills</code> para ver os nomes atuais. Os procedimentos usam somente ferramentas que o Avento realmente oferece e exigem resultado confirmado antes de anunciar sucesso.</p>
+                <p><span class="status-pill">Skills compartilhadas</span> As skills embutidas orientam o próprio Avento. Para Codex e outros agentes que trabalham neste repositório, <code>AGENTS.md</code> aponta para as versões detalhadas e validáveis em <code>.agents/skills/</code>.</p>
+                <p><span class="status-pill">Ativação automática</span> Cada arquivo pode declarar uma linha <code>Gatilhos:</code>. As frases são normalizadas sem acentos e, quando mais de uma combinar, vence a mais específica. Mensagens casuais nunca ativam skill. A skill <code>translate-content</code> reconhece pedidos diretos de tradução e preserva o texto original no turno. Toda ativação emite <code>skill.activated</code> no painel de atividade.</p>
+                <p><span class="status-pill">Ferramenta declarada</span> Além de <code>Gatilhos:</code>, o cabeçalho pode declarar <code>Ferramenta:</code> — a ferramenta que a skill comanda. A skill sempre passa pelo modelo (ele raciocina e decide a chamada), mas a ferramenta declarada é exposta com prioridade na seleção, imune às heurísticas de palavra-chave que antes desviavam pedidos de vídeo para <code>generate_image</code>. Assim <code>/generate-video</code> chega ao <code>generate_video</code> e <code>/generate-image</code> ao <code>generate_image</code>, mesmo quando o texto do pedido menciona a outra mídia. <code>generate-video</code> ganhou gatilhos de linguagem natural; <code>generate-image</code> permanece sem gatilhos porque "gera uma imagem" já é capturado pelo detector direto de imagem.</p>
+                <p><span class="status-pill">Descoberta</span> <code>/skills</code> lista todas as skills instaladas com descrição, sem chamar o modelo. Nome de skill que não existe responde na hora com essa mesma lista. Digitar <code>/</code> no campo de mensagem abre um autocomplete com as skills disponíveis (↑↓ navega, Enter/Tab escolhe, Esc fecha).</p>
+                <p><span class="status-pill">Criação pela interface</span> O botão de raio (⚡) na barra superior abre o gerenciador de skills: lista as instaladas (com selo "sistema" ou "sua"), permite criar novas (nome, descrição, gatilhos de ativação automática e o procedimento) e remover as suas. Skills criadas pela UI ficam em <code>data/skills/*.md</code> (fora do git) e sobrevivem a reinício do backend — endpoints em <code>/api/skills</code> (GET/POST/DELETE), skills embutidas do sistema não podem ser alteradas nem removidas.</p>
+            </div>
+            <div class="metric-card">
+                <strong>Paridade com Claude Code / Codex (agente de código)</strong>
+                <p><span class="status-pill">edit_file implementado</span><span class="status-pill">aprovação por plano implementada</span><span class="status-pill">skills implementado</span> Itens ainda planejados: lista de tarefas visível durante execução (P1), arquivo de instruções por projeto tipo <code>AVENTO.md</code> (P2), modos de permissão por sessão (P2), subagentes e checkpoint de conversa (P3).</p>
+            </div>
+            <div class="metric-card">
+                <strong>Heurísticas de mensagem em arquivo, não em código</strong>
+                <p>As listas de palavras usadas para detectar conversa casual e para decidir quais ferramentas expor por mensagem agora vivem em <code>back/avento/src/main/resources/agent/heuristics/*.txt</code> (<code>casual-phrases.txt</code>, <code>project-action-words.txt</code>, <code>intent-keywords.txt</code>), carregadas por <code>HeuristicWordLists</code>. Editar uma palavra-chave não exige recompilar nem mexer no <code>AgentService.java</code> ou <code>IntentRouter.java</code>.</p>
+            </div>
+        </div>
+
+        <div class="doc-section" id="security">
+            <h2>Segurança Local</h2>
+            <p>O Avento está configurado como ferramenta local-first. O backend fica preso em <code>127.0.0.1</code> por padrão, bloqueia uso não-loopback quando a configuração segura está ativa e exige login local quando <code>avento.auth.enabled=true</code>.</p>
+            <ul>
+                <li><strong>Loopback:</strong> servidor e CORS aceitam somente origens locais por padrão.</li>
+                <li><strong>Login root local:</strong> o profile local cria/atualiza o e-mail definido por <code>AVENTO_AUTH_ROOT_EMAIL</code> (padrao <code>admin@avento.local</code>) com role <code>ROOT</code>. A senha deve ser definida por <code>AVENTO_AUTH_ROOT_PASSWORD</code>; esse seed pode ser desligado por <code>AVENTO_AUTH_ROOT_ENABLED=false</code>.</li>
+                <li><strong>Cookie de dev:</strong> access JWT vai em cookie <code>HttpOnly</code> com <code>SameSite=Lax</code>; em dev <code>Secure=false</code> porque o ambiente roda em HTTP local.</li>
+                <li><strong>Refresh interno:</strong> o navegador não recebe refresh token. O backend usa <code>sid/jti</code> do access token para achar a sessão, rotacionar o <code>jti</code> e registrar auditoria.</li>
+                <li><strong>Axios no frontend:</strong> chamadas REST <code>/api</code> usam um client Axios compartilhado com <code>withCredentials=true</code>; streams de chat usam <code>fetch</code> apenas para ler <code>ReadableStream</code>.</li>
+                <li><strong>Refresh coordenado:</strong> o frontend compartilha uma única chamada de <code>/api/auth/refresh</code> entre requests simultâneos para evitar corrida na rotação do <code>jti</code>.</li>
+                <li><strong>Cookie como credencial única:</strong> a sessão é validada pelo access JWT em cookie <code>HttpOnly</code>; o frontend não lê nem envia token de autenticação em JavaScript.</li>
+                <li><strong>Histórico por usuário:</strong> conversas e mensagens de <code>/api/chats</code> são filtradas pelo usuário autenticado; um perfil não carrega nem altera chats de outro.</li>
+                <li><strong>Feedback de autorização:</strong> respostas <code>401</code> e <code>403</code> retornam JSON com status, mensagem e rota; o frontend exibe sessão vencida com revalidação ou snackbar de acesso negado.</li>
+                <li><strong>Autorização de workspace:</strong> o usuário precisa liberar uma pasta antes de ler, listar ou escrever arquivos.</li>
+                <li><strong>Aprovação por voz:</strong> ações pendentes podem ser aprovadas ou canceladas falando frases como “aprovo por 24 horas nesse projeto” ou “cancela”; permissões temporárias ficam vinculadas ao projeto, ferramenta e recurso/comando.</li>
+                <li><strong>Backup antes de escrita/remoção:</strong> cada alteração ou remoção controlada cria cópia restaurável.</li>
+                <li><strong>Restore:</strong> endpoint dedicado para restaurar versões salvas.</li>
+                <li><strong>Comandos restritos:</strong> nada de shell livre para o modelo; apenas validações aprovadas.</li>
+                <li><strong>Erros controlados:</strong> falhas do agente viram eventos de stream em vez de quebrar a UI com 500 genérico.</li>
+            </ul>
+            <p>Para expor o Avento em rede no futuro, será necessário habilitar HTTPS, usar segredo JWT forte, revisar CORS, limitar permissões por workspace e acompanhar auditoria de ações.</p>
+        </div>
+
+        <div class="doc-section" id="voice">
+            <h2>Voz em Tempo Quase Real</h2>
+            <p><span class="status-pill">Indicador visual de captura</span> Um medidor de nível de áudio (barras que reagem em tempo real) aparece ao lado do botão de microfone sempre que a gravação por clique ou o modo de voz em tempo real estiverem ativos — confirmação visual real de que o som está chegando, não só um ícone estático de "gravando". Implementado com <code>AnalyserNode</code> da Web Audio API, atualizado a cada ~80ms.</p>
+            <p>Existem dois fluxos de voz no frontend:</p>
+            <table summary="Comparativo entre os dois modos de voz do Avento">
+                <thead>
+                    <tr>
+                        <th>Controle</th>
+                        <th>Como funciona</th>
+                        <th>Quando usar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Microfone tradicional</td>
+                        <td>Grava tudo via <code>MediaRecorder</code> e só transcreve quando o usuário para a gravação.</td>
+                        <td>Bom para ditar uma mensagem maior e revisar antes de enviar.</td>
+                    </tr>
+                    <tr>
+                        <td>Conversa em tempo quase real</td>
+                        <td>Abre <code>/ws/voice</code>, detecta silêncio, envia a frase WebM completa, manda <code>flush</code>, recebe transcrição e envia ao chat automaticamente.</td>
+                        <td>Bom para falar direto com o Avento sem ficar clicando parar a cada frase.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>No backend, o WebSocket recebe o WebM completo de cada frase com buffer ampliado para áudio, converte com FFmpeg e transcreve localmente com Whisper.cpp. O Avento detecta idioma localmente, aceita apenas idiomas configurados como permitidos e refaz em português quando o Whisper tenta sair para outro idioma ou alfabeto. Ele também passa um prompt local de vocabulário e <code>--carry-initial-prompt</code> para preservar nomes como VS Code, Brave, Finder e termos de projeto em comandos curtos. O frontend recebe JSON como <code>{"type":"transcript.final","text":"bom dia","language":"pt"}</code>.</p>
+            <p>O modo conversa também tem interrupção por fala, ou <em>barge-in</em>: se o usuário começa a falar enquanto o Avento está respondendo por voz, o frontend corta o áudio atual imediatamente, aborta a geração em andamento quando necessário e mantém a captura ativa até detectar cerca de 2 segundos de silêncio, para enviar a nova fala com o contexto recente da conversa.</p>
+            <p>O TTS usa cache opcional no Redis para reaproveitar WAVs de frases iguais e reduzir latência. Se o Redis estiver indisponível, o Piper continua sendo usado normalmente. O frontend envia o idioma detectado da resposta para <code>/api/voice/tts</code>, e o backend escolhe <code>piper-model-pt</code>, <code>piper-model-en</code> ou <code>piper-model-es</code> quando configurados. Para inglês soar natural, use um modelo Piper em inglês em <code>avento.voice.piper-model-en</code>; sem isso, o fallback PT-BR continua funcionando, mas pode soar como leitura com sotaque. Caminhos relativos de Piper e Whisper são resolvidos pela raiz indicada em <code>AVENTO_PROJECT_ROOT</code>, que o <code>dev-up.sh</code> configura automaticamente. Se o projeto tiver sido movido, o backend também contorna shebangs antigos do virtualenv ao iniciar o Piper pelo Python local correspondente.</p>
+            <div class="metric-card">
+                <strong>Limite atual</strong>
+                <p>Esse fluxo é frase/silêncio-based. Ele não é streaming neural palavra por palavra. Para chegar nesse nível, o próximo passo é VAD mais preciso, pipeline WebRTC ou Whisper streaming dedicado.</p>
+            </div>
+            <p>Arquivos locais esperados para voz:</p>
+            <div class="code-block">
+                back/whisper.cpp/build/bin/whisper-cli
+                back/whisper.cpp/models/ggml-small.bin
+                avento.voice.whisper-language=auto
+                avento.voice.preferred-language=pt
+                avento.voice.allowed-languages=pt,en,es
+                avento.voice.whisper-prompt=Avento. Portugues brasileiro natural...
+                piper_tts/.venv/bin/piper
+                piper_tts/pt_BR-faber-medium.onnx
+                avento.voice.piper-model-en=./piper_tts/en_US-voice.onnx
+            </div>
+        </div>
+
+        <div class="doc-section" id="ollama">
+            <h2>Ollama, Colima e Aceleração no Mac</h2>
+            <p>No macOS, a recomendação é rodar o Ollama nativo no host, fora do Docker/Colima. Assim ele consegue usar aceleração Metal em Apple Silicon. Rodar Ollama dentro de container no Mac geralmente não entrega passthrough de GPU/Metal e tende a cair para CPU, ficando bem mais lento.</p>
+            <p>Para o agente com ferramentas locais habilitadas, prefira <code>qwen3:8b</code>. Nos testes locais ele respondeu saudações em português sem acionar ferramentas e chamou ferramenta apenas em pedido explícito. O <code>llama3.2</code> continua útil como fallback leve, mas pode confundir saudações curtas com chamadas de ferramenta quando muitas tools estão expostas. A interface marca modelos pesados no seletor.</p>
+            <p>O backend compacta histórico antigo, remove prompts de sistema duplicados do frontend e envia apenas as ferramentas relevantes para o pedido antes de chamar o modelo. Isso reduz warnings como <code>truncating input prompt limit=4096 prompt=17136</code> quando a conversa acumula contexto de projeto, ferramentas e validações. A propriedade <code>avento.agent.num-ctx=8192</code> fica disponível para provedores/endpoints que respeitam essa opção.</p>
+            <p>Use Docker/Colima para PostgreSQL e Redis Stack, mantendo Ollama no host:</p>
+            <div class="code-block">
+                colima start
+                docker compose up -d
+                ollama serve
+            </div>
+            <p>Modelos recomendados:</p>
+            <div class="code-block">
+                ollama pull qwen3:8b
+                ollama pull qwen2.5vl:7b
+                ollama pull llama3.2
+                ollama pull nomic-embed-text
+            </div>
+            <p>Se algum serviço dentro do Colima precisar chamar o Ollama do host, use <code>host.docker.internal</code> ou <code>host.lima.internal</code>, dependendo da configuração do Colima.</p>
+        </div>
+
+        <div class="doc-section" id="images">
+            <h2>Leitura e Geração de Imagens e Vídeos</h2>
+            <p>As responsabilidades são separadas: modelos multimodais do Ollama leem e interpretam anexos PNG, JPEG e WebP, enquanto o ComfyUI executa os workflows locais de geração de mídia. A geração visual não exige workspace nem servidor MCP. Pedidos explícitos e descrições visuais autônomas com sinais suficientes de estilo e composição seguem diretamente para <code>generate_image</code>; pedidos para analisar, explicar ou melhorar um prompt continuam na conversa. Ao receber uma imagem, o Avento usa o modelo configurado em <code>AVENTO_AGENT_VISION_MODEL</code> e preserva o contexto visual na conversa.</p>
+            <p>A ferramenta <code>generate_image</code> envia o prompt e os parâmetros do header para o workflow compatível. O RealVisXL V5 é o padrão recomendado e usa SDXL em resolução nativa, VAE próprio, segundo passe e detailers. Uma imagem anexada pode orientar <strong>Composição</strong> por Depth/Canny ControlNet, <strong>Identidade</strong> por IP-Adapter ou <strong>Transformação</strong> por img2img; a pose possui um arquivo e uma força independentes. O Realistic Vision V6 permanece como alternativa SD 1.5 e o FLUX.2 Klein como opção destilada de uso geral. O controle <code>Validar resultado</code> compara localmente a saída ao pedido com o modelo visual e permite até duas tentativas corretivas; essa revisão aumenta o tempo e nunca bloqueia a imagem existente quando não puder ser executada. <code>scripts/setup-comfyui-sdxl.sh</code> instala RealVisXL, VAE, ControlNets, IP-Adapter e preprocessadores com downloads retomáveis e SHA-256, e o <code>dev-up.sh</code> executa esse preparo automaticamente salvo quando <code>AVENTO_COMFYUI_SDXL_AUTO_INSTALL=0</code>.</p>
+            <p><span class="status-pill">Tradução de prompt</span> O encoder CLIP dos checkpoints SDXL entende apenas inglês e trunca o prompt em 77 tokens; um pedido em português chegava como ruído. Antes de montar o prompt, o <code>ImagePromptTranslator</code> traduz o pedido para inglês com o modelo de conversa (Ollama, <code>think:false</code>, tradução literal que não inventa detalhes), e qualquer falha mantém o pedido original. O planner também passou a colocar o conteúdo do usuário no início do prompt positivo, de modo que a truncagem do CLIP corte o reforço do planner, nunca o pedido. Controle por <code>AVENTO_IMAGE_TRANSLATION_ENABLED</code>, <code>AVENTO_IMAGE_TRANSLATION_MODEL</code> e <code>AVENTO_IMAGE_TRANSLATION_TIMEOUT_SECONDS</code>.</p>
+            <p><span class="status-pill">Presets por modelo</span> Cada família de checkpoint tem seu ponto ideal de sampler, passos, CFG e resolução nativa. O <code>ImageModelPresetCatalog</code> resolve o preset do modelo selecionado a partir de <code>comfyui/model-presets.json</code>: <code>sdxl-photoreal</code> (RealVisXL/JuggernautXL/SDXL), <code>flux2-klein</code> destilado (4 passos, CFG 1.0), <code>flux2-klein-base</code> (16–24 passos, CFG 3.5–4.5) e <code>stable-diffusion-1.5</code> como padrão. O seletor draft/balanced/quality escolhe a faixa dentro do preset e ajustes manuais sempre vencem — um CFG definido na mão sobrepõe o do preset. É possível sobrepor ou adicionar presets em <code>~/.avento/image-presets.json</code> (<code>AVENTO_IMAGE_PRESETS_FILE</code>), relido a cada geração e sem entrar no Git.</p>
+            <p><span class="status-pill">FLUX.2 fiel ao pedido</span> O encoder do FLUX.2 Klein é um LLM (qwen), que segue frases naturais e trata a sopa de tags do planner SDXL como ruído — era a causa das imagens ignorarem o pedido. O preset declara <code>promptStyle</code>: <code>tags</code> (SDXL/SD 1.5) recebe o prompt reforçado do planner; <code>natural</code> (FLUX.2) recebe o pedido traduzido como frase limpa. O destilado roda em 4 passos com CFG 1.0 por recomendação oficial; a variante base tem preset próprio para aderência máxima ao custo de mais tempo.</p>
+            <p>A ferramenta <code>generate_video</code> usa WAN 2.2 TI2V 5B. Ela pode animar a imagem mais recente do chat ou trabalhar apenas com texto e é executada de forma assíncrona, com progresso, estimativa e cancelamento no frontend. O workflow fica em <code>back/avento/src/main/resources/comfyui/workflows/text-to-video-api.json</code>; <code>scripts/setup-comfyui-video.sh</code> instala os modelos necessários com retomada automática.</p>
+            <p>O script <code>scripts/dev-up.sh</code> inicia e acompanha Ollama e ComfyUI junto com PostgreSQL, Redis, backend e frontend. O MarkItDown é validado durante a subida e conectado automaticamente pelo catálogo MCP. As mídias concluídas aparecem no chat, ficam vinculadas à conversa e são exibidas na seção de mídia do frontend. Imagens e vídeos podem ser minimizados em um cabeçalho compacto e expandidos novamente pela seta, no mesmo padrão do bloco de raciocínio. A seção Mídias da barra lateral também é recolhível e mostra apenas uma lista compacta do chat selecionado.</p>
+            <p><span class="status-pill">Saída visual</span> O chat renderiza tabelas Markdown (GFM via <code>remark-gfm</code>), e o modelo pode responder com um bloco <code>ui-preview</code> autocontido para relatórios, dashboards e gráficos em SVG inline — sem rede, no mesmo iframe isolado dos protótipos. A skill <code>visual-report</code> orienta esse formato.</p>
+            <p><span class="status-pill">Exportar PDF</span> A ferramenta <code>generate_pdf</code> converte Markdown (com tabelas) ou HTML em um PDF via openhtmltopdf, salvo em <code>~/Pictures/Avento Generated Images</code> e vinculado à conversa (marcador <code>[[avento-doc:...]]</code>, card de download no balão). É servido pelo mesmo endpoint de mídia e apagado junto com o chat.</p>
+            <p><span class="status-pill">Pesquisa na internet</span> A skill <code>/research</code> declara <code>Ferramentas:</code> (plural — <code>fetch</code>, <code>web_url_read</code>, <code>browser_navigate</code>, <code>browser_snapshot</code>) e <code>MaxRodadas:</code>, que eleva o teto de rodadas só para a pesquisa (o global de 6 continua protegendo as demais conversas). O procedimento busca, extrai e sintetiza numa tabela ou relatório com fontes citadas.</p>
+        </div>
+
+        <div class="doc-section" id="interface-prototypes">
+            <h2>Mockups e Protótipos de Interface</h2>
+            <p>Pedidos de <code>mockup de tela</code>, <code>mockup de interface</code>, <code>ui mockup</code>, <code>website mockup</code>, <code>wireframe</code> ou protótipo ativam a skill <code>prototype-interface</code> antes do roteamento de geração de imagens. Esse fluxo não usa ComfyUI: o modelo produz um documento HTML autocontido em um bloco <code>ui-preview</code> e o navegador o renderiza localmente.</p>
+            <p>O resultado aparece recolhido como uma miniatura para preservar espaço no chat. Clique nela, ou use Enter/Espaço com foco, para abrir a prévia no próprio balão. Os controles alternam desktop, tablet e celular; o botão de expansão abre uma área maior. Scripts começam desativados e só recebem <code>allow-scripts</code> quando a interação é habilitada manualmente.</p>
+            <p>O HTML permanece no conteúdo persistido da mensagem, então o mockup volta com o histórico sem criar mídia adicional. Depois da aprovação explícita, o agente pode transformar a proposta nos componentes reais do workspace e validar a implementação com Playwright.</p>
+        </div>
+
+        <div class="doc-section" id="documents">
+            <h2>Documentos no Chat</h2>
+            <p>O botão de clipe do composer aceita até quatro arquivos por mensagem: PDF, Word, Excel, PowerPoint, EPUB, ZIP, texto e formatos comuns de código. Cada arquivo pode ter até 50 MB.</p>
+            <p>O frontend envia o arquivo ao endpoint autenticado <code>POST /api/documents/extract</code>. O backend cria uma cópia temporária, lê texto simples diretamente ou converte formatos binários com o MarkItDown local e apaga a cópia ao terminar. A instalação padrão em <code>.avento-tools/mcp</code> é resolvida a partir da raiz do Avento, mesmo quando o Back é iniciado por outro diretório. O arquivo original não é movido nem alterado.</p>
+            <p>O nome e o contexto extraído ficam persistidos com a mensagem, portanto o Avento continua reconhecendo o documento ao reabrir o chat. Para preservar a janela do modelo local, o limite padrão é de 5.000 caracteres por documento e pode ser alterado por <code>AVENTO_DOCUMENT_ATTACHMENT_MAX_CONTEXT_CHARS</code>.</p>
+        </div>
+
+        <div class="doc-section" id="endpoints">
+            <h2>Endpoints Principais</h2>
+            <h3>Contrato das respostas JSON</h3>
+            <p>As rotas REST JSON retornam um envelope com <code>status</code>, <code>code</code> e <code>data</code>. O status repete o HTTP real, o código é estável para clientes e os dados produzidos ficam em <code>data</code>. Uma consulta sem itens retorna <code>data: []</code>.</p>
+            <pre><code>{
+  "status": 200,
+  "code": "SUCCESS",
+  "data": []
+}</code></pre>
+            <p>Quando há erro, o próprio erro é o dado retornado. <code>data</code> inclui mensagem, rota, instante, <code>traceId</code> e erros de campo. O mesmo identificador aparece no header <code>X-Trace-Id</code>. O <code>ControllerAdvice</code> centraliza validação e exceções de domínio, enquanto o Spring Security reutiliza o mesmo formato em <code>401</code> e <code>403</code>.</p>
+            <pre><code>{
+  "status": 400,
+  "code": "INVALID_REQUEST",
+  "data": {
+    "message": "path is required",
+    "path": "/api/projects/analyze",
+    "timestamp": "2026-07-17T12:00:00Z",
+    "traceId": "...",
+    "errors": []
+  }
+}</code></pre>
+            <p>O Axios compartilhado desembrulha o envelope para os componentes React. SSE, WebSocket, áudio e downloads usam corpo bruto e ficam fora desse contrato.</p>
+            <table summary="Lista de endpoints principais da API local do Avento">
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Função</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>GET /api/health</code></td><td>Saúde simples do backend.</td></tr>
+                    <tr><td><code>POST /api/auth/bootstrap</code></td><td>Cria o primeiro admin local e grava o access cookie.</td></tr>
+                    <tr><td><code>POST /api/auth/login</code></td><td>Autentica usuário e grava o access cookie HttpOnly.</td></tr>
+                    <tr><td><code>POST /api/auth/refresh</code></td><td>Renova a sessão usando o access cookie e refresh server-side.</td></tr>
+                    <tr><td><code>POST /api/auth/logout</code></td><td>Revoga a sessão e limpa o cookie.</td></tr>
+                    <tr><td><code>GET /api/auth/me</code></td><td>Retorna o usuário autenticado atual.</td></tr>
+                    <tr><td><code>GET /api/auth/access-history</code></td><td>Lista os últimos eventos de acesso da conta logada.</td></tr>
+                    <tr><td><code>GET /api/auth/token-history</code></td><td>Lista eventos de token/sessão da conta logada.</td></tr>
+                    <tr><td><code>GET /api/ai/models</code></td><td>Lista nomes de modelos disponíveis no Ollama para o fluxo novo do agente.</td></tr>
+                    <tr><td><code>GET /api/ai/models/details</code></td><td>Lista modelos com tamanho, família, parâmetro, recomendação e alerta de modelo pesado.</td></tr>
+                    <tr><td><code>GET /api/capabilities</code></td><td>Lista capacidades disponíveis do agente com categoria, risco e política de aprovação.</td></tr>
+                    <tr><td><code>GET /api/agent/timeline</code></td><td>Lista eventos recentes do agente; aceita <code>runId</code> para filtrar uma execução específica.</td></tr>
+                    <tr><td><code>GET /api/models</code></td><td>Lista modelos no endpoint legado de chat.</td></tr>
+                    <tr><td><code>POST /api/ai/runs</code></td><td>Cria job assíncrono no PostgreSQL e publica pela Outbox.</td></tr>
+                    <tr><td><code>GET /api/ai/runs/{runId}/events</code></td><td>Acompanha o run por SSE autenticado a partir dos Redis Streams.</td></tr>
+                    <tr><td><code>POST /api/ai/runs/{runId}/cancel</code></td><td>Cancela um job pertencente ao usuário.</td></tr>
+                    <tr><td><code>POST /api/ai/stream</code></td><td>Compatibilidade temporária do stream direto; o React não usa mais esta rota.</td></tr>
+                    <tr><td><code>POST /api/ai/approvals/{id}/approve</code></td><td>Aprova uma ação pendente pelo card do chat e continua o stream.</td></tr>
+                    <tr><td><code>POST /api/ai/approvals/{id}/reject</code></td><td>Cancela uma ação pendente pelo card do chat.</td></tr>
+                    <tr><td><code>POST /api/chat</code></td><td>Chat legado com streaming direto via Ollama.</td></tr>
+                    <tr><td><code>POST /api/fs/authorize</code></td><td>Autoriza uma pasta local para uso pelo Avento.</td></tr>
+                    <tr><td><code>POST /api/fs/tree</code></td><td>Lista árvore de arquivos do workspace autorizado.</td></tr>
+                    <tr><td><code>POST /api/fs/read</code></td><td>Lê arquivo autorizado.</td></tr>
+                    <tr><td><code>GET /api/fs/pick-folder</code></td><td>Abre seletor local de pasta quando suportado pelo ambiente.</td></tr>
+                    <tr><td><code>POST /api/fs/write</code></td><td>Escreve arquivo autorizado com backup.</td></tr>
+                    <tr><td><code>POST /api/fs/restore</code></td><td>Restaura backup de arquivo.</td></tr>
+                    <tr><td><code>POST /api/projects/analyze</code></td><td>Analisa stack, scripts, riscos e recomendações do projeto.</td></tr>
+                    <tr><td><code>POST /api/projects/run</code></td><td>Executa validações permitidas no projeto.</td></tr>
+                    <tr><td><code>POST /api/rag/index</code></td><td>Indexa conteúdo no Redis Vector Store.</td></tr>
+                    <tr><td><code>POST /api/rag/search</code></td><td>Busca contexto indexado filtrado pelas raízes do projeto e com cache por namespace.</td></tr>
+                    <tr><td><code>POST /api/rag/clear</code></td><td>Remove chunks e manifesto dos projetos desconectados.</td></tr>
+                    <tr><td><code>POST /api/voice/transcribe</code></td><td>Transcreve áudio gravado via Whisper.cpp.</td></tr>
+                    <tr><td><code>POST /api/voice/tts</code></td><td>Gera áudio com Piper TTS.</td></tr>
+                    <tr><td><code>POST /api/documents/extract</code></td><td>Extrai localmente o conteúdo de um documento enviado pelo composer e remove a cópia temporária após a leitura.</td></tr>
+                    <tr><td><code>WS /ws/voice</code></td><td>Recebe o WebM de cada frase e retorna transcrições finais.</td></tr>
+                    <tr><td><code>POST /api/mcp/connect</code></td><td>Registra workspaces e tenta conectar MCP externo; ferramentas locais continuam disponíveis mesmo se um servidor externo falhar.</td></tr>
+                    <tr><td><code>GET /api/mcp/tools</code></td><td>Lista ferramentas MCP disponíveis, incluindo ferramentas locais essenciais de arquivo e terminal controlado.</td></tr>
+                    <tr><td><code>POST /api/mcp/execute</code></td><td>Executa ferramenta MCP/autorizada; as locais incluem <code>directory_tree</code>, <code>read_file</code>, <code>write_file</code>, <code>edit_file</code>, <code>delete_file</code>, <code>create_directory</code>, <code>search_files</code>, <code>create_vite_project</code>, <code>list_macos_apps</code>, <code>open_app</code>, <code>close_app</code>, <code>open_browser_tab</code>, <code>close_browser_tab</code>, <code>open_url</code>, <code>open_path</code>, <code>reveal_in_finder</code>, <code>run_shortcut</code>, <code>capture_screen</code>, <code>generate_image</code>, <code>generate_video</code>, <code>terminal_run</code>, <code>terminal_start</code>, <code>terminal_list</code>, <code>terminal_logs</code> e <code>terminal_stop</code>. Ferramentas que alteram arquivos, removem arquivos, capturam a tela, geram mídia ou rodam comandos exigem aprovação visual no balão do Avento antes da execução pelo agente.</td></tr>
+                    <tr><td><code>GET /api/ai/runs</code></td><td>Lista as execuções recentes do orquestrador com objetivo, workspaces, estado e último evento.</td></tr>
+                    <tr><td><code>GET /api/ai/runs/{runId}</code></td><td>Consulta o estado de uma execução específica, incluindo a aprovação pendente quando existir.</td></tr>
+                    <tr><td><code>GET /api/chats</code></td><td>Lista conversas salvas.</td></tr>
+                    <tr><td><code>POST /api/chats</code></td><td>Cria conversa.</td></tr>
+                    <tr><td><code>PATCH /api/chats/{id}</code></td><td>Atualiza título ou contexto de projeto da conversa.</td></tr>
+                    <tr><td><code>GET /api/chats/{id}/messages</code></td><td>Lista mensagens de uma conversa.</td></tr>
+                    <tr><td><code>POST /api/chats/{id}/messages</code></td><td>Salva mensagem em uma conversa.</td></tr>
+                    <tr><td><code>POST /api/metrics</code></td><td>Registra métricas de uso quando chamadas pelo frontend.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="doc-section" id="validation">
+            <h2>Validação e Diagnóstico</h2>
+            <p>Comandos úteis para verificar o projeto:</p>
+            <div class="code-block">
+                ./scripts/check-local-deps.sh
+                ./scripts/smoke-local.sh
+                mvn -f back/avento/pom.xml test
+                cd front &amp;&amp; npm run validate
+            </div>
+            <p>O smoke test valida backend, frontend, autorização de workspace, análise de projeto, endpoint do Ollama e, opcionalmente, execução de comando seguro.</p>
+            <p>O aviso do Vite sobre bundle maior que 500KB ainda pode aparecer. Ele não bloqueia o app, mas pode virar tarefa futura de code splitting.</p>
+        </div>
+
+        <div class="doc-section" id="roadmap">
+            <h2>Próximos Passos Recomendados</h2>
+            <p>Ordem sugerida para levar o Avento de ferramenta local single-machine para o modelo Hub + Agente de Dispositivo (ver <a href="#hub-agent" style="color: var(--accent);">seção de arquitetura</a>):</p>
+            <div class="grid">
+                <div class="card">
+                    <strong>Fase 0 — Protocolo Hub + Agente</strong>
+                    <p>Pareamento, autenticação por token, canal WebSocket criptografado, anúncio de capacidades por dispositivo. Tudo mais depende disso.</p>
+                </div>
+                <div class="card">
+                    <strong>Fase 1 — Primeiro Agente (macOS)</strong>
+                    <p>Extrair o <code>SystemAutomationService</code> atual do Hub para um Agente macOS separado, provando o modelo antes de replicar para outros sistemas.</p>
+                </div>
+                <div class="card">
+                    <strong>Fase 2 — Paridade de agente</strong>
+                    <p>Edição por diff e lista de tarefas visível — maior ganho de sensação de "trabalhar com o agente" pelo menor esforço.</p>
+                </div>
+                <div class="card">
+                    <strong>Fase 3 — Ferramentas Hub-side</strong>
+                    <p>Git MCP primeiro, depois Fetch/Postgres/Docker — todas cross-platform por natureza, aprovação obrigatória mantida.</p>
+                </div>
+                <div class="card">
+                    <strong>Fase 4 — Agentes Windows, Linux e Android</strong>
+                    <p>Réplica do padrão provado na Fase 1; Android ganha um agente nativo de verdade via Accessibility Service.</p>
+                </div>
+                <div class="card">
+                    <strong>Fase 5 — Empacotamento, CI e alcance</strong>
+                    <p>Instaladores por sistema operacional, pipeline com matriz de build, i18n, modo de planejamento e comandos reutilizáveis.</p>
+                </div>
+            </div>
+            <p>Itens menores que continuam válidos independentemente das fases acima:</p>
+            <ol>
+                <li>Adicionar painel visual para auditoria de sessões, tokens e ações do agente.</li>
+                <li>Melhorar voz em tempo real com VAD dedicado e streaming incremental.</li>
+                <li>Criar painel de permissões por workspace e histórico de ações do agente.</li>
+                <li>Persistir análises de projeto e comparar mudanças entre execuções.</li>
+                <li>Aplicar code splitting no frontend para reduzir o bundle inicial.</li>
+            </ol>
+        </div>
+
+        <br><br><br>
+    </div>
+
+    <script type="text/javascript">
+        // Lógica do Menu Hambúrguer Mobile
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        // Fechar ao clicar num link (mobile)
+        const links = document.querySelectorAll('.sidebar-nav a');
+        links.forEach(link => {
+            link.addEventListener('click', () => {
+                if(window.innerWidth <= 768) {
+                    sidebar.classList.remove('open');
+                }
+                
+                // Mudar estado ativo
+                links.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

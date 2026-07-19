@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">Avento logo</title>
+  <desc id="desc">Stylized A mark made from two angled planes and a local path node.</desc>
+  <defs>
+    <linearGradient id="avento-bg" x1="14" y1="10" x2="82" y2="86" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E8FFF7"/>
+      <stop offset="0.45" stop-color="#66E6C8"/>
+      <stop offset="1" stop-color="#D94675"/>
+    </linearGradient>
+    <linearGradient id="avento-mark" x1="25" y1="18" x2="70" y2="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F2FFFB"/>
+      <stop offset="1" stop-color="#BDF7EA"/>
+    </linearGradient>
+  </defs>
+  <rect width="96" height="96" rx="22" fill="#104E45"/>
+  <path fill="url(#avento-bg)" d="M17 68.8 43.8 18c1.8-3.5 6.8-3.5 8.6 0L79 68.8c1.7 3.2-.7 7.2-4.3 7.2H61.5a4.9 4.9 0 0 1-4.3-2.6L48 55.5l-9.2 17.9a4.9 4.9 0 0 1-4.3 2.6H21.3c-3.6 0-6-4-4.3-7.2Z"/>
+  <path fill="url(#avento-mark)" d="M38.6 48.4 46 33.8c.8-1.6 3.1-1.6 3.9 0l7.6 14.6H38.6Z"/>
+  <path fill="#104E45" d="M33.3 58.9c0-2.2 1.8-4 4-4h21.5c2.2 0 4 1.8 4 4s-1.8 4-4 4H37.3c-2.2 0-4-1.8-4-4Z"/>
+  <circle cx="48" cy="58.9" r="5.8" fill="#D94675"/>
+  <circle cx="48" cy="58.9" r="2.3" fill="#F2FFFB"/>
+</svg>

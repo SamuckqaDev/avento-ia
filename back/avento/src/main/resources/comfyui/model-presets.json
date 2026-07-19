@@ -1,0 +1,45 @@
+{
+  "presets": [
+    {
+      "name": "sdxl-photoreal",
+      "match": ["realvisxl", "sdxl", "juggernautxl"],
+      "sampler": "dpmpp_2m",
+      "scheduler": "karras",
+      "steps": { "draft": 20, "balanced": 26, "quality": 32 },
+      "refinementSteps": { "draft": 5, "balanced": 8, "quality": 10 },
+      "cfg": { "draft": 5.5, "balanced": 5.0, "quality": 4.8 },
+      "longEdge": { "draft": 768, "balanced": 896, "quality": 1024 }
+    },
+    {
+      "name": "flux2-klein-base",
+      "match": ["flux-2-klein-base"],
+      "sampler": "euler",
+      "scheduler": "",
+      "promptStyle": "natural",
+      "steps": { "draft": 16, "balanced": 20, "quality": 24 },
+      "refinementSteps": { "draft": 0, "balanced": 0, "quality": 0 },
+      "cfg": { "draft": 3.5, "balanced": 4.0, "quality": 4.5 },
+      "longEdge": { "draft": 768, "balanced": 896, "quality": 1024 }
+    },
+    {
+      "name": "flux2-klein",
+      "match": ["flux-2-klein"],
+      "sampler": "euler",
+      "scheduler": "",
+      "promptStyle": "natural",
+      "steps": { "draft": 4, "balanced": 4, "quality": 4 },
+      "refinementSteps": { "draft": 0, "balanced": 0, "quality": 0 },
+      "cfg": { "draft": 1.0, "balanced": 1.0, "quality": 1.0 },
+      "longEdge": { "draft": 768, "balanced": 896, "quality": 1024 }
+    },
+    {
+      "name": "stable-diffusion-1.5",
+      "match": ["*"],
+      "sampler": "dpmpp_2m",
+      "scheduler": "karras",
+      "steps": { "draft": 14, "balanced": 20, "quality": 24 },
+      "refinementSteps": { "draft": 4, "balanced": 6, "quality": 8 },
+      "cfg": { "draft": 6.5, "balanced": 6.0, "quality": 5.8 }
+    }
+  ]
+}

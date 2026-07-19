@@ -1,0 +1,110 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "_meta": { "title": "Avento FLUX.2 Model" },
+    "inputs": {
+      "unet_name": "__FLUX_MODEL__",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": { "title": "Avento FLUX.2 Text Encoder" },
+    "inputs": {
+      "clip_name": "__FLUX_TEXT_ENCODER__",
+      "type": "flux2",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "_meta": { "title": "Avento FLUX.2 VAE" },
+    "inputs": {
+      "vae_name": "__FLUX_VAE__"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Avento Positive Prompt" },
+    "inputs": {
+      "text": "__POSITIVE_PROMPT__",
+      "clip": ["2", 0]
+    }
+  },
+  "5": {
+    "class_type": "ConditioningZeroOut",
+    "_meta": { "title": "Avento FLUX.2 Negative Conditioning" },
+    "inputs": {
+      "conditioning": ["4", 0]
+    }
+  },
+  "6": {
+    "class_type": "EmptyFlux2LatentImage",
+    "_meta": { "title": "Avento Base Latent" },
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "7": {
+    "class_type": "RandomNoise",
+    "_meta": { "title": "Avento FLUX.2 Noise" },
+    "inputs": {
+      "noise_seed": 0
+    }
+  },
+  "8": {
+    "class_type": "KSamplerSelect",
+    "_meta": { "title": "Avento FLUX.2 Sampler" },
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "9": {
+    "class_type": "Flux2Scheduler",
+    "_meta": { "title": "Avento FLUX.2 Scheduler" },
+    "inputs": {
+      "steps": 4,
+      "width": 1024,
+      "height": 1024
+    }
+  },
+  "10": {
+    "class_type": "CFGGuider",
+    "_meta": { "title": "Avento FLUX.2 Guider" },
+    "inputs": {
+      "model": ["1", 0],
+      "positive": ["4", 0],
+      "negative": ["5", 0],
+      "cfg": 1.0
+    }
+  },
+  "11": {
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": { "title": "Avento Base Sampler" },
+    "inputs": {
+      "noise": ["7", 0],
+      "guider": ["10", 0],
+      "sampler": ["8", 0],
+      "sigmas": ["9", 0],
+      "latent_image": ["6", 0]
+    }
+  },
+  "12": {
+    "class_type": "VAEDecode",
+    "_meta": { "title": "Avento Output Decode" },
+    "inputs": {
+      "samples": ["11", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "30": {
+    "class_type": "SaveImage",
+    "_meta": { "title": "Avento Final Output" },
+    "inputs": {
+      "filename_prefix": "avento-flux2",
+      "images": ["12", 0]
+    }
+  }
+}

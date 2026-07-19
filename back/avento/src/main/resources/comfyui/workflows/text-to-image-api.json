@@ -1,0 +1,100 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": { "title": "Avento Checkpoint" },
+    "inputs": {
+      "ckpt_name": "__CHECKPOINT__"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Avento Positive Prompt" },
+    "inputs": {
+      "text": "__POSITIVE_PROMPT__",
+      "clip": ["1", 1]
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Avento Negative Prompt" },
+    "inputs": {
+      "text": "__NEGATIVE_PROMPT__",
+      "clip": ["1", 1]
+    }
+  },
+  "4": {
+    "class_type": "EmptyLatentImage",
+    "_meta": { "title": "Avento Base Latent" },
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
+    }
+  },
+  "5": {
+    "class_type": "KSampler",
+    "_meta": { "title": "Avento Base Sampler" },
+    "inputs": {
+      "seed": 0,
+      "steps": 24,
+      "cfg": 6.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "model": ["1", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["4", 0]
+    }
+  },
+  "6": {
+    "class_type": "LatentUpscale",
+    "_meta": { "title": "Avento Latent Upscale" },
+    "inputs": {
+      "samples": ["5", 0],
+      "upscale_method": "bislerp",
+      "width": 768,
+      "height": 768,
+      "crop": "disabled"
+    }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "_meta": { "title": "Avento Refinement Sampler" },
+    "inputs": {
+      "seed": 1,
+      "steps": 11,
+      "cfg": 6.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 0.30,
+      "model": ["1", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["6", 0]
+    }
+  },
+  "8": {
+    "class_type": "VAELoader",
+    "_meta": { "title": "Avento VAE" },
+    "inputs": {
+      "vae_name": "__VAE__"
+    }
+  },
+  "9": {
+    "class_type": "VAEDecode",
+    "_meta": { "title": "Avento Output Decode" },
+    "inputs": {
+      "samples": ["7", 0],
+      "vae": ["8", 0]
+    }
+  },
+  "30": {
+    "class_type": "SaveImage",
+    "_meta": { "title": "Avento Final Output" },
+    "inputs": {
+      "filename_prefix": "avento",
+      "images": ["9", 0]
+    }
+  }
+}

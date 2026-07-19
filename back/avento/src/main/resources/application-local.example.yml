@@ -1,0 +1,163 @@
+# Copy this file to application-local.yml and run with:
+# mvn -f back/avento/pom.xml spring-boot:run -Dspring-boot.run.profiles=local
+
+server:
+  port: 8000
+  address: 127.0.0.1
+
+avento:
+  security:
+    allow-non-loopback: false
+  auth:
+    enabled: ${AVENTO_AUTH_ENABLED:true}
+    bootstrap-enabled: ${AVENTO_AUTH_BOOTSTRAP_ENABLED:true}
+    jwt-secret: ${AVENTO_AUTH_JWT_SECRET:dev-only-change-me-avento-local-auth-secret-32-bytes}
+    access-token-ttl: ${AVENTO_AUTH_ACCESS_TOKEN_TTL:20m}
+    refresh-token-ttl: ${AVENTO_AUTH_REFRESH_TOKEN_TTL:7d}
+    cookie:
+      name: ${AVENTO_AUTH_COOKIE_NAME:avento_access}
+      http-only: ${AVENTO_AUTH_COOKIE_HTTP_ONLY:true}
+      secure: ${AVENTO_AUTH_COOKIE_SECURE:false}
+      same-site: ${AVENTO_AUTH_COOKIE_SAME_SITE:Lax}
+    root:
+      enabled: ${AVENTO_AUTH_ROOT_ENABLED:true}
+      email: ${AVENTO_AUTH_ROOT_EMAIL:admin@avento.local}
+      password: ${AVENTO_AUTH_ROOT_PASSWORD:}
+      display-name: ${AVENTO_AUTH_ROOT_DISPLAY_NAME:Avento Root}
+  agent:
+    max-tool-rounds: 6
+    max-tool-calls: 16
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:8192}
+    temperature: ${AVENTO_AGENT_TEMPERATURE:0.15}
+    top-p: ${AVENTO_AGENT_TOP_P:0.9}
+    top-k: ${AVENTO_AGENT_TOP_K:30}
+    repeat-penalty: ${AVENTO_AGENT_REPEAT_PENALTY:1.08}
+    enable-thinking: ${AVENTO_AGENT_ENABLE_THINKING:true}
+    keep-alive: ${AVENTO_AGENT_KEEP_ALIVE:30m}
+    max-tools-per-request: ${AVENTO_AGENT_MAX_TOOLS_PER_REQUEST:12}
+    project-toolkit: ${AVENTO_AGENT_PROJECT_TOOLKIT:directory_tree,read_file,read_document,write_file,edit_file,delete_file,delete_directory,create_directory,search_files,terminal_run,terminal_start,terminal_logs}
+    max-model-messages: ${AVENTO_AGENT_MAX_MODEL_MESSAGES:10}
+    max-message-content-chars: ${AVENTO_AGENT_MAX_MESSAGE_CONTENT_CHARS:6000}
+    max-total-message-content-chars: ${AVENTO_AGENT_MAX_TOTAL_MESSAGE_CONTENT_CHARS:8000}
+    policy-mode: ${AVENTO_AGENT_POLICY_MODE:maximum}
+    policy-override-dir: ${AVENTO_AGENT_POLICY_OVERRIDE_DIR:${user.home}/.avento/policies}
+  execution:
+    redis:
+      enabled: ${AVENTO_REDIS_EXECUTION_ENABLED:true}
+      event-stream: ${AVENTO_REDIS_EVENT_STREAM:avento:events}
+      agent-job-stream: ${AVENTO_REDIS_AGENT_JOB_STREAM:avento:jobs:agent}
+      dead-letter-stream: ${AVENTO_REDIS_DEAD_LETTER_STREAM:avento:dead-letter}
+      agent-consumer-group: ${AVENTO_REDIS_AGENT_CONSUMER_GROUP:avento-agent-workers}
+      event-max-length: ${AVENTO_REDIS_EVENT_MAX_LENGTH:50000}
+      event-block-timeout: ${AVENTO_REDIS_EVENT_BLOCK_TIMEOUT:2s}
+      run-timeout: ${AVENTO_REDIS_RUN_TIMEOUT:15m}
+      run-inactivity-timeout: ${AVENTO_REDIS_RUN_INACTIVITY_TIMEOUT:6m}
+      event-ttl: ${AVENTO_REDIS_EVENT_TTL:24h}
+      context-ttl: ${AVENTO_REDIS_CONTEXT_TTL:24h}
+      context-message-limit: ${AVENTO_REDIS_CONTEXT_MESSAGE_LIMIT:20}
+  rag:
+    similarity-threshold: ${AVENTO_RAG_SIMILARITY_THRESHOLD:0.62}
+    candidate-limit: ${AVENTO_RAG_CANDIDATE_LIMIT:30}
+    result-limit: ${AVENTO_RAG_RESULT_LIMIT:5}
+  image:
+    provider: ${AVENTO_IMAGE_PROVIDER:comfyui}
+    default-model: ${AVENTO_IMAGE_DEFAULT_MODEL:comfyui:RealVisXL_V5.0_fp16.safetensors}
+  documents:
+    markitdown-command: ${AVENTO_MARKITDOWN_COMMAND:.avento-tools/mcp/bin/markitdown}
+    timeout: ${AVENTO_DOCUMENT_READ_TIMEOUT:120s}
+    max-output-chars: ${AVENTO_DOCUMENT_MAX_OUTPUT_CHARS:200000}
+    max-file-size: ${AVENTO_DOCUMENT_MAX_FILE_SIZE:100MB}
+    attachment-max-context-chars: ${AVENTO_DOCUMENT_ATTACHMENT_MAX_CONTEXT_CHARS:5000}
+  comfyui:
+    enabled: ${AVENTO_COMFYUI_ENABLED:true}
+    base-url: ${AVENTO_COMFYUI_BASE_URL:http://127.0.0.1:8188}
+    workflow: ${AVENTO_COMFYUI_WORKFLOW:classpath:comfyui/workflows/text-to-image-api.json}
+    sdxl-workflow: ${AVENTO_COMFYUI_SDXL_WORKFLOW:classpath:comfyui/workflows/sdxl-text-to-image-api.json}
+    sdxl-vae: ${AVENTO_COMFYUI_SDXL_VAE:sdxl_vae.safetensors}
+    sdxl-openpose-model: ${AVENTO_COMFYUI_SDXL_OPENPOSE_MODEL:xinsir-openpose-sdxl-1.0.safetensors}
+    sdxl-canny-model: ${AVENTO_COMFYUI_SDXL_CANNY_MODEL:xinsir-canny-sdxl-1.0.safetensors}
+    sdxl-depth-model: ${AVENTO_COMFYUI_SDXL_DEPTH_MODEL:xinsir-depth-sdxl-1.0.safetensors}
+    video-workflow: ${AVENTO_COMFYUI_VIDEO_WORKFLOW:classpath:comfyui/workflows/text-to-video-api.json}
+    video-diffusion-model: ${AVENTO_COMFYUI_VIDEO_DIFFUSION_MODEL:wan2.2_ti2v_5B_fp16.safetensors}
+    video-text-encoder: ${AVENTO_COMFYUI_VIDEO_TEXT_ENCODER:umt5_xxl_fp8_e4m3fn_scaled.safetensors}
+    video-vae: ${AVENTO_COMFYUI_VIDEO_VAE:wan2.2_vae.safetensors}
+    default-model: ${AVENTO_COMFYUI_DEFAULT_MODEL:RealVisXL_V5.0_fp16.safetensors}
+    image-vae: ${AVENTO_COMFYUI_IMAGE_VAE:vae-ft-mse-840000-ema-pruned.safetensors}
+    openpose-model: ${AVENTO_COMFYUI_OPENPOSE_MODEL:control_v11p_sd15_openpose.pth}
+    image-timeout-minutes: ${AVENTO_COMFYUI_IMAGE_TIMEOUT_MINUTES:20}
+    memory-guard-enabled: ${AVENTO_COMFYUI_MEMORY_GUARD_ENABLED:true}
+    adherence-min-score: ${AVENTO_COMFYUI_ADHERENCE_MIN_SCORE:85}
+  mcp:
+    catalog:
+      auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,memory,sequential-thinking,time,desktop-commander,macos-automator,apple,playwright,chrome-devtools,puppeteer,git}
+    sdk:
+      enabled: ${AVENTO_MCP_SDK_ENABLED:true}
+      request-timeout: ${AVENTO_MCP_SDK_REQUEST_TIMEOUT:60s}
+    filesystem:
+      enabled: ${AVENTO_MCP_FILESYSTEM_ENABLED:true}
+    desktop-commander:
+      enabled: ${AVENTO_MCP_DESKTOP_COMMANDER_ENABLED:true}
+    macos-automator:
+      enabled: ${AVENTO_MCP_MACOS_AUTOMATOR_ENABLED:true}
+    playwright:
+      enabled: ${AVENTO_MCP_PLAYWRIGHT_ENABLED:true}
+    puppeteer:
+      enabled: ${AVENTO_MCP_PUPPETEER_ENABLED:true}
+  voice:
+    ffmpeg-path: /opt/homebrew/bin/ffmpeg
+    whisper-binary: ./back/whisper.cpp/build/bin/whisper-cli
+    whisper-model: ./back/whisper.cpp/models/ggml-small.bin
+    whisper-language: auto
+    preferred-language: pt
+    allowed-languages: pt,en,es
+    whisper-prompt: "Avento. Portugues brasileiro natural. Transcreva exatamente o que foi dito. Nao acrescente nomes de aplicativos como Finder, Terminal, Brave ou VS Code a menos que tenham sido claramente falados."
+    whisper-carry-initial-prompt: true
+    whisper-beam-size: 5
+    whisper-best-of: 5
+    piper-binary: ./piper_tts/.venv/bin/piper
+    piper-model: ./piper_tts/pt_BR-faber-medium.onnx
+    piper-model-pt: ./piper_tts/pt_BR-faber-medium.onnx
+    piper-model-en: ""
+    piper-model-es: ""
+    tts-cache-enabled: true
+    tts-cache-ttl: PT6H
+
+spring:
+  task:
+    scheduling:
+      pool:
+        size: 4
+  data:
+    redis:
+      client-type: jedis
+      host: ${AVENTO_REDIS_HOST:127.0.0.1}
+      port: ${AVENTO_REDIS_PORT:6379}
+      timeout: ${AVENTO_REDIS_TIMEOUT:2s}
+  datasource:
+    url: ${AVENTO_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/avento}
+    driverClassName: org.postgresql.Driver
+    username: ${AVENTO_DATASOURCE_USERNAME:avento}
+    password: ${AVENTO_DATASOURCE_PASSWORD:avento_dev_password}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  h2:
+    console:
+      enabled: false
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      embedding:
+        model: nomic-embed-text
+        options:
+          temperature: 0.0
+    vectorstore:
+      redis:
+        index: avento_index
+        prefix: "avento:"
+        initialize-schema: true

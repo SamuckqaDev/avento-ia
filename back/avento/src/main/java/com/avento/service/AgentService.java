@@ -110,6 +110,7 @@ public class AgentService implements AgentExecutionEngine {
     private final AgentPermissionService permissionService;
     private final AgentTimelineService timelineService;
     private final SkillRegistry skillRegistry;
+    private final TokenUsageService tokenUsageService;
     private final WebClient webClient;
     private final ObjectMapper mapper;
     private final int maxToolRounds;
@@ -191,6 +192,7 @@ public class AgentService implements AgentExecutionEngine {
             AgentPermissionService permissionService,
             AgentTimelineService timelineService,
             SkillRegistry skillRegistry,
+            TokenUsageService tokenUsageService,
             ObjectMapper mapper,
             @Value("${spring.ai.ollama.base-url:http://localhost:11434}") String ollamaBaseUrl,
             @Value("${avento.agent.max-tool-rounds:6}") int maxToolRounds,
@@ -219,6 +221,7 @@ public class AgentService implements AgentExecutionEngine {
         this.permissionService = permissionService;
         this.timelineService = timelineService;
         this.skillRegistry = skillRegistry;
+        this.tokenUsageService = tokenUsageService;
         this.mapper = mapper;
         this.webClient = WebClient.builder().baseUrl(ollamaBaseUrl).build();
         this.maxToolRounds = maxToolRounds;
@@ -869,7 +872,7 @@ public class AgentService implements AgentExecutionEngine {
                     // ativa nunca aciona isso, só um silencio real do Ollama por mais de 2 minutos.
                     .timeout(Duration.ofSeconds(120))
                     .subscribe(
-                            chunk -> handleModelChunk(chunk, sink, capture),
+                            chunk -> handleModelChunk(chunk, sink, capture, state, model),
                             error -> {
                                 logger.info(
                                         "Agent round {} failed after {}ms",
@@ -884,7 +887,8 @@ public class AgentService implements AgentExecutionEngine {
                                         (System.nanoTime() - roundStartNanos) / 1_000_000,
                                         capture.assistantText.length(),
                                         capture.nativeToolCalls.size());
-                                flushPendingLine(capture, sink);
+                                flushPendingLine(capture, sink, state, model);
+                                capture.deferAssistantOutput = false;
                                 finishTurn(model, messages, state, round, sink, capture);
                             });
             // Descarta a chamada HTTP desta rodada E as subscriptions das rodadas seguintes
@@ -985,8 +989,8 @@ public class AgentService implements AgentExecutionEngine {
         // Skill ativa com `Ferramenta:` declarada: a ferramenta dela e a resposta, ponto.
         // As heuristicas de keyword abaixo ja roubaram pedido de video pro generate_image;
         // a declaracao explicita da skill nao pode perder pra elas.
-        if (state.requiredToolName != null && !state.requiredToolName.isBlank()) {
-            ArrayNode required = filterToolsByName(tools, Set.of(state.requiredToolName));
+        if (state.requiredToolNames != null && !state.requiredToolNames.isEmpty()) {
+            ArrayNode required = filterToolsByName(tools, state.requiredToolNames);
             if (!required.isEmpty()) {
                 return required;
             }
@@ -1443,6 +1447,8 @@ public class AgentService implements AgentExecutionEngine {
         identityMessage.put(
                 "content",
                 AGENT_SYSTEM_PROMPT
+                        + "\n\n[Local Environment]\nData atual: "
+                        + java.time.LocalDateTime.now().toString()
                         + policyInstructions()
                         + workspaceRootsBlock(workspaceRoots)
                         + conversationContinuityBlock(messages));
@@ -1690,20 +1696,23 @@ public class AgentService implements AgentExecutionEngine {
     // whether a
     // given chunk is a whole line, a fragment of one, or several lines glued
     // together.
-    private void handleModelChunk(String chunk, FluxSink<String> sink, TurnCapture capture) {
+    private void handleModelChunk(
+            String chunk, FluxSink<String> sink, TurnCapture capture, AgentRunState state, String model) {
         if (chunk == null || chunk.isEmpty()) {
             return;
         }
         capture.lineBuffer.append(chunk);
-        extractCompleteJsonObjects(capture.lineBuffer, line -> processOllamaChatLine(line, sink, capture));
+        extractCompleteJsonObjects(
+                capture.lineBuffer, line -> processOllamaChatLine(line, sink, capture, state, model));
     }
 
-    private void flushPendingLine(TurnCapture capture, FluxSink<String> sink) {
-        extractCompleteJsonObjects(capture.lineBuffer, line -> processOllamaChatLine(line, sink, capture));
+    private void flushPendingLine(TurnCapture capture, FluxSink<String> sink, AgentRunState state, String model) {
+        extractCompleteJsonObjects(
+                capture.lineBuffer, line -> processOllamaChatLine(line, sink, capture, state, model));
         String remaining = capture.lineBuffer.toString().trim();
         capture.lineBuffer.setLength(0);
         if (!remaining.isEmpty()) {
-            processOllamaChatLine(remaining, sink, capture);
+            processOllamaChatLine(remaining, sink, capture, state, model);
         }
     }
 
@@ -1749,7 +1758,8 @@ public class AgentService implements AgentExecutionEngine {
         }
     }
 
-    private void processOllamaChatLine(String line, FluxSink<String> sink, TurnCapture capture) {
+    private void processOllamaChatLine(
+            String line, FluxSink<String> sink, TurnCapture capture, AgentRunState state, String model) {
         if (line == null || line.isEmpty()) {
             return;
         }
@@ -1788,7 +1798,16 @@ public class AgentService implements AgentExecutionEngine {
             // um ou varios tokens). O Ollama reporta o numero real gerado nesta
             // rodada em eval_count, na ultima linha (done=true) de cada turno.
             if (node.path("done").asBoolean(false) && node.has("eval_count")) {
-                sink.next(tokenUsageEventChunk(node.path("eval_count").asInt(0)));
+                int promptTokens = node.path("prompt_eval_count").asInt(0);
+                int completionTokens = node.path("eval_count").asInt(0);
+                sink.next(tokenUsageEventChunk(completionTokens));
+                tokenUsageService.record(
+                        state.userId,
+                        state.chatId,
+                        state.runId,
+                        node.path("model").asText(model),
+                        promptTokens,
+                        completionTokens);
             }
         } catch (Exception e) {
             logger.debug("Ignoring invalid Ollama chat line: {}", line, e);

@@ -16,13 +16,12 @@ Use esta skill quando o usuario quiser pensar, desenhar ou revisar uma interface
 
 Formato obrigatorio:
 
-````text
+Gere EXATAMENTE e APENAS o bloco `ui-preview` como conteúdo principal da resposta (NUNCA coloque este bloco dentro de tags `<think>...</think>`). O bloco deve ficar solto no nível raiz do Markdown:
 ```ui-preview
 <!doctype html>
 <html lang="pt-BR">
   ...
 </html>
 ```
-````
 
 Fora do bloco, escreva apenas um resumo curto das decisoes e a pergunta objetiva que precisa da avaliacao do usuario.

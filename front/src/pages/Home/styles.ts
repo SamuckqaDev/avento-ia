@@ -111,7 +111,7 @@ export const Topbar = styled.header`
   }
 `;
 
-export const VoiceToggleWrapper = styled.div`
+export const HeaderRight = styled.div`
   flex: 1;
   min-width: 0;
   display: flex;

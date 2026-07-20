@@ -14,12 +14,12 @@ import { SkillsManager } from '../../modules/chat/SkillsManager';
 import { McpToolsManager } from '../../modules/chat/McpToolsManager';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import { api, apiErrorMessage } from '../../services/apiClient';
-import { List, Moon, Sun, SpeakerHigh, SpeakerSlash, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare } from '@phosphor-icons/react';
+import { List, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare } from '@phosphor-icons/react';
 import { 
   AppLayout, 
   MainContent, 
   Topbar, 
-  VoiceToggleWrapper,
+  HeaderRight,
   Snackbar,
   HeaderIconButton,
   HeaderCompactMenu,
@@ -2243,6 +2243,10 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
         toggleFileSelection={toggleFileSelection}
         media={visibleMedia}
         onOpenMedia={handleOpenMedia}
+        isDarkMode={isDarkMode}
+        toggleTheme={toggleTheme}
+        isVoiceEnabled={isVoiceEnabled}
+        handleToggleVoice={handleToggleVoice}
       />
       {isMobileOpen && <MobileOverlay onClick={() => setMobileOpen(false)} />}
       
@@ -2254,26 +2258,8 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
             </MobileOnlyIconButton>
             <h2 title={selectedChatTitle}>{selectedChatTitle}</h2>
           </HeaderLeft>
-          <VoiceToggleWrapper>
+          <HeaderRight>
             {renderModelSelectors()}
-            <label className="desktop-header-control">
-              <input 
-                type="checkbox" 
-                checked={isDarkMode} 
-                onChange={toggleTheme} 
-              />
-              {isDarkMode ? <Moon size={20} weight="fill" /> : <Sun size={20} weight="fill" />} 
-              <span>Modo Escuro</span>
-            </label>
-            <label className="desktop-header-control">
-              <input 
-                type="checkbox" 
-                checked={isVoiceEnabled} 
-                onChange={(e) => handleToggleVoice(e.target.checked)} 
-              />
-              {isVoiceEnabled ? <SpeakerHigh size={20} weight="fill" /> : <SpeakerSlash size={20} />}
-              <span>Voz Habilitada</span>
-            </label>
             <HeaderIconButton onClick={() => setIsRightPanelOpen(!isRightPanelOpen)} title="Tarefas e contexto">
               <Columns size={24} weight={isRightPanelOpen ? "fill" : "regular"} />
             </HeaderIconButton>
@@ -2542,25 +2528,6 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
                     )}
                   </HeaderMenuSection>
                   <HeaderMenuSection>
-                    <h3 className="menu-heading">Preferências</h3>
-                    <div className="menu-toggle-row">
-                      <label className="menu-toggle">
-                        <input type="checkbox" checked={isDarkMode} onChange={toggleTheme} />
-                        {isDarkMode ? <Moon size={18} weight="fill" /> : <Sun size={18} weight="fill" />}
-                        <span>Tema</span>
-                      </label>
-                      <label className="menu-toggle">
-                        <input
-                          type="checkbox"
-                          checked={isVoiceEnabled}
-                          onChange={(event) => handleToggleVoice(event.target.checked)}
-                        />
-                        {isVoiceEnabled ? <SpeakerHigh size={18} weight="fill" /> : <SpeakerSlash size={18} />}
-                        <span>Voz</span>
-                      </label>
-                    </div>
-                  </HeaderMenuSection>
-                  <HeaderMenuSection>
                     <h3 className="menu-heading">Ações</h3>
                     <HeaderMenuActions>
                       <button
@@ -2601,7 +2568,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
             >
               <SignOut size={22} />
             </HeaderIconButton>
-          </VoiceToggleWrapper>
+          </HeaderRight>
         </Topbar>
         
         <ChatContainer>

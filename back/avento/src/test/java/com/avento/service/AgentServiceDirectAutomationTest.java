@@ -58,6 +58,7 @@ class AgentServiceDirectAutomationTest {
     private final SkillRegistry skillRegistry = new SkillRegistry();
     private final ToolExecutionGateway toolGateway =
             new ToolExecutionGateway(mcpController, new ToolResultVerifier(mapper), new ToolExecutionContext());
+    private final TokenUsageService tokenUsageService = org.mockito.Mockito.mock(TokenUsageService.class);
     private final AgentService service = new AgentService(
             toolGateway,
             toolRegistry,
@@ -66,6 +67,7 @@ class AgentServiceDirectAutomationTest {
             permissionService,
             timelineService,
             skillRegistry,
+            tokenUsageService,
             mapper,
             "http://localhost:9",
             6,
@@ -292,8 +294,9 @@ class AgentServiceDirectAutomationTest {
         captureConstructor.setAccessible(true);
         Object capture = captureConstructor.newInstance(true);
 
-        Method method =
-                AgentService.class.getDeclaredMethod("handleModelChunk", String.class, FluxSink.class, captureClass);
+        Class<?> stateClass = Class.forName("com.avento.service.AgentService$AgentRunState");
+        Method method = AgentService.class.getDeclaredMethod(
+                "handleModelChunk", String.class, FluxSink.class, captureClass, stateClass, String.class);
         method.setAccessible(true);
 
         String modelLine = mapper.createObjectNode()
@@ -306,7 +309,7 @@ class AgentServiceDirectAutomationTest {
 
         List<String> emitted = Flux.<String>create(sink -> {
                     try {
-                        method.invoke(service, modelLine, sink, capture);
+                        method.invoke(service, modelLine, sink, capture, null, "qwen3");
                         sink.complete();
                     } catch (Exception exception) {
                         sink.error(exception);
@@ -927,8 +930,9 @@ class AgentServiceDirectAutomationTest {
         captureConstructor.setAccessible(true);
         Object capture = captureConstructor.newInstance();
 
-        Method method =
-                AgentService.class.getDeclaredMethod("handleModelChunk", String.class, FluxSink.class, captureClass);
+        Class<?> stateClass = Class.forName("com.avento.service.AgentService$AgentRunState");
+        Method method = AgentService.class.getDeclaredMethod(
+                "handleModelChunk", String.class, FluxSink.class, captureClass, stateClass, String.class);
         method.setAccessible(true);
 
         String ollamaDoneLine =
@@ -936,7 +940,10 @@ class AgentServiceDirectAutomationTest {
 
         List<String> emitted = Flux.<String>create(sink -> {
                     try {
-                        method.invoke(service, ollamaDoneLine, sink, capture);
+                        Constructor<?> stateConstructor = stateClass.getDeclaredConstructor();
+                        stateConstructor.setAccessible(true);
+                        Object state = stateConstructor.newInstance();
+                        method.invoke(service, ollamaDoneLine, sink, capture, state, "qwen3");
                         sink.complete();
                     } catch (Exception exception) {
                         sink.error(exception);
@@ -958,15 +965,16 @@ class AgentServiceDirectAutomationTest {
         captureConstructor.setAccessible(true);
         Object capture = captureConstructor.newInstance();
 
-        Method method =
-                AgentService.class.getDeclaredMethod("handleModelChunk", String.class, FluxSink.class, captureClass);
+        Class<?> stateClass = Class.forName("com.avento.service.AgentService$AgentRunState");
+        Method method = AgentService.class.getDeclaredMethod(
+                "handleModelChunk", String.class, FluxSink.class, captureClass, stateClass, String.class);
         method.setAccessible(true);
 
         String ollamaPartialLine = "{\"message\":{\"role\":\"assistant\",\"content\":\"Oi\"},\"done\":false}";
 
         List<String> emitted = Flux.<String>create(sink -> {
                     try {
-                        method.invoke(service, ollamaPartialLine, sink, capture);
+                        method.invoke(service, ollamaPartialLine, sink, capture, null, "qwen3");
                         sink.complete();
                     } catch (Exception exception) {
                         sink.error(exception);
@@ -1028,8 +1036,9 @@ class AgentServiceDirectAutomationTest {
         captureConstructor.setAccessible(true);
         Object capture = captureConstructor.newInstance();
 
-        Method method =
-                AgentService.class.getDeclaredMethod("handleModelChunk", String.class, FluxSink.class, captureClass);
+        Class<?> stateClass = Class.forName("com.avento.service.AgentService$AgentRunState");
+        Method method = AgentService.class.getDeclaredMethod(
+                "handleModelChunk", String.class, FluxSink.class, captureClass, stateClass, String.class);
         method.setAccessible(true);
 
         String ollamaThinkingLine =
@@ -1037,7 +1046,7 @@ class AgentServiceDirectAutomationTest {
 
         List<String> emitted = Flux.<String>create(sink -> {
                     try {
-                        method.invoke(service, ollamaThinkingLine, sink, capture);
+                        method.invoke(service, ollamaThinkingLine, sink, capture, null, "qwen3");
                         sink.complete();
                     } catch (Exception exception) {
                         sink.error(exception);

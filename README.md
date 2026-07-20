@@ -57,6 +57,7 @@ Avento brings together, in a single interface, a chat with local models and an a
 - A failure to load history when switching chats shows an explicit notice with automatic retry instead of rendering the conversation as empty; the messages remain intact in PostgreSQL.
 - The task panel opens once when a plan appears and respects a manual close for the rest of the execution.
 - Chat model and visual-generation model selection in the header.
+- Token usage tracking per model, day, and chat, with a visual metrics dashboard.
 - Analysis of stack, scripts, entrypoints, and workspace structure.
 - Read, create, edit, search, and delete of authorized files.
 - Direct attachment of PDF, Office, EPUB, ZIP, text, and code in the chat, with local extraction via plain text or MarkItDown and context persisted in the conversation.
@@ -455,8 +456,9 @@ O Avento reúne, em uma única interface, um chat com modelos locais e um agente
 - Raciocinio de modelos hibridos (qwen3, etc.) roteado de forma explicita para o bloco de Thinking da interface, sem depender do default do Ollama; o modelo permanece carregado entre mensagens para reduzir latencia de recarga.
 - Janela de contexto por execucao com teto previsivel: o historico compactado de ferramentas fica limitado independente de quantas rodadas a tarefa tiver, evitando estourar o `num_ctx` do modelo em analises longas.
 - Falha ao carregar o historico na troca de chat mostra um aviso explicito com nova tentativa automatica, em vez de renderizar a conversa como vazia; as mensagens permanecem integras no PostgreSQL.
-- O painel de tarefas abre uma vez quando surge um plano e respeita o fechamento manual durante o restante da execucao.
+- O painel de tarefas abre uma vez quando um plano surge e respeita o fechamento manual durante o restante da execucao.
 - Seleção de modelo de chat e de geração visual no header.
+- Rastreamento do consumo de tokens por modelo, dia e chat, com dashboard visual de métricas.
 - Análise de stack, scripts, entrypoints e estrutura do workspace.
 - Leitura, criação, edição, busca e exclusão de arquivos autorizados.
 - Anexo direto de PDF, Office, EPUB, ZIP, texto e código no chat, com extração local por texto puro ou MarkItDown e contexto persistido na conversa.

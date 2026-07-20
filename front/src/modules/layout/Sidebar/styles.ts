@@ -642,14 +642,79 @@ export const FileTreeWrapper = styled.div`
 export const Footer = styled.div`
   padding: 12px 14px;
   border-top: 1px solid ${({ theme }) => theme.colors.border};
-  text-align: center;
-  font-size: 0.76rem;
-  color: ${({ theme }) => theme.colors.textMuted};
 
-  p {
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  ${Container}[data-minimized='true'] & {
+    padding: 12px var(--sidebar-rail-padding);
   }
+`;
+
+export const AccountBtn = styled.button`
+  width: 100%;
+  min-height: 44px;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 7%, ${({ theme }) => theme.colors.surface});
+    border-color: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 18%, ${({ theme }) => theme.colors.border});
+  }
+
+  ${Container}[data-minimized='true'] & {
+    width: var(--sidebar-control-width);
+    height: var(--sidebar-control-width);
+    padding: 0;
+    justify-content: center;
+  }
+`;
+
+export const AccountAvatar = styled.div`
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 15%, transparent);
+  color: ${({ theme }) => theme.colors.accent};
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+`;
+
+export const AccountInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+`;
+
+export const AccountName = styled.span`
+  display: block;
+  width: 100%;
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 0.8rem;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+export const AccountRole = styled.span`
+  display: block;
+  width: 100%;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 0.65rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;

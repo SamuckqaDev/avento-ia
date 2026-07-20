@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState, Component, ErrorInfo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowsIn,
@@ -49,6 +49,32 @@ const VIEWPORTS: Viewport[] = [
 
 interface UiPreviewCardProps {
   html: string;
+}
+
+class PreviewErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('UiPreviewCard error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card style={{ padding: 16, color: '#ef4444' }}>
+          <p>Não foi possível renderizar a prévia da interface devido a um erro inesperado.</p>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function previewTitle(html: string): string {
@@ -141,7 +167,7 @@ function PreviewCanvas({
   );
 }
 
-export function UiPreviewCard({ html }: UiPreviewCardProps) {
+function UiPreviewCardInner({ html }: UiPreviewCardProps) {
   const reactId = useId();
   const previewId = useMemo(() => `preview-${reactId.replace(/[^a-z0-9_-]/gi, '')}`, [reactId]);
   const title = useMemo(() => previewTitle(html), [html]);
@@ -312,4 +338,12 @@ export function UiPreviewCard({ html }: UiPreviewCardProps) {
 
 function documentBodyOverflow(): string {
   return document.body.style.overflow;
+}
+
+export function UiPreviewCard(props: UiPreviewCardProps) {
+  return (
+    <PreviewErrorBoundary>
+      <UiPreviewCardInner {...props} />
+    </PreviewErrorBoundary>
+  );
 }

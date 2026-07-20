@@ -5,15 +5,16 @@ import {
   MinimizeButton, ProjectPathList, ProjectPathItem, RemovePathButton,
   HeaderActions, MediaList, MediaItemButton, SectionToggle, SectionCount,
   ChatRow, ChatDeleteButton, DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton,
-  DeleteModalError
+  DeleteModalError, AccountBtn, AccountAvatar, AccountInfo, AccountName, AccountRole
 } from './styles';
 import { ChatSession } from '../../../hooks/useChatHistory';
 import { FileNode } from '../../../hooks/useFileSystem';
 import { AppNotification } from '../../../hooks/useNotifications';
 import { NotificationBell } from '../NotificationBell';
-import { Plus, Folder, FolderUser, FileText, ChatsCircle, List, CaretDown, CaretRight, Trash, X, ImageSquare, FilmSlate, Gear } from '@phosphor-icons/react';
+import { Plus, Folder, FolderUser, FileText, ChatsCircle, List, CaretDown, CaretRight, Trash, X, ImageSquare, FilmSlate } from '@phosphor-icons/react';
 import logoUrl from '../../../assets/avento-logo.svg';
 import { SettingsModal } from '../SettingsModal';
+import { useAuth } from '../../auth/AuthProvider';
 
 export interface GeneratedMedia {
   id: string;
@@ -49,6 +50,10 @@ interface SidebarProps {
   toggleFileSelection: (path: string, checked: boolean) => void;
   media: GeneratedMedia[];
   onOpenMedia: (media: GeneratedMedia) => void;
+  isDarkMode: boolean;
+  toggleTheme: () => void;
+  isVoiceEnabled: boolean;
+  handleToggleVoice: (enabled: boolean) => void;
 }
 
 interface FileTreeNodeProps {
@@ -116,7 +121,7 @@ function SidebarComponent({
   projectPaths, removeProjectPath, homeWorkspaceRoot, clearHomeWorkspaceRoot,
   browseFolder, authorizeHomeFolder, loadProjectTree,
   fileTree, selectedFiles, toggleFileSelection, media, onOpenMedia
-  ,onDeleteChat
+  ,onDeleteChat, isDarkMode, toggleTheme, isVoiceEnabled, handleToggleVoice
 }: SidebarProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
@@ -125,6 +130,7 @@ function SidebarComponent({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { user } = useAuth();
 
   const confirmDeleteChat = async () => {
     if (!chatToDelete) return;
@@ -315,20 +321,26 @@ function SidebarComponent({
         </Section>
       </ScrollArea>
 
-      <Footer className="hide-on-minimized">
-        <p>Avento Model Context Protocol</p>
-        <button 
-          type="button" 
-          onClick={() => setIsSettingsOpen(true)}
-          title="Configurações Locais"
-          style={{ background: 'transparent', border: 'none', color: '#9FB8B1', cursor: 'pointer', display: 'flex' }}
-        >
-          <Gear size={20} />
-        </button>
+      <Footer>
+        <AccountBtn onClick={() => setIsSettingsOpen(true)} title="Sua Conta e Configurações">
+          <AccountAvatar>
+            {user?.displayName ? user.displayName.substring(0, 2) : 'US'}
+          </AccountAvatar>
+          <AccountInfo className="hide-on-minimized">
+            <AccountName>{user?.displayName || 'Usuário'}</AccountName>
+            <AccountRole>{user?.role || 'USER'}</AccountRole>
+          </AccountInfo>
+        </AccountBtn>
       </Footer>
 
       {isSettingsOpen && (
-        <SettingsModal onClose={() => setIsSettingsOpen(false)} />
+        <SettingsModal 
+          onClose={() => setIsSettingsOpen(false)} 
+          isDarkMode={isDarkMode}
+          toggleTheme={toggleTheme}
+          isVoiceEnabled={isVoiceEnabled}
+          handleToggleVoice={handleToggleVoice}
+        />
       )}
 
       {chatToDelete && (

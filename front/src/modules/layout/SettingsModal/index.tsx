@@ -18,13 +18,13 @@ interface SettingsModalProps {
 }
 
 interface DayTotal {
-  date: string;
-  totalTokens: number;
+  day: string;
+  total: number;
 }
 
 interface ModelTotal {
   model: string;
-  totalTokens: number;
+  total: number;
 }
 
 interface UsageSummary {
@@ -170,7 +170,7 @@ export function SettingsModal({
       return <p style={{ color: '#9FB8B1', fontSize: '0.9rem' }}>Nenhum dado encontrado.</p>;
     }
 
-    const maxTokens = Math.max(1, ...usageData.byDay.map(d => d.totalTokens));
+    const maxTokens = Math.max(1, ...usageData.byDay.map(d => d.total));
     const chartHeight = 100;
 
     return (
@@ -191,16 +191,16 @@ export function SettingsModal({
                 </linearGradient>
               </defs>
               {usageData.byDay.map((day, index) => {
-                const barHeight = (day.totalTokens / maxTokens) * chartHeight;
+                const barHeight = (day.total / maxTokens) * chartHeight;
                 const barWidth = 40;
                 const x = index * (barWidth + 10);
                 const y = chartHeight - barHeight;
                 return (
-                  <g key={day.date}>
+                  <g key={day.day}>
                     <rect x={x} y={y} width={barWidth} height={barHeight}>
-                      <title>{`${day.date}: ${day.totalTokens} tokens`}</title>
+                      <title>{`${day.day}: ${day.total} tokens`}</title>
                     </rect>
-                    <text x={x + barWidth / 2} y={115} textAnchor="middle">{day.date.substring(5)}</text>
+                    <text x={x + barWidth / 2} y={115} textAnchor="middle">{day.day.substring(5)}</text>
                   </g>
                 );
               })}
@@ -222,7 +222,7 @@ export function SettingsModal({
                 {usageData.byModel.map(model => (
                   <tr key={model.model}>
                     <td>{model.model}</td>
-                    <td>{model.totalTokens.toLocaleString()}</td>
+                    <td>{model.total.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>

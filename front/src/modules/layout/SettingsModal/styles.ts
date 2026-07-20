@@ -93,6 +93,7 @@ export const Body = styled.div`
   .profile-avatar {
     width: 64px;
     height: 64px;
+    flex-shrink: 0;
     border-radius: 16px;
     background: linear-gradient(135deg, #66E6C8 0%, #104E45 100%);
     display: flex;

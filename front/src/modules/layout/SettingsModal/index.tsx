@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
 import { 
   ModalBackdrop, ModalContainer, Header, Body, SettingRow, 
@@ -286,7 +287,7 @@ export function SettingsModal({
     </>
   );
 
-  return (
+  return createPortal(
     <ModalBackdrop onClick={onClose}>
       <ModalContainer onClick={(e) => e.stopPropagation()}>
         <Header>
@@ -307,6 +308,7 @@ export function SettingsModal({
         {activeTab === 'preferencias' && renderPreferencias()}
 
       </ModalContainer>
-    </ModalBackdrop>
+    </ModalBackdrop>,
+    document.body
   );
 }

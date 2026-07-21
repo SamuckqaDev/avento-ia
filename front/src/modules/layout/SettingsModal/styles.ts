@@ -13,8 +13,15 @@ export const ModalBackdrop = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  padding: 16px;
+  overflow: hidden;
   z-index: 9999;
   animation: ${fadeIn} 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @media (max-width: 560px), (max-height: 560px) {
+    padding: 8px;
+  }
 `;
 
 export const ModalContainer = styled.div`
@@ -22,27 +29,42 @@ export const ModalContainer = styled.div`
   backdrop-filter: blur(24px);
   border: 1px solid rgba(102, 230, 200, 0.15);
   border-radius: 16px;
-  width: 90%;
-  max-width: 540px;
-  min-height: 400px;
+  box-sizing: border-box;
+  width: min(640px, 100%);
+  height: min(760px, calc(100dvh - 32px));
+  min-height: min(400px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
   padding: 28px;
   color: #F2FFFB;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
+  overflow: hidden;
+
+  @media (max-width: 560px), (max-height: 560px) {
+    height: calc(100dvh - 16px);
+    min-height: 0;
+    max-height: calc(100dvh - 16px);
+    padding: 16px;
+    border-radius: 12px;
+    gap: 12px;
+  }
 `;
 
 export const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
 
   h2 {
     margin: 0;
     font-size: 1.35rem;
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
+    line-height: 1.25;
     background: linear-gradient(180deg, #FFFFFF 0%, #B8D4CC 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -77,8 +99,27 @@ export const Body = styled.div`
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
   gap: 20px;
+  padding-right: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   animation: ${slideUp} 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(159, 184, 177, 0.3);
+    border-radius: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
   .profile-header {
     display: flex;
@@ -142,6 +183,7 @@ export const SettingRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
 
   label {
     display: flex;
@@ -155,6 +197,14 @@ export const SettingRow = styled.div`
     span {
       font-size: 0.85rem;
       color: #9FB8B1;
+    }
+  }
+
+  @media (max-width: 520px) {
+    align-items: flex-start;
+
+    > button {
+      flex-shrink: 0;
     }
   }
 `;
@@ -192,6 +242,18 @@ export const Footer = styled.div`
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+
+  @media (max-width: 520px) {
+    margin-top: 4px;
+    padding-top: 12px;
+
+    button {
+      flex: 1;
+      min-width: 0;
+      padding-inline: 12px;
+    }
+  }
 `;
 
 export const DestructiveButton = styled.button`
@@ -241,12 +303,21 @@ export const Tabs = styled.div`
   padding: 4px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 10px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 export const TabButton = styled.button<{ $active?: boolean }>`
-  flex: 1;
+  flex: 1 0 auto;
+  min-width: 96px;
   background: ${({ $active }) => $active ? 'rgba(255, 255, 255, 0.1)' : 'transparent'};
   border: none;
   border-radius: 6px;
@@ -273,6 +344,7 @@ export const UsageCard = styled.div`
   flex-direction: column;
   gap: 12px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow-x: auto;
 
   &:hover {
     border-color: rgba(102, 230, 200, 0.2);
@@ -434,6 +506,7 @@ export const MemoryAddRow = styled.div`
 
   input {
     flex: 1;
+    min-width: 0;
     background: rgba(33, 67, 61, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
@@ -448,6 +521,14 @@ export const MemoryAddRow = styled.div`
 
     &::placeholder {
       color: #6E857F;
+    }
+  }
+
+  @media (max-width: 520px) {
+    flex-direction: column;
+
+    button {
+      width: 100%;
     }
   }
 `;
@@ -489,12 +570,15 @@ export const MemoryCard = styled.div<{ $pending?: boolean }>`
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
+    flex: 1;
   }
 
   .memory-text {
     color: #F2FFFB;
     font-size: 0.9rem;
     line-height: 1.4;
+    overflow-wrap: anywhere;
   }
 
   .memory-tag {
@@ -508,6 +592,18 @@ export const MemoryCard = styled.div<{ $pending?: boolean }>`
     display: flex;
     gap: 6px;
     flex-shrink: 0;
+  }
+
+  @media (max-width: 520px) {
+    flex-direction: column;
+
+    .memory-actions {
+      width: 100%;
+
+      button {
+        flex: 1;
+      }
+    }
   }
 `;
 

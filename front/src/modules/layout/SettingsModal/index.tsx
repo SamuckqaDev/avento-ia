@@ -597,9 +597,14 @@ export function SettingsModal({
 
   return createPortal(
     <ModalBackdrop onClick={onClose}>
-      <ModalContainer onClick={(e) => e.stopPropagation()}>
+      <ModalContainer
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <Header>
-          <h2>Sua Conta e Configurações</h2>
+          <h2 id="settings-modal-title">Sua Conta e Configurações</h2>
           <button onClick={onClose} title="Fechar modal">
             <X size={20} />
           </button>

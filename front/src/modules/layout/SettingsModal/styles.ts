@@ -188,6 +188,8 @@ export const SettingRow = styled.div`
   label {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-width: 0;
     gap: 4px;
     
     strong {
@@ -212,7 +214,11 @@ export const SettingRow = styled.div`
 export const ToggleSwitch = styled.button<{ $active: boolean }>`
   position: relative;
   width: 44px;
+  min-width: 44px;
   height: 24px;
+  min-height: 24px;
+  flex: 0 0 44px;
+  padding: 0;
   border-radius: 12px;
   background: ${props => props.$active ? '#66E6C8' : 'rgba(33, 67, 61, 0.6)'};
   border: 1px solid ${props => props.$active ? 'transparent' : 'rgba(255, 255, 255, 0.1)'};
@@ -344,7 +350,7 @@ export const UsageCard = styled.div`
   flex-direction: column;
   gap: 12px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  overflow-x: auto;
+  min-width: 0;
 
   &:hover {
     border-color: rgba(102, 230, 200, 0.2);
@@ -403,6 +409,8 @@ export const BarChart = styled.svg`
 
 export const UsageTable = styled.table`
   width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   margin-top: 8px;
   font-size: 0.9rem;
@@ -413,12 +421,14 @@ export const UsageTable = styled.table`
     font-weight: 500;
     padding: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-wrap: anywhere;
   }
 
   td {
     color: #F2FFFB;
     padding: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    overflow-wrap: anywhere;
   }
   
   tr:last-child td {
@@ -432,6 +442,26 @@ export const UsageTable = styled.table`
   td:not(:first-child), th:not(:first-child) {
     text-align: right;
     font-variant-numeric: tabular-nums;
+  }
+
+  td:first-child,
+  th:first-child {
+    width: 40%;
+    text-align: left;
+  }
+
+  @media (max-width: 520px) {
+    font-size: 0.76rem;
+
+    th,
+    td {
+      padding: 8px 4px;
+    }
+
+    td:first-child,
+    th:first-child {
+      width: 34%;
+    }
   }
 `;
 

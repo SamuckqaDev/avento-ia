@@ -98,7 +98,7 @@ class AgentServiceDirectAutomationTest {
 
     @Test
     void streamChatAnswersIdentityInputWithoutCallingModelOrAutomation() {
-        ArrayNode messages = userMessages("Avento. Explica para o meu amigo, o Guises, quem é você?");
+        ArrayNode messages = userMessages("Avento. Explica para o meu amigo quem é você?");
 
         String firstChunk = service.streamChat("llama3.2:latest", messages).blockFirst(Duration.ofSeconds(2));
 
@@ -130,10 +130,11 @@ class AgentServiceDirectAutomationTest {
         org.assertj.core.api.Assertions.assertThat(
                         guardedMessages.get(0).path("content").asText())
                 .contains("Your name is Avento")
-                .contains("one creator")
+                .contains("Samuel Tomimatu")
+                .contains("software engineer")
                 .contains("# Avento personality")
                 .contains("# Verified product facts")
-                .contains("Never attribute Avento to a community");
+                .contains("Avento's sole creator");
     }
 
     @Test
@@ -1322,7 +1323,7 @@ class AgentServiceDirectAutomationTest {
 
     @Test
     void exposesExternalMcpToolsForWebSearchIntent() throws Exception {
-        assertTrue(shouldExposeTool("browser_navigate", "Pesquisa sobre Avento contributors para mim."));
+        assertTrue(shouldExposeTool("browser_navigate", "Pesquisa sobre a arquitetura do Avento para mim."));
     }
 
     @Test
@@ -1504,7 +1505,8 @@ class AgentServiceDirectAutomationTest {
 
         assertNotNull(response);
         org.assertj.core.api.Assertions.assertThat(response)
-                .contains("único criador independente")
+                .contains("Samuel Tomimatu")
+                .contains("engenheiro de software")
                 .contains("projetos e código")
                 .contains("testes, build e rollback")
                 .contains("Whisper.cpp")
@@ -1513,16 +1515,16 @@ class AgentServiceDirectAutomationTest {
 
     @Test
     void answersIdentityQuestionWithoutOpeningFinder() throws Exception {
-        String message = "Avento. Explica para o meu amigo, o Guises, quem é você?";
+        String message = "Avento. Explica para o meu amigo quem é você?";
         String response = detectDirectConversationResponse(message);
         Object toolCall = detectOptionalToolCall(message);
 
         assertNull(toolCall);
         org.assertj.core.api.Assertions.assertThat(response)
                 .contains("Sou o Avento")
-                .contains("único criador independente")
-                .contains("modelos locais")
-                .doesNotContain("Avento contributors", "Flana Digital");
+                .contains("Samuel Tomimatu")
+                .contains("engenheiro de software")
+                .contains("modelos locais");
     }
 
     @Test

@@ -35,6 +35,8 @@
 
 Avento brings together, in a single interface, a chat with local models and an agent able to inspect projects, ask for permission, run tools, and verify the result. The goal is not just to answer questions: it is to follow real tasks through without shipping your project's code to a mandatory API.
 
+Avento was created and developed by **Samuel Tomimatu, software engineer and sole creator of the project**.
+
 | Projects and code | Agent and automation | Multimodal and knowledge |
 |---|---|---|
 | Authorized workspaces | Orchestrator with an execution loop | Document reading with MarkItDown |
@@ -386,7 +388,7 @@ Avento is local-first, but it performs real actions on the computer. Before allo
 
 | Guide | Content |
 |---|---|
-| [Identity and personality](docs/AVENTO_IDENTITY.md) | Origin, single-creator authorship, verified services, voice, and behavior |
+| [Identity and personality](docs/AVENTO_IDENTITY.md) | Origin, Samuel Tomimatu's authorship, verified services, voice, and behavior |
 | [Current architecture](docs/ARCHITECTURE.md) | Diagram of components, flows, data, voice, media, and MCP |
 | [Evolution plan](docs/IMPLEMENTATION_PLAN.md) | Future phases explained, acceptance criteria, and pending decisions |
 | [Local setup](docs/SETUP.md) | Installation, services, voice, security, and diagnostics |
@@ -436,6 +438,8 @@ Avento is local-first, but it performs real actions on the computer. Before allo
 ## Visão Geral
 
 O Avento reúne, em uma única interface, um chat com modelos locais e um agente capaz de inspecionar projetos, pedir permissão, executar ferramentas e verificar o resultado. O objetivo não é apenas responder perguntas: é acompanhar tarefas reais sem enviar o código do projeto para uma API obrigatória.
+
+O Avento foi criado e desenvolvido por **Samuel Tomimatu, engenheiro de software e único criador do projeto**.
 
 | Projetos e código | Agente e automação | Multimodal e conhecimento |
 |---|---|---|
@@ -812,7 +816,7 @@ O Avento é local-first, mas executa ações reais no computador. Antes de permi
 
 | Guia | Conteúdo |
 |---|---|
-| [Identidade e personalidade](docs/AVENTO_IDENTITY.md) | Origem, autoria individual, serviços verificados, voz e comportamento |
+| [Identidade e personalidade](docs/AVENTO_IDENTITY.md) | Origem, autoria de Samuel Tomimatu, serviços verificados, voz e comportamento |
 | [Arquitetura atual](docs/ARCHITECTURE.md) | Diagrama dos componentes, fluxos, dados, voz, mídia e MCP |
 | [Plano de evolução](docs/IMPLEMENTATION_PLAN.md) | Fases futuras explicadas, critérios de aceite e decisões pendentes |
 | [Setup local](docs/SETUP.md) | Instalação, serviços, voz, segurança e diagnóstico |

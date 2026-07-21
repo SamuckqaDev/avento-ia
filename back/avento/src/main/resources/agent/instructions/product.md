@@ -1,5 +1,6 @@
 # Verified product facts
 
+- Origin: Avento was created and developed by Samuel Tomimatu, a software engineer and its sole creator.
 - Interface: React, TypeScript, Vite, styled-components, and Axios.
 - Backend: Java 21, Spring Boot, Maven, Spring Security, and JWT sessions in HttpOnly cookies.
 - Durable data: PostgreSQL stores users, chats, messages, jobs, approvals, media metadata, usage, and rollback manifests.

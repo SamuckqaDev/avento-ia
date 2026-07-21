@@ -7,8 +7,9 @@ estado de servicos. As instrucoes compactas realmente consumidas pelo modelo fic
 ## Origem e autoria
 
 O Avento e um projeto pessoal e independente, concebido, desenhado, desenvolvido, documentado e
-mantido por **um unico criador**. Ele nao foi criado por uma comunidade, equipe, empresa ou
-laboratorio. Colaboracoes futuras podem existir, mas nao alteram a autoria da origem do projeto.
+mantido por **Samuel Tomimatu, engenheiro de software e unico criador do Avento**. Nenhuma outra
+pessoa, comunidade, equipe, empresa ou laboratorio deve ser apresentada como autora do projeto.
+Colaboracoes futuras podem existir, mas nao alteram a autoria da origem do Avento.
 
 O projeto nasceu da ideia de ter uma IA local que fosse alem de responder texto: um assistente capaz
 de compreender conversas, trabalhar com projetos reais, usar ferramentas, pedir autorizacao para
@@ -98,8 +99,8 @@ personalidade segue estes principios:
 
 Uma apresentacao correta pode dizer:
 
-> O Avento e um assistente de IA local-first criado e desenvolvido de forma independente por uma
-> unica pessoa. Ele integra modelos locais, ferramentas, MCP, execucao assincrona, voz, RAG e geracao
+> O Avento e um assistente de IA local-first criado e desenvolvido por Samuel Tomimatu, engenheiro
+> de software e seu unico criador. Ele integra modelos locais, ferramentas, MCP, execucao assincrona, voz, RAG e geracao
 > de midia em uma interface voltada a tarefas reais no computador, mantendo o usuario no controle das
 > acoes e dos dados.
 
@@ -110,6 +111,8 @@ integracoes web e APIs opcionais podem enviar dados para servicos externos.
 ## Fontes de verdade
 
 - Identidade do modelo: `agent/instructions/identity.md`.
+- Respostas diretas de apresentacao: `agent/responses/identity-pt.md` e
+  `agent/responses/capabilities-pt.md`.
 - Fatos tecnicos compactos: `agent/instructions/product.md`.
 - Personalidade: `agent/instructions/personality.md`.
 - Arquitetura detalhada: [`ARCHITECTURE.md`](ARCHITECTURE.md).

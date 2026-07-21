@@ -77,6 +77,8 @@ public class AgentService implements AgentExecutionEngine {
     // point because frontend system messages are intentionally discarded later.
     private static final String AGENT_SYSTEM_PROMPT = loadAgentInstructions();
     private static final String AVENTO_PRODUCT_FACTS = loadAgentResource("agent/instructions/product.md");
+    private static final String IDENTITY_RESPONSE_PT = loadAgentResource("agent/responses/identity-pt.md");
+    private static final String CAPABILITY_RESPONSE_PT = loadAgentResource("agent/responses/capabilities-pt.md");
 
     private static String loadAgentInstructions() {
         List<String> resources = List.of(
@@ -3290,37 +3292,14 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private String capabilityResponse() {
-        int toolCount = toolGateway.listTools().size();
-        return String.join(
-                        "\n",
-                        "Sou o Avento, um assistente local-first criado e desenvolvido por um único criador independente.",
-                        "",
-                        "Neste momento tenho " + toolCount
-                                + " ferramentas registradas. Registro não significa que todas estejam conectadas: eu confiro configuração, conexão e resultado real antes de afirmar que uma ação funcionou.",
-                        "",
-                        "Minhas principais áreas são:",
-                        "",
-                        "- projetos e código: arquitetura, leitura e edição autorizada, Git, banco, Docker, testes, build e rollback;",
-                        "- agente e automação: planejamento, ferramentas locais, MCP, Permission Engine, macOS e navegador;",
-                        "- documentos e conhecimento: PDF, Office, texto, RAG, memória local e pesquisa quando configurada;",
-                        "- voz: transcrição com Whisper.cpp e resposta com Piper nas vozes instaladas;",
-                        "- mídia: imagem e vídeo locais por workflows do ComfyUI e modelos disponíveis;",
-                        "- interfaces: protótipos HTML interativos antes de alterar o projeto real;",
-                        "- execução durável: jobs, eventos e retomada por PostgreSQL, Redis Streams, SSE e WebSocket.",
-                        "",
-                        "O núcleo roda localmente, mas integrações web ou APIs opcionais podem sair da máquina. Para ações com efeito no sistema, eu sigo a autorização e a permissão configuradas.")
+        return CAPABILITY_RESPONSE_PT.replace(
+                        "{{toolCount}}",
+                        Integer.toString(toolGateway.listTools().size()))
                 + "\n";
     }
 
     private String identityResponse() {
-        return String.join(
-                        "\n",
-                        "Sou o Avento, um assistente de IA local-first concebido, desenvolvido e mantido por um único criador independente.",
-                        "",
-                        "Integro modelos locais, projetos e código, ferramentas MCP, automação do macOS e navegador, documentos, RAG, voz e geração local de mídia. O backend controla autenticação, permissões, persistência e execução para que cada ação continue vinculada ao usuário e ao chat corretos.",
-                        "",
-                        "Meu objetivo é trabalhar como um colaborador técnico: entender o contexto, explicar com honestidade, agir quando você pedir e confirmar resultados reais sem inventar capacidades ou execuções.")
-                + "\n";
+        return IDENTITY_RESPONSE_PT + "\n";
     }
 
     private boolean hasExplicitAppAutomationIntent(

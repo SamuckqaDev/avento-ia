@@ -130,6 +130,7 @@ public class AgentService implements AgentExecutionEngine {
     private final int maxToolRounds;
     private final int maxToolCalls;
     private final int numCtx;
+    private final int numPredict;
     private final double temperature;
     private final double topP;
     private final int topK;
@@ -220,7 +221,8 @@ public class AgentService implements AgentExecutionEngine {
             @Value("${spring.ai.ollama.base-url:http://localhost:11434}") String ollamaBaseUrl,
             @Value("${avento.agent.max-tool-rounds:6}") int maxToolRounds,
             @Value("${avento.agent.max-tool-calls:16}") int maxToolCalls,
-            @Value("${avento.agent.num-ctx:8192}") int numCtx,
+            @Value("${avento.agent.num-ctx:16384}") int numCtx,
+            @Value("${avento.agent.num-predict:4096}") int numPredict,
             @Value("${avento.agent.temperature:0.15}") double temperature,
             @Value("${avento.agent.top-p:0.9}") double topP,
             @Value("${avento.agent.top-k:30}") int topK,
@@ -253,7 +255,8 @@ public class AgentService implements AgentExecutionEngine {
         this.webClient = WebClient.builder().baseUrl(ollamaBaseUrl).build();
         this.maxToolRounds = maxToolRounds;
         this.maxToolCalls = maxToolCalls;
-        this.numCtx = numCtx;
+        this.numCtx = Math.max(2048, numCtx);
+        this.numPredict = Math.max(256, Math.min(numPredict, this.numCtx - 1024));
         this.temperature = Math.max(0.0, Math.min(2.0, temperature));
         this.topP = Math.max(0.0, Math.min(1.0, topP));
         this.topK = Math.max(1, topK);
@@ -951,6 +954,7 @@ public class AgentService implements AgentExecutionEngine {
         ollamaRequest.put("keep_alive", keepAlive);
         ObjectNode options = ollamaRequest.putObject("options");
         options.put("num_ctx", numCtx);
+        options.put("num_predict", numPredict);
         options.put("temperature", temperature);
         options.put("top_p", topP);
         options.put("top_k", topK);

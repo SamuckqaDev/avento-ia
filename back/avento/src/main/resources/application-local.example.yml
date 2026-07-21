@@ -27,7 +27,8 @@ avento:
   agent:
     max-tool-rounds: 6
     max-tool-calls: 16
-    num-ctx: ${AVENTO_AGENT_NUM_CTX:8192}
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:16384}
+    num-predict: ${AVENTO_AGENT_NUM_PREDICT:4096}
     temperature: ${AVENTO_AGENT_TEMPERATURE:0.15}
     top-p: ${AVENTO_AGENT_TOP_P:0.9}
     top-k: ${AVENTO_AGENT_TOP_K:30}

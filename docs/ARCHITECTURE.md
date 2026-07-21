@@ -567,6 +567,9 @@ workflows necessarios para encontra-los ou prepara-los na maquina local.
   expostas preenchem as vagas restantes). Se uma rodada terminar sem texto e sem chamada de
   ferramenta, o agente repete uma unica vez com instrucao explicita antes de avisar o usuario,
   em vez de completar a execucao em silencio.
+  O padrao local usa uma janela de 16.384 tokens e `num-predict=4096` por rodada. Esse limite de
+  geracao evita uma resposta sem teto, mas nao e uma reserva separada: prompt e resposta ainda
+  compartilham `num-ctx`, portanto schemas e historico continuam sendo compactados.
 - O ambiente foi desenhado primeiro para macOS e loopback; acesso remoto exige outra camada de
   seguranca e operacao.
 

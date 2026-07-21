@@ -81,7 +81,8 @@ class AgentServiceDirectAutomationTest {
             "http://localhost:9",
             6,
             16,
-            8192,
+            16384,
+            4096,
             0.15,
             0.9,
             30,
@@ -298,7 +299,8 @@ class AgentServiceDirectAutomationTest {
     void sendsDeterministicInferenceParametersToOllama() throws Exception {
         ObjectNode request = buildOllamaRequest("qwen3:8b", userMessages("Analisa este projeto."));
 
-        assertEquals(8192, request.path("options").path("num_ctx").asInt());
+        assertEquals(16384, request.path("options").path("num_ctx").asInt());
+        assertEquals(4096, request.path("options").path("num_predict").asInt());
         assertEquals(0.15, request.path("options").path("temperature").asDouble());
         assertEquals(0.9, request.path("options").path("top_p").asDouble());
         assertEquals(30, request.path("options").path("top_k").asInt());

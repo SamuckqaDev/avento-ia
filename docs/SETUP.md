@@ -297,8 +297,9 @@ avento:
     tts-cache-ttl: PT6H
 ```
 
-O frontend encerra uma fala apos cerca de 850 ms de silencio e envia o audio ao Whisper com VAD
-local. Na resposta, o backend remove Markdown, codigo, URLs, metricas e emojis antes do Piper; textos
+O frontend encerra uma fala apos cerca de 1,8 s de silencio e envia o audio ao Whisper com VAD
+local. Essa janela aceita pausas naturais no meio de uma pergunta sem envia-la pela metade. Na
+resposta, o backend remove Markdown, codigo, URLs, metricas e emojis antes do Piper; textos
 longos sao sintetizados em trechos menores e a reproducao comeca assim que o primeiro trecho fica
 pronto. O idioma detectado na conversa escolhe a voz portuguesa ou inglesa configurada.
 
@@ -452,7 +453,7 @@ Os caminhos relativos de Piper e Whisper sao resolvidos pela raiz do projeto, me
 
 Se a pasta do Avento for movida ou renomeada, o lancador Python do virtualenv do Piper pode manter o caminho antigo no shebang. O backend detecta esse caso e executa o lancador pelo Python do proprio virtualenv, sem exigir reinstalacao do Piper.
 
-No modo de voz em tempo quase real, se o usuario falar enquanto o Avento esta falando, o frontend corta o audio atual imediatamente, cancela a geracao em andamento e captura a nova fala antes de enviar outra rodada ao agente com o contexto recente. A captura WebSocket aguarda cerca de 850 ms de silencio antes de fechar a frase, envia o WebM inteiro e so entao manda `flush`, evitando transcricao de audio incompleto. O backend aumenta o buffer binario do WebSocket para aceitar frases de voz maiores sem fechar a conexao com erro `1009`. O TTS usa cache opcional no Redis (`avento:voice:tts:*`) para reaproveitar WAVs de frases iguais e reduzir latencia; se o Redis estiver indisponivel, o Piper continua sendo usado normalmente.
+No modo de voz em tempo quase real, se o usuario falar enquanto o Avento esta falando, o frontend corta o audio atual imediatamente, cancela a geracao em andamento e captura a nova fala antes de enviar outra rodada ao agente com o contexto recente. A captura WebSocket aguarda cerca de 1,8 s de silencio antes de fechar a frase, envia o WebM inteiro e so entao manda `flush`, evitando transcricao de audio incompleto. O backend aumenta o buffer binario do WebSocket para aceitar frases de voz maiores sem fechar a conexao com erro `1009`. O TTS usa cache opcional no Redis (`avento:voice:tts:*`) para reaproveitar WAVs de frases iguais e reduzir latencia; se o Redis estiver indisponivel, o Piper continua sendo usado normalmente.
 
 O botao de mute controla toda a reproducao do Avento, nao apenas a mensagem visivel. Ele interrompe
 o elemento de audio atual, revoga os objetos temporarios, limpa frases enfileiradas e invalida

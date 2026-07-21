@@ -1681,7 +1681,10 @@ public class AgentService implements AgentExecutionEngine {
         }
 
         for (int index = start; index < candidates.size(); index++) {
-            compacted.add(compactMessage(candidates.get(index)));
+            JsonNode message = candidates.get(index);
+            boolean currentUserRequest = index == candidates.size() - 1
+                    && "user".equals(message.path("role").asText(""));
+            compacted.add(compactMessage(message, currentUserRequest));
         }
         return compacted;
     }
@@ -1732,7 +1735,7 @@ public class AgentService implements AgentExecutionEngine {
         return flattened.substring(0, SUMMARY_SNIPPET_CHARS).stripTrailing() + "…";
     }
 
-    private ObjectNode compactMessage(JsonNode message) {
+    private ObjectNode compactMessage(JsonNode message, boolean currentUserRequest) {
         ObjectNode compacted = mapper.createObjectNode();
         String role = message.path("role").asText("user");
         compacted.put("role", role);
@@ -1745,7 +1748,8 @@ public class AgentService implements AgentExecutionEngine {
         if (message.has("tool_calls")) {
             compacted.set("tool_calls", message.get("tool_calls").deepCopy());
         }
-        compacted.put("content", compactContent(message.path("content").asText("")));
+        String content = message.path("content").asText("");
+        compacted.put("content", currentUserRequest ? compactCurrentUserContent(content) : compactContent(content));
         if (message.has("images")
                 && message.get("images").isArray()
                 && message.get("images").size() > 0) {
@@ -1779,6 +1783,28 @@ public class AgentService implements AgentExecutionEngine {
         return content.substring(0, headChars)
                 + "\n\n[... trecho antigo omitido pelo Avento para caber no contexto local ...]\n\n"
                 + content.substring(content.length() - tailChars);
+    }
+
+    private String compactCurrentUserContent(String content) {
+        if (content == null || content.length() <= maxMessageContentChars) {
+            return content == null ? "" : content;
+        }
+
+        int requestStart = directUserRequestStart(content);
+        if (requestStart < 0) {
+            return compactContent(content);
+        }
+
+        String request = content.substring(requestStart).trim();
+        String separator = "\n\n[... contexto adicional compactado; pedido atual preservado ...]\n\n";
+        if (request.isBlank() || request.length() + separator.length() > maxMessageContentChars) {
+            return compactContent(content);
+        }
+
+        int contextBudget = maxMessageContentChars - request.length() - separator.length();
+        String context =
+                content.substring(0, Math.min(requestStart, contextBudget)).stripTrailing();
+        return context + separator + request;
     }
 
     private String formatSize(long sizeBytes) {
@@ -2856,19 +2882,36 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private String extractDirectUserRequest(String message) {
-        String lower = message.toLowerCase(Locale.ROOT);
-        int marker = lower.lastIndexOf("responda ao seguinte pedido");
-        if (marker < 0) {
+        int requestStart = directUserRequestStart(message);
+        if (requestStart < 0) {
             return message;
         }
 
-        int separator = message.indexOf(":\n\n", marker);
-        if (separator < 0) {
-            return message;
-        }
-
-        String extracted = message.substring(separator + 3).trim();
+        String extracted = message.substring(requestStart).trim();
         return extracted.isBlank() ? message : extracted;
+    }
+
+    private int directUserRequestStart(String message) {
+        String lower = message.toLowerCase(Locale.ROOT);
+        int requestStart = -1;
+        int marker = lower.lastIndexOf("responda ao seguinte pedido");
+        if (marker >= 0) {
+            int separator = message.indexOf(":\n\n", marker);
+            if (separator >= 0) {
+                requestStart = separator + 3;
+            }
+        }
+
+        String explicitMarker = "[pedido do usuário]";
+        int explicitRequest = lower.lastIndexOf(explicitMarker);
+        if (explicitRequest >= 0) {
+            int explicitStart = explicitRequest + explicitMarker.length();
+            while (explicitStart < message.length() && Character.isWhitespace(message.charAt(explicitStart))) {
+                explicitStart++;
+            }
+            requestStart = Math.max(requestStart, explicitStart);
+        }
+        return requestStart;
     }
 
     private ToolCall detectDirectSystemAutomationRequest(ArrayNode messages) {

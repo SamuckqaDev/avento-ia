@@ -211,6 +211,26 @@ class AgentServiceDirectAutomationTest {
     }
 
     @Test
+    void preservesTheEntireCurrentRequestWhenSupplementalContextIsCompacted() throws Exception {
+        String currentRequest =
+                "Analise a autenticação, preserve o refresh token e corrija o logout sem alterar o login.";
+        String content = "[Project Analysis]\n" + "contexto extenso ".repeat(900)
+                + "\n\nCom base no contexto local acima, responda ao seguinte pedido do usuário:\n\n"
+                + currentRequest;
+        ArrayNode messages = userMessages(content);
+
+        Method method = AgentService.class.getDeclaredMethod("withBackendIdentityPrompt", ArrayNode.class, List.class);
+        method.setAccessible(true);
+        ArrayNode guardedMessages = (ArrayNode) method.invoke(service, messages, List.of());
+
+        String compactedRequest = guardedMessages.get(1).path("content").asText();
+        org.assertj.core.api.Assertions.assertThat(compactedRequest)
+                .hasSizeLessThanOrEqualTo(6000)
+                .contains("contexto adicional compactado")
+                .endsWith(currentRequest);
+    }
+
+    @Test
     void backendLoadsMaximumPolicyByDefault() throws Exception {
         Method method = AgentService.class.getDeclaredMethod("withBackendIdentityPrompt", ArrayNode.class, List.class);
         method.setAccessible(true);

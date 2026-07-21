@@ -1,5 +1,9 @@
 import { useState, useRef, useCallback } from 'react';
 import { api } from '../services/apiClient';
+import {
+  REALTIME_RECORDER_RESTART_DELAY_MS,
+  shouldFinalizeRealtimeUtterance,
+} from './voiceSegmentation';
 
 type RealtimeTranscriptPayload = {
   text: string;
@@ -389,7 +393,6 @@ export function useAudioServices() {
       realtimeSocketRef.current = socket;
       const speechThreshold = 0.02;
       const bargeInThreshold = 0.022;
-      const silenceMs = 850;
 
       const startRecorder = () => {
         if (!realtimeVoiceActiveRef.current || !realtimeStreamRef.current || !realtimeSocketRef.current || realtimeSocketRef.current.readyState !== WebSocket.OPEN) {
@@ -439,7 +442,7 @@ export function useAudioServices() {
             setRealtimeTranscript('Erro ao enviar áudio para transcrição.');
           } finally {
             if (realtimeVoiceActiveRef.current) {
-              window.setTimeout(startRecorder, 180);
+              window.setTimeout(startRecorder, REALTIME_RECORDER_RESTART_DELAY_MS);
             }
           }
         };
@@ -543,7 +546,12 @@ export function useAudioServices() {
               silenceStartedAtRef.current = now;
             }
             const recorder = realtimeRecorderRef.current;
-            if (!isStoppingUtteranceRef.current && recorder && recorder.state === 'recording' && now - silenceStartedAtRef.current > silenceMs) {
+            if (
+              !isStoppingUtteranceRef.current
+              && recorder
+              && recorder.state === 'recording'
+              && shouldFinalizeRealtimeUtterance(true, silenceStartedAtRef.current, now)
+            ) {
               isStoppingUtteranceRef.current = true;
               recorder.stop();
             }

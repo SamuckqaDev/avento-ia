@@ -129,8 +129,11 @@ class AgentServiceDirectAutomationTest {
         assertEquals("system", guardedMessages.get(0).path("role").asText());
         org.assertj.core.api.Assertions.assertThat(
                         guardedMessages.get(0).path("content").asText())
-                .contains("Seu nome é Avento")
-                .contains("Você NÃO é uma ferramenta");
+                .contains("Your name is Avento")
+                .contains("one creator")
+                .contains("# Avento personality")
+                .contains("# Verified product facts")
+                .contains("Never attribute Avento to a community");
     }
 
     @Test
@@ -185,6 +188,30 @@ class AgentServiceDirectAutomationTest {
                         guardedMessages.get(0).path("content").asText())
                 .doesNotContain("Nenhum workspace autorizado nesta conversa ainda")
                 .doesNotContain("se precisar mexer em arquivos, avise o usuário");
+    }
+
+    @Test
+    void injectsProductFactsOnlyWhenTheConversationIsAboutAvento() throws Exception {
+        Method method = AgentService.class.getDeclaredMethod("withBackendIdentityPrompt", ArrayNode.class, List.class);
+        method.setAccessible(true);
+
+        ArrayNode ordinary =
+                (ArrayNode) method.invoke(service, userMessages("Corrija o logout do projeto."), List.of());
+        ArrayNode aboutAvento = (ArrayNode) method.invoke(
+                service,
+                userMessages(
+                        "Crie um post apresentando o Avento.", "Deixe o post mais abrangente e explique os serviços."),
+                List.of());
+
+        org.assertj.core.api.Assertions.assertThat(
+                        ordinary.get(0).path("content").asText())
+                .contains("# Avento personality")
+                .doesNotContain("# Verified product facts");
+        org.assertj.core.api.Assertions.assertThat(
+                        aboutAvento.get(0).path("content").asText())
+                .contains("# Verified product facts")
+                .contains("ComfyUI")
+                .contains("Whisper.cpp");
     }
 
     @Test
@@ -1455,8 +1482,9 @@ class AgentServiceDirectAutomationTest {
 
         assertNull(toolCall);
         org.assertj.core.api.Assertions.assertThat(response)
-                .contains("analisar projetos")
-                .contains("abrir app");
+                .contains("projetos e código")
+                .contains("agente e automação")
+                .contains("macOS e navegador");
     }
 
     @Test
@@ -1466,8 +1494,8 @@ class AgentServiceDirectAutomationTest {
 
         assertNull(toolCall);
         org.assertj.core.api.Assertions.assertThat(response)
-                .contains("rodar validações")
-                .contains("pedido for explícito");
+                .contains("testes, build e rollback")
+                .contains("autorização e a permissão configuradas");
     }
 
     @Test
@@ -1476,8 +1504,11 @@ class AgentServiceDirectAutomationTest {
 
         assertNotNull(response);
         org.assertj.core.api.Assertions.assertThat(response)
-                .contains("analisar projetos")
-                .contains("rodar validações");
+                .contains("único criador independente")
+                .contains("projetos e código")
+                .contains("testes, build e rollback")
+                .contains("Whisper.cpp")
+                .contains("ComfyUI");
     }
 
     @Test
@@ -1489,7 +1520,9 @@ class AgentServiceDirectAutomationTest {
         assertNull(toolCall);
         org.assertj.core.api.Assertions.assertThat(response)
                 .contains("Sou o Avento")
-                .contains("ambiente local");
+                .contains("único criador independente")
+                .contains("modelos locais")
+                .doesNotContain("Avento contributors", "Flana Digital");
     }
 
     @Test

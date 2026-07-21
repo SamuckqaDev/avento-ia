@@ -274,6 +274,7 @@
         <div class="sidebar-nav">
             <ul>
                 <li><a href="#intro" class="active">Visão Geral</a></li>
+                <li><a href="#identity">Origem e Personalidade</a></li>
                 <li><a href="#brand">Identidade Visual</a></li>
                 <li><a href="#quickstart">Subir Tudo</a></li>
                 <li><a href="#architecture">Arquitetura</a></li>
@@ -301,6 +302,13 @@
             <p><span class="status-pill">Atualizado em 20/07/2026</span><span class="status-pill">Local-first</span><span class="status-pill">Auth + Projetos + Voz + Ferramentas</span><span class="status-pill">ComfyUI para mídia</span></p>
             <p>O Avento é um assistente local para projetos de software e fluxos pessoais. A meta atual é ele trabalhar como um parceiro de desenvolvimento: analisar um projeto apontado pelo usuário, dar feedback em tempo real, usar ferramentas locais com segurança, ler e editar arquivos autorizados, rodar validações permitidas e conversar por voz.</p>
             <p>O sistema roda com backend Spring Boot, frontend React/Vite, login local com JWT em cookie HttpOnly, PostgreSQL e Redis Stack via Docker/Colima, Ollama nativo no macOS, análise local de projetos, RAG, backups de arquivos, WebSocket para voz e serviços opcionais de Whisper.cpp/Piper.</p>
+        </div>
+
+        <div class="doc-section" id="identity">
+            <h2>Origem e Personalidade</h2>
+            <p>O Avento é um projeto pessoal e independente, concebido, desenhado, desenvolvido, documentado e mantido por <strong>um único criador</strong>. Ele não deve ser apresentado como produto de uma comunidade, equipe, empresa ou laboratório.</p>
+            <p>Sua personalidade é a de um colaborador técnico presente, curioso e confiável: direto por padrão, detalhado quando solicitado, natural no idioma do usuário e cuidadoso para separar fatos verificados de inferências. Ele preserva referências como “corrija”, “esse post” ou “a versão anterior”, evita marketing inflado e nunca anuncia uma execução sem resultado real.</p>
+            <p>A especificação completa de autoria, serviços, arquitetura resumida e comportamento está em <code>docs/AVENTO_IDENTITY.md</code>. O modelo recebe versões compactas desses fatos por <code>agent/instructions/identity.md</code>, <code>product.md</code> e <code>personality.md</code>.</p>
         </div>
 
         <div class="doc-section" id="brand">

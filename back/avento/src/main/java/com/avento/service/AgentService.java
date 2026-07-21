@@ -1,11 +1,16 @@
 package com.avento.service;
 
-import com.avento.service.dto.*;
 import com.avento.service.dto.ApprovalMemory;
+import com.avento.service.dto.ApprovalVoiceCommand;
+import com.avento.service.dto.LocalModelInfo;
+import com.avento.service.dto.PendingToolExecution;
 import com.avento.service.dto.Skill;
+import com.avento.service.dto.SkillResolution;
+import com.avento.service.dto.ToolCall;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
+import com.avento.service.intent.VisualIntentClassifier;
 import com.avento.service.orchestration.AgentExecutionEngine;
 import com.avento.service.support.HeuristicWordLists;
 import com.avento.service.support.SkillRegistry;
@@ -25,7 +30,9 @@ import java.text.Normalizer;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -139,6 +146,11 @@ public class AgentService implements AgentExecutionEngine {
     @Value("${avento.agent.policy-override-dir:}")
     private String policyOverrideDirectory;
 
+    private final UserSettingsService userSettingsService;
+    private final UserMemoryService userMemoryService;
+    private final PendingToolApprovalService pendingApprovalService;
+    private final VisualIntentClassifier visualIntentClassifier;
+
     @Value("${avento.image.default-model:comfyui:RealVisXL_V5.0_fp16.safetensors}")
     private String defaultImageModel;
 
@@ -193,6 +205,10 @@ public class AgentService implements AgentExecutionEngine {
             AgentTimelineService timelineService,
             SkillRegistry skillRegistry,
             TokenUsageService tokenUsageService,
+            UserSettingsService userSettingsService,
+            UserMemoryService userMemoryService,
+            PendingToolApprovalService pendingApprovalService,
+            VisualIntentClassifier visualIntentClassifier,
             ObjectMapper mapper,
             @Value("${spring.ai.ollama.base-url:http://localhost:11434}") String ollamaBaseUrl,
             @Value("${avento.agent.max-tool-rounds:6}") int maxToolRounds,
@@ -206,7 +222,7 @@ public class AgentService implements AgentExecutionEngine {
             @Value("${avento.agent.keep-alive:30m}") String keepAlive,
             @Value("${avento.agent.max-tools-per-request:12}") int maxToolsPerRequest,
             @Value("${avento.agent.project-toolkit:directory_tree,read_file,read_document,write_file,edit_file,"
-                            + "delete_file,delete_directory,create_directory,search_files,terminal_run,"
+                            + "delete_file,delete_directory,create_directory,search_files,find_symbol,verify_project,terminal_run,"
                             + "terminal_start,terminal_logs}")
                     String projectToolkit,
             @Value("${avento.agent.max-model-messages:10}") int maxModelMessages,
@@ -222,6 +238,10 @@ public class AgentService implements AgentExecutionEngine {
         this.timelineService = timelineService;
         this.skillRegistry = skillRegistry;
         this.tokenUsageService = tokenUsageService;
+        this.userSettingsService = userSettingsService;
+        this.userMemoryService = userMemoryService;
+        this.pendingApprovalService = pendingApprovalService;
+        this.visualIntentClassifier = visualIntentClassifier;
         this.mapper = mapper;
         this.webClient = WebClient.builder().baseUrl(ollamaBaseUrl).build();
         this.maxToolRounds = maxToolRounds;
@@ -234,7 +254,7 @@ public class AgentService implements AgentExecutionEngine {
         this.enableThinking = enableThinking;
         this.keepAlive = keepAlive;
         this.maxToolsPerRequest = Math.max(ALWAYS_EXPOSED_TOOLS.size(), maxToolsPerRequest);
-        this.projectToolkit = Set.copyOf(java.util.Arrays.stream(projectToolkit.split(","))
+        this.projectToolkit = Set.copyOf(Arrays.stream(projectToolkit.split(","))
                 .map(String::trim)
                 .filter(name -> !name.isBlank())
                 .toList());
@@ -789,7 +809,8 @@ public class AgentService implements AgentExecutionEngine {
     // actually
     // happened instead of the generic "no pending execution found" message.
     private void sendApprovalNotFoundResponse(FluxSink<String> sink, String approvalId) {
-        if (resolvedApprovalIds.containsKey(approvalId)) {
+        if (resolvedApprovalIds.containsKey(approvalId)
+                || (pendingApprovalService != null && pendingApprovalService.isResolved(approvalId))) {
             sink.next(eventChunk("tool.approval.already_completed", "Aprovação já processada", approvalId));
             sink.next(contentChunk(
                     "\n> Essa ação já foi aprovada/rejeitada e resolvida antes (provavelmente um clique duplicado"
@@ -804,7 +825,7 @@ public class AgentService implements AgentExecutionEngine {
     @Override
     public Flux<String> rejectTool(String approvalId, String comment) {
         return Flux.create(sink -> {
-            PendingToolExecution pending = pendingToolExecutions.remove(approvalId);
+            PendingToolExecution pending = takePendingApproval(approvalId);
             if (pending == null) {
                 sendApprovalNotFoundResponse(sink, approvalId);
                 return;
@@ -903,16 +924,23 @@ public class AgentService implements AgentExecutionEngine {
         });
     }
 
+    // Lê o toggle "Thinking" da UI (Redis); sem Redis ou sem valor, usa o default de configuração.
+    private boolean thinkingEnabledForRequest(UUID userId) {
+        return userSettingsService == null
+                ? enableThinking
+                : userSettingsService.thinkingEnabled(userId, enableThinking);
+    }
+
     private ObjectNode buildOllamaRequest(String model, ArrayNode messages, AgentRunState state) {
         ObjectNode ollamaRequest = mapper.createObjectNode();
         ollamaRequest.put("model", model);
-        ollamaRequest.set("messages", withBackendIdentityPrompt(messages, state.workspaceRoots));
+        ollamaRequest.set("messages", withBackendIdentityPrompt(messages, state.workspaceRoots, state.userId));
         ollamaRequest.put("stream", true);
         // Sem isso, o roteamento do raciocinio pro campo dedicado message.thinking (ver
         // handleModelChunk) fica a criterio do default do Ollama/modelo, que e inconsistente
         // entre versoes para modelos hibridos como qwen3 — o raciocinio pode vazar como
         // message.content normal em vez de ficar isolado no campo de thinking.
-        ollamaRequest.put("think", enableThinking);
+        ollamaRequest.put("think", thinkingEnabledForRequest(state.userId));
         ollamaRequest.put("keep_alive", keepAlive);
         ObjectNode options = ollamaRequest.putObject("options");
         options.put("num_ctx", numCtx);
@@ -1013,6 +1041,12 @@ public class AgentService implements AgentExecutionEngine {
         // prompt e quebra o cache de prompt do llama.cpp, forcando reprocessar sistema +
         // schemas toda vez. Kit estavel = ferramentas sempre presentes + prefixo cacheavel.
         // Pedidos explicitos de imagem/captura continuam cobertos pelos desvios abaixo.
+        // Mockup/tela/interface = bloco ui-preview (HTML), nao ferramenta. Devolve conjunto vazio
+        // para o modelo escrever o preview direto — e, crucial, para que generate_image nao fique
+        // exposto e o modelo nao caia em gerar uma imagem feia e cara no lugar do preview.
+        if (wantsInterfacePrototype(normalized)) {
+            return selectedTools;
+        }
         if (wantsImageGeneration(normalized)) {
             return filterToolsByName(tools, Set.of("generate_image"));
         }
@@ -1146,8 +1180,19 @@ public class AgentService implements AgentExecutionEngine {
         return intentRouter.shouldExposeTool(toolName, intentProfile);
     }
 
+    // Pedido de mockup/tela/interface NUNCA e geracao de imagem — vai para um bloco ui-preview
+    // (HTML), que renderiza e vira artefato baixavel. Evita gerar imagem feia e cara no ComfyUI.
+    private boolean wantsInterfacePrototype(String normalizedMessage) {
+        return visualIntentClassifier.isInterfacePrototype(normalizedMessage);
+    }
+
     private boolean wantsImageGeneration(String normalizedMessage) {
-        return normalizedMessage.contains("gera imagem")
+        if (wantsInterfacePrototype(normalizedMessage)) {
+            return false;
+        }
+        boolean productMockup = visualIntentClassifier.isProductMockup(normalizedMessage);
+        return productMockup
+                || normalizedMessage.contains("gera imagem")
                 || normalizedMessage.contains("gerar imagem")
                 || normalizedMessage.contains("gere imagem")
                 || normalizedMessage.contains("cria imagem")
@@ -1440,7 +1485,7 @@ public class AgentService implements AgentExecutionEngine {
                 "continue");
     }
 
-    private ArrayNode withBackendIdentityPrompt(ArrayNode messages, List<String> workspaceRoots) {
+    private ArrayNode withBackendIdentityPrompt(ArrayNode messages, List<String> workspaceRoots, UUID userId) {
         ArrayNode guardedMessages = mapper.createArrayNode();
         ObjectNode identityMessage = guardedMessages.addObject();
         identityMessage.put("role", "system");
@@ -1448,12 +1493,31 @@ public class AgentService implements AgentExecutionEngine {
                 "content",
                 AGENT_SYSTEM_PROMPT
                         + "\n\n[Local Environment]\nData atual: "
-                        + java.time.LocalDateTime.now().toString()
+                        + LocalDateTime.now().toString()
                         + policyInstructions()
                         + workspaceRootsBlock(workspaceRoots)
+                        + memoryBlock(userId)
                         + conversationContinuityBlock(messages));
         guardedMessages.addAll(compactMessagesForModel(messages));
         return guardedMessages;
+    }
+
+    private ArrayNode withBackendIdentityPrompt(ArrayNode messages, List<String> workspaceRoots) {
+        return withBackendIdentityPrompt(messages, workspaceRoots, null);
+    }
+
+    // Injeta somente os fatos ACTIVE pertencentes ao usuário autenticado.
+    private String memoryBlock(UUID userId) {
+        if (userId == null) {
+            return "";
+        }
+        try {
+            String block = userMemoryService.promptBlock(userId);
+            return block == null ? "" : block;
+        } catch (RuntimeException exception) {
+            logger.debug("Não foi possível montar o bloco de memória; seguindo sem ele", exception);
+            return "";
+        }
     }
 
     private String policyInstructions() {
@@ -1603,10 +1667,69 @@ public class AgentService implements AgentExecutionEngine {
             totalChars += contentLength;
         }
 
+        // Os turnos anteriores a `start` saem da janela do modelo — mas continuam íntegros no
+        // Postgres (fonte da verdade). Em vez de sumir com eles, deixamos um resumo extrativo
+        // curto para o modelo não perder o fio da conversa em sessões longas, sem inflar o prompt.
+        if (start > 0) {
+            String summary = summarizeDroppedTurns(candidates.subList(0, start));
+            if (!summary.isBlank()) {
+                ObjectNode note = mapper.createObjectNode();
+                note.put("role", "system");
+                note.put("content", summary);
+                compacted.add(note);
+            }
+        }
+
         for (int index = start; index < candidates.size(); index++) {
             compacted.add(compactMessage(candidates.get(index)));
         }
         return compacted;
+    }
+
+    // Resumo extrativo dos turnos que saíram da janela (sem custo de modelo): uma linha por turno,
+    // com o começo do conteúdo achatado. O histórico completo continua no banco; aqui fica só o
+    // suficiente para o modelo lembrar o que já foi pedido/feito sem estourar o num_ctx local.
+    private static final int SUMMARY_MAX_TURNS = 12;
+    private static final int SUMMARY_SNIPPET_CHARS = 140;
+    private static final int SUMMARY_MAX_CHARS = 1200;
+
+    private String summarizeDroppedTurns(List<JsonNode> dropped) {
+        if (dropped.isEmpty()) {
+            return "";
+        }
+        List<JsonNode> window = dropped.size() > SUMMARY_MAX_TURNS
+                ? dropped.subList(dropped.size() - SUMMARY_MAX_TURNS, dropped.size())
+                : dropped;
+        StringBuilder summary =
+                new StringBuilder("[Resumo da conversa anterior — histórico completo preservado no banco]\n");
+        for (JsonNode message : window) {
+            String role = message.path("role").asText("user");
+            String label = "assistant".equals(role) ? "Avento" : "user".equals(role) ? "Usuário" : role;
+            String snippet = summarySnippet(message.path("content").asText(""));
+            if (snippet.isEmpty()) {
+                continue;
+            }
+            String line = "- " + label + ": " + snippet + "\n";
+            if (summary.length() + line.length() > SUMMARY_MAX_CHARS) {
+                break;
+            }
+            summary.append(line);
+        }
+        return summary.toString().stripTrailing();
+    }
+
+    private String summarySnippet(String content) {
+        if (content == null) {
+            return "";
+        }
+        String flattened = content.replaceAll("\\s+", " ").strip();
+        if (flattened.isEmpty()) {
+            return "";
+        }
+        if (flattened.length() <= SUMMARY_SNIPPET_CHARS) {
+            return flattened;
+        }
+        return flattened.substring(0, SUMMARY_SNIPPET_CHARS).stripTrailing() + "…";
     }
 
     private ObjectNode compactMessage(JsonNode message) {
@@ -2388,6 +2511,7 @@ public class AgentService implements AgentExecutionEngine {
                         continueAfterTool,
                         state.workspaceRoots,
                         state.runId));
+        pendingApprovalService.save(approvalId, pendingToolExecutions.get(approvalId));
         latestPendingToolIds.put(ownerKey(state.userId != null ? state.userId : toolUserId(toolCall)), approvalId);
 
         timelineService.recordApproval(
@@ -2415,7 +2539,7 @@ public class AgentService implements AgentExecutionEngine {
 
     private Flux<String> executeApprovedTool(String approvalId, String comment, ApprovalMemory approvalMemory) {
         return Flux.create(sink -> {
-            PendingToolExecution pending = pendingToolExecutions.remove(approvalId);
+            PendingToolExecution pending = takePendingApproval(approvalId);
             if (pending == null) {
                 sendApprovalNotFoundResponse(sink, approvalId);
                 return;
@@ -2495,6 +2619,9 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private void resolveSiblingApprovals(String runId, String resolvedApprovalId) {
+        if (pendingApprovalService != null) {
+            pendingApprovalService.supersedeSiblings(runId, resolvedApprovalId);
+        }
         pendingToolExecutions.forEach((approvalId, pending) -> {
             if (approvalId.equals(resolvedApprovalId) || !pending.runId().equals(runId)) {
                 return;
@@ -2545,6 +2672,9 @@ public class AgentService implements AgentExecutionEngine {
         if (approvalId == null) {
             approvalId = latestPendingToolIds.get(ownerKey(userId));
         }
+        if (approvalId == null && pendingApprovalService != null) {
+            approvalId = pendingApprovalService.latestPendingId(userId).orElse(null);
+        }
         if (approvalId == null || !approvalOwnedBy(approvalId, userId)) {
             return null;
         }
@@ -2555,10 +2685,21 @@ public class AgentService implements AgentExecutionEngine {
     public boolean approvalOwnedBy(String approvalId, UUID userId) {
         PendingToolExecution pending = pendingToolExecutions.get(approvalId);
         if (pending == null) {
-            return false;
+            return pendingApprovalService != null && pendingApprovalService.isOwnedPending(approvalId, userId);
         }
         UUID ownerId = toolUserId(pending.toolCall());
         return userId == null ? ownerId == null : userId.equals(ownerId);
+    }
+
+    public Optional<String> persistedRunIdForApproval(String approvalId, UUID userId) {
+        return pendingApprovalService == null ? Optional.empty() : pendingApprovalService.runIdFor(approvalId, userId);
+    }
+
+    private PendingToolExecution takePendingApproval(String approvalId) {
+        PendingToolExecution inMemory = pendingToolExecutions.remove(approvalId);
+        Optional<PendingToolExecution> persisted =
+                pendingApprovalService == null ? Optional.empty() : pendingApprovalService.resolve(approvalId);
+        return inMemory != null ? inMemory : persisted.orElse(null);
     }
 
     private UUID toolUserId(ToolCall toolCall) {
@@ -3571,7 +3712,7 @@ public class AgentService implements AgentExecutionEngine {
         // Ferramenta declarada pela skill ativa nesta run ("" = nenhuma): quando presente,
         // a selecao de ferramentas expoe ela com prioridade, ignorando heuristica de keyword.
         String requiredToolName = "";
-        Set<String> requiredToolNames = new java.util.HashSet<>();
+        Set<String> requiredToolNames = new HashSet<>();
         Integer maxToolRoundsOverride = null;
         ImageGenerationOptions imageOptions = ImageGenerationOptions.defaults();
         Long chatId;

@@ -19,6 +19,7 @@ import com.avento.service.ChatArtifactService.ChatArtifactDeletionException;
 import com.avento.service.GeneratedMediaAssetService;
 import com.avento.service.GeneratedMediaAssetService.MediaAssetDeletionException;
 import com.avento.service.ImageGenerationJobService;
+import com.avento.service.MockupArtifactService;
 import com.avento.service.VideoGenerationJobService;
 import com.avento.service.context.ConversationContextCache;
 import com.avento.service.dto.ArtifactDeletionResult;
@@ -64,6 +65,10 @@ public class ChatController {
     private final ConversationContextCache conversationContextCache;
 
     private final AgentRunSubmissionService runSubmissionService;
+
+    // Colaborador opcional (injeção por campo) para não ampliar os construtores usados nos testes.
+    @Autowired(required = false)
+    private MockupArtifactService mockupArtifactService;
 
     public ChatController(
             ChatRepository chatRepository,
@@ -175,6 +180,11 @@ public class ChatController {
         chatRepository.save(chat);
         if (conversationContextCache != null) {
             conversationContextCache.refresh(principal == null ? null : principal.userId(), id);
+        }
+        if (mockupArtifactService != null && principal != null) {
+            // Extrai blocos ui-preview da resposta do assistente e os guarda como artefatos
+            // baixáveis. Nunca lança — falha aqui não pode impedir salvar a mensagem.
+            mockupArtifactService.persistFromMessage(id, principal.userId(), request.role(), request.content());
         }
         return ApiResponses.created(ChatApiMapper.toResponse(saved));
     }

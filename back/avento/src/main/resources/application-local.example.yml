@@ -63,7 +63,7 @@ avento:
     provider: ${AVENTO_IMAGE_PROVIDER:comfyui}
     default-model: ${AVENTO_IMAGE_DEFAULT_MODEL:comfyui:RealVisXL_V5.0_fp16.safetensors}
   documents:
-    markitdown-command: ${AVENTO_MARKITDOWN_COMMAND:.avento-tools/mcp/bin/markitdown}
+    markitdown-command: ${AVENTO_MARKITDOWN_COMMAND:${user.home}/.avento/tools/mcp/bin/markitdown}
     timeout: ${AVENTO_DOCUMENT_READ_TIMEOUT:120s}
     max-output-chars: ${AVENTO_DOCUMENT_MAX_OUTPUT_CHARS:200000}
     max-file-size: ${AVENTO_DOCUMENT_MAX_FILE_SIZE:100MB}

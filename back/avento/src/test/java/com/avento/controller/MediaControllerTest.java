@@ -33,7 +33,7 @@ class MediaControllerTest {
     Path mediaDirectory;
 
     @Test
-    void listsLegacyLocalMediaForTheSelectedChat() throws Exception {
+    void registersLegacyLocalMediaAndReturnsTheOwnedAssetUrl() throws Exception {
         GeneratedMediaAssetRepository mediaRepository = mock(GeneratedMediaAssetRepository.class);
         AtomicReference<GeneratedMediaAsset> storedAsset = new AtomicReference<>();
         when(mediaRepository.findByFilename("avento-image-legacy.png")).thenReturn(Optional.empty());
@@ -66,7 +66,7 @@ class MediaControllerTest {
         List<MediaItem> result = controller.listMedia(7L, principal()).getBody().getData();
 
         assertThat(result).hasSize(1);
-        assertThat(result.getFirst().url()).isEqualTo("/api/media/avento-image-legacy.png");
+        assertThat(result.getFirst().url()).isEqualTo("/api/media/assets/10");
         assertThat(storedAsset.get().getChatId()).isEqualTo(7L);
         assertThat(storedAsset.get().getUserId()).isEqualTo(USER_ID);
     }

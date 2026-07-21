@@ -97,6 +97,9 @@ public class IntentRouter {
             case DOCUMENT -> profile.has(AgentIntent.IMAGE);
             case MACOS_APP, BROWSER, URL, FINDER, SHORTCUT -> profile.has(AgentIntent.AUTOMATION);
             case MCP_EXTERNAL -> profile.has(AgentIntent.EXTERNAL_MCP);
+            // remember é barato e sem efeito colateral (só cria sugestão pendente); deixamos sempre
+            // disponível para o modelo poder propor um fato durável em qualquer contexto de trabalho.
+            case MEMORY -> true;
         };
     }
 

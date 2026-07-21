@@ -356,4 +356,190 @@ export const UsageTable = styled.table`
   tr:hover td {
     background: rgba(255, 255, 255, 0.02);
   }
+
+  td:not(:first-child), th:not(:first-child) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+`;
+
+export const RangeSelector = styled.div`
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  margin-bottom: 4px;
+`;
+
+export const RangeButton = styled.button<{ $active?: boolean }>`
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: ${({ $active }) => ($active ? '650' : '500')};
+  color: ${({ $active }) => ($active ? '#0B221E' : '#9FB8B1')};
+  background: ${({ $active }) => ($active ? '#66E6C8' : 'transparent')};
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: ${({ $active }) => ($active ? '#0B221E' : '#F2FFFB')};
+  }
+`;
+
+export const StatGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+
+  @media (min-width: 520px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+`;
+
+export const StatBox = styled.div`
+  background: rgba(33, 67, 61, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #F2FFFB;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: #9FB8B1;
+  }
+`;
+
+export const MemoryIntro = styled.p`
+  color: #9FB8B1;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0 0 4px;
+`;
+
+export const MemoryAddRow = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+
+  input {
+    flex: 1;
+    background: rgba(33, 67, 61, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: #F2FFFB;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    outline: none;
+
+    &:focus {
+      border-color: rgba(102, 230, 200, 0.5);
+    }
+
+    &::placeholder {
+      color: #6E857F;
+    }
+  }
+`;
+
+export const MemorySectionTitle = styled.h4`
+  color: #F2FFFB;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 14px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  span {
+    color: #66E6C8;
+    font-size: 0.75rem;
+  }
+`;
+
+export const MemoryList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+export const MemoryCard = styled.div<{ $pending?: boolean }>`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  background: ${({ $pending }) => ($pending ? 'rgba(102, 230, 200, 0.06)' : 'rgba(33, 67, 61, 0.3)')};
+  border: 1px solid ${({ $pending }) => ($pending ? 'rgba(102, 230, 200, 0.25)' : 'rgba(255, 255, 255, 0.08)')};
+  border-radius: 10px;
+  padding: 12px 14px;
+
+  .memory-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .memory-text {
+    color: #F2FFFB;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .memory-tag {
+    color: #9FB8B1;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .memory-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+`;
+
+export const MemoryActionButton = styled.button<{ $variant?: 'confirm' | 'delete' }>`
+  background: ${({ $variant }) =>
+    $variant === 'confirm' ? 'rgba(102, 230, 200, 0.15)' : 'transparent'};
+  color: ${({ $variant }) => ($variant === 'delete' ? '#F0628C' : '#66E6C8')};
+  border: 1px solid
+    ${({ $variant }) =>
+      $variant === 'delete' ? 'rgba(240, 98, 140, 0.25)' : 'rgba(102, 230, 200, 0.3)'};
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: ${({ $variant }) =>
+      $variant === 'delete' ? 'rgba(240, 98, 140, 0.15)' : 'rgba(102, 230, 200, 0.25)'};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+`;
+
+export const MemoryEmpty = styled.p`
+  color: #6E857F;
+  font-size: 0.85rem;
+  font-style: italic;
+  margin: 6px 0;
 `;

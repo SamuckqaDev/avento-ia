@@ -52,6 +52,29 @@ class AgentRunSubmissionServiceTest {
     }
 
     @Test
+    void returnsTheExistingRunForTheSameIdempotencyKey() {
+        AgentRunJobRepository jobs = mock(AgentRunJobRepository.class);
+        ExecutionOutboxEventRepository outbox = mock(ExecutionOutboxEventRepository.class);
+        RedisExecutionProperties properties = new RedisExecutionProperties();
+        properties.setEnabled(true);
+        UUID userId = UUID.randomUUID();
+        AgentRunJob existing = new AgentRunJob();
+        existing.setRunId("run_existing");
+        existing.setUserId(userId);
+        existing.setChatId(12L);
+        existing.setRequestPayload("{}");
+        when(jobs.findByUserIdAndChatIdAndIdempotencyKey(userId, 12L, "plan:12:4"))
+                .thenReturn(Optional.of(existing));
+        AgentRunSubmissionService service = service(jobs, outbox, properties);
+
+        AgentRunJob result = service.submit(
+                userId, 12L, new ObjectMapper().createObjectNode().put("idempotencyKey", "plan:12:4"));
+
+        assertThat(result).isSameAs(existing);
+        org.mockito.Mockito.verifyNoInteractions(outbox);
+    }
+
+    @Test
     void cancellationChangesTheDurableStatusAndStopsAnActiveRun() {
         AgentRunJobRepository jobs = mock(AgentRunJobRepository.class);
         ExecutionOutboxEventRepository outbox = mock(ExecutionOutboxEventRepository.class);

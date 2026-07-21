@@ -13,6 +13,7 @@ import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.intent.IntentEmbeddingClassifier;
 import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
+import com.avento.service.intent.VisualIntentClassifier;
 import com.avento.service.support.SkillRegistry;
 import com.avento.service.tools.ToolCapabilityRegistry;
 import com.avento.service.tools.ToolExecutionContext;
@@ -59,6 +60,10 @@ class AgentServiceDirectAutomationTest {
     private final ToolExecutionGateway toolGateway =
             new ToolExecutionGateway(mcpController, new ToolResultVerifier(mapper), new ToolExecutionContext());
     private final TokenUsageService tokenUsageService = org.mockito.Mockito.mock(TokenUsageService.class);
+    private final UserSettingsService userSettingsService = org.mockito.Mockito.mock(UserSettingsService.class);
+    private final UserMemoryService userMemoryService = org.mockito.Mockito.mock(UserMemoryService.class);
+    private final PendingToolApprovalService pendingApprovalService =
+            org.mockito.Mockito.mock(PendingToolApprovalService.class);
     private final AgentService service = new AgentService(
             toolGateway,
             toolRegistry,
@@ -68,6 +73,10 @@ class AgentServiceDirectAutomationTest {
             timelineService,
             skillRegistry,
             tokenUsageService,
+            userSettingsService,
+            userMemoryService,
+            pendingApprovalService,
+            new VisualIntentClassifier(),
             mapper,
             "http://localhost:9",
             6,
@@ -137,6 +146,31 @@ class AgentServiceDirectAutomationTest {
                 .contains("[Workspace Roots]")
                 .contains("/private/tmp/real-project")
                 .contains("NUNCA invente");
+    }
+
+    @Test
+    void keepsAnExtractiveSummaryOfTurnsThatFallOutOfTheModelWindow() throws Exception {
+        // 14 turnos > a janela de 10: os mais antigos saem do prompt, mas viram resumo (o
+        // histórico completo continua no banco). maxModelMessages do construtor de teste = 10.
+        ArrayNode messages = mapper.createArrayNode();
+        messages.addObject().put("role", "user").put("content", "PRIMEIRO PEDIDO: criar a tela de login do app");
+        messages.addObject().put("role", "assistant").put("content", "Beleza, vou montar a tela de login.");
+        for (int turn = 2; turn < 14; turn++) {
+            String role = turn % 2 == 0 ? "user" : "assistant";
+            messages.addObject().put("role", role).put("content", "mensagem intermediaria numero " + turn);
+        }
+
+        Method method = AgentService.class.getDeclaredMethod("withBackendIdentityPrompt", ArrayNode.class, List.class);
+        method.setAccessible(true);
+        ArrayNode guardedMessages = (ArrayNode) method.invoke(service, messages, List.of());
+
+        // [0] = prompt de identidade; [1] = resumo extrativo dos turnos que sairam da janela.
+        assertEquals("system", guardedMessages.get(1).path("role").asText());
+        org.assertj.core.api.Assertions.assertThat(
+                        guardedMessages.get(1).path("content").asText())
+                .contains("Resumo da conversa anterior")
+                .contains("preservado no banco")
+                .contains("PRIMEIRO PEDIDO");
     }
 
     @Test
@@ -1503,6 +1537,32 @@ class AgentServiceDirectAutomationTest {
         Method detector = AgentService.class.getDeclaredMethod("detectDirectConversationResponse", ArrayNode.class);
         detector.setAccessible(true);
         return (String) detector.invoke(service, messages);
+    }
+
+    private boolean invokeIntentPredicate(String methodName, String message) throws Exception {
+        Method normalize = AgentService.class.getDeclaredMethod("normalizeIntentText", String.class);
+        normalize.setAccessible(true);
+        String normalized = (String) normalize.invoke(service, message);
+        Method method = AgentService.class.getDeclaredMethod(methodName, String.class);
+        method.setAccessible(true);
+        return (boolean) method.invoke(service, normalized);
+    }
+
+    @Test
+    void mockupRequestsRouteToUiPreviewNotImageGeneration() throws Exception {
+        // O pedido do usuario (com o typo "terla") que caiu no generate_image antes.
+        assertTrue(invokeIntentPredicate("wantsInterfacePrototype", "gera um mockup de um terla de login mobile"));
+        assertFalse(invokeIntentPredicate("wantsImageGeneration", "gera um mockup de um terla de login mobile"));
+        assertFalse(invokeIntentPredicate("wantsImageGeneration", "quero um mockup com preview da tela de login"));
+        assertTrue(invokeIntentPredicate("wantsInterfacePrototype", "faz um wireframe da tela de cadastro"));
+    }
+
+    @Test
+    void realImageRequestsStillRouteToImageGeneration() throws Exception {
+        assertTrue(invokeIntentPredicate("wantsImageGeneration", "gera uma imagem de um pitbull marrom"));
+        assertFalse(invokeIntentPredicate("wantsInterfacePrototype", "gera uma imagem de um pitbull marrom"));
+        // "captura de tela" nao pode ser confundido com prototipo de tela.
+        assertFalse(invokeIntentPredicate("wantsInterfacePrototype", "tira um print da tela"));
     }
 
     private boolean shouldExposeTool(String toolName, String message) throws Exception {

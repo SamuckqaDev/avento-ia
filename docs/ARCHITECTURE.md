@@ -195,6 +195,44 @@ Cada execucao carrega `userId`, `chatId` e `runId`. Essa combinacao impede que o
 aprovacao ou o resultado de uma ferramenta seja transferido para outra conversa quando o usuario
 troca de chat.
 
+### Isolamento de dados e estado recuperavel
+
+O identificador do usuario autenticado nao vem do JSON do navegador: ele vem exclusivamente do
+cookie validado pelo Spring Security. Controllers e ferramentas propagam esse dono pelo
+`AuthPrincipal` e pelo `ToolExecutionContext`.
+
+| Estado | Chave de isolamento | Fonte duravel |
+|---|---|---|
+| Chats, mensagens e midias | `userId + chatId` | PostgreSQL |
+| Memoria de longo prazo | `userId + status` | PostgreSQL |
+| Preferencias de voz/thinking | `avento:user:{userId}:settings` | Redis |
+| Jobs e planos idempotentes | `userId + chatId + idempotencyKey` | PostgreSQL |
+| Aprovacoes pendentes | `approvalId + userId + chatId + runId` | PostgreSQL |
+| Rollback de arquivos | `userId + chatId + runId` | PostgreSQL + disco local |
+
+Memorias antigas sem dono podem continuar fisicamente na tabela durante a evolucao do banco local,
+mas nunca sao consultadas nem injetadas no prompt. Uma aprovacao pendente serializa a continuacao da
+ferramenta; depois de reiniciar o backend, o mesmo card pode ser aprovado uma unica vez e retomar a
+run original. Estados em `ConcurrentHashMap` permanecem somente como aceleracao de processo, nao
+como fonte de verdade.
+
+### Estruturas de dados escolhidas
+
+As colecoes seguem o tipo de acesso, sem trocar `List` mecanicamente:
+
+- `List`: mensagens, timeline, resultados ordenados e contratos de API, onde ordem e repeticao sao
+  parte do comportamento;
+- `Set`/`HashSet`: nomes de ferramentas, frases e membership frequente em O(1);
+- `LinkedHashSet`: deduplicacao de `runId` preservando a ordem mais recente durante a retencao;
+- `Map`/`ConcurrentHashMap`: lookup por identificador e aceleracao concorrente dentro do processo;
+- `Deque`/`ConcurrentLinkedDeque`: pilha de backups legados, sem o custo e a ambiguidade de
+  `LinkedList`;
+- indices PostgreSQL: consultas por ownership/status/run. Para dados duraveis, o indice e a
+  paginacao trazem mais ganho que substituir uma lista depois de ela ja ter sido carregada.
+
+O estado que precisa sobreviver a restart nunca depende somente dessas colecoes Java: PostgreSQL e a
+fonte de verdade; Redis transporta jobs/eventos e mantem caches reconstruiveis.
+
 ### Composicao das instrucoes do agente
 
 O frontend envia a mensagem original e as opcoes da interface, mas nao decide nem filtra o conteudo
@@ -332,6 +370,69 @@ A skill `/research` fecha o ciclo "pesquisa -> visual": alem de `Gatilhos:`, o c
 rodadas apenas para aquela run via `AgentRunState.maxToolRoundsOverride` — o teto global de 6
 continua protegendo as demais conversas de loop. O procedimento busca, extrai e sintetiza o
 resultado numa tabela ou num `ui-preview`, com fontes citadas, e oferece exportar em PDF.
+
+### Midias e artefatos do chat
+
+O mockup `ui-preview` continua renderizando inline no chat (iframe isolado com CSP), mas agora
+tambem e persistido como artefato baixavel: ao salvar a mensagem do assistente
+(`POST /api/chats/{id}/messages`), o `MockupArtifactService` extrai cada bloco `ui-preview` e grava
+um `avento-mockup-*.html` registrado com `mediaType=artifact`. A secao lateral "Midias e Artefatos"
+lista imagem, video, PDF (`document`) e mockup (`artifact`) — o `MediaItem` carrega o campo `type`
+para o icone/rota certos. Documento abre em nova aba. O HTML do artefato e buscado como texto e
+aberto pelo frontend em uma URL `blob:` de origem opaca; ele nunca executa na origem autenticada do
+Avento. `GET /api/media/chat/{chatId}/artifacts.zip` empacota todos os artefatos e PDFs da conversa.
+O `MediaController` resolve cada arquivo pelo registro pertencente ao usuario, serve `.html` com
+`nosniff`, CSP sandbox e disposition de download, e escreve o ZIP em streaming para nao duplicar
+todos os arquivos na memoria da JVM.
+
+## Verificar e corrigir (loop de qualidade)
+
+A ferramenta `verify_project` (`ProjectVerificationService`) fecha o ciclo editar -> verificar ->
+corrigir. Ela detecta sozinha o comando canonico de verificacao do workspace — `package.json` com
+`validate`/`build`/`typecheck`/`test`/`lint` (nessa ordem de preferencia) ou `pom.xml` (`mvn test`) —
+roda via `ProjectCommandService` (allowlist de scripts/goals) e devolve `{ ok, command, exitCode,
+errorSummary }`, com os erros resumidos as linhas relevantes para caber no contexto do modelo local.
+A skill `verify-and-fix` e a instrucao base orientam o agente a chamar `verify_project` apos editar
+codigo e iterar ate `ok:true`, sem nunca declarar a mudanca pronta com a verificacao vermelha. A
+ferramenta entra no kit fixo de chats de projeto e pede aprovacao como as demais que executam
+comandos.
+
+## Desfazer alteracoes (rollback por run)
+
+Toda edicao de arquivo do agente passa pelo `FileBackupService` (backup antes de escrever/apagar).
+Os manifestos ficam no PostgreSQL, agrupados por `userId + chatId + runId`, e a ferramenta
+`revert_changes` restaura somente a ultima resposta daquele usuario e chat ao estado anterior — do
+backup mais novo para o mais antigo, de modo que o estado ORIGINAL
+prevaleca mesmo que o mesmo arquivo tenha sido editado varias vezes na run. Chamar de novo desfaz a
+resposta anterior. A skill `revert-changes` (com `Ferramenta: revert_changes`) roteia "desfaz",
+"reverte as alteracoes", "volta o que voce mudou" direto para a ferramenta, que pede aprovacao antes
+de sobrescrever. Cobre criacao, edicao e exclusao de arquivos e diretorios. Diretorios acima de
+5.000 arquivos continuam exigindo aprovacao, mas nao sao copiados. As ultimas 30 runs por conversa
+sao mantidas e backups orfaos antigos passam por rotacao automatica.
+
+## Navegacao de codigo por simbolo
+
+A ferramenta `find_symbol` (`SymbolSearchService`) acha ONDE um simbolo e DEFINIDO — classe,
+interface, record, enum, funcao, metodo, type, const — em vez de listar toda mencao (o `search_files`
+so busca por nome de arquivo). Varre os arquivos-fonte do workspace (pulando node_modules, target,
+build, .git etc.), casa padroes de definicao por linguagem (Java, TS/JS, Python, Go, Rust, etc.) e
+evita casar chamadas (`new Foo()` nao entra como definicao de `Foo`). Retorna arquivo, linha e o
+texto da definicao — o agente usa para entender e navegar o projeto antes de editar, sem reler tudo.
+E read-only (auto-aprovada) e faz parte do kit fixo de chats de projeto. Zero dependencia externa.
+
+## Modo Plano de Implementacao (planejar antes de codar)
+
+Para uma tarefa de codigo, a skill `implementation-plan` coloca o agente em MODO PLANO: ela declara
+`Ferramentas: directory_tree, read_file, read_document, search_files` — um kit **so-leitura** forcado
+na selecao (via `AgentRunState.requiredToolNames`), entao o modelo explora e cita arquivos reais mas
+**nao consegue editar, criar, apagar nem rodar nada**. A resposta e um bloco `impl-plan` estruturado
+(Objetivo, Arquivos afetados, Passos, Riscos, Como verificar). O frontend renderiza esse bloco como
+um card (`ImplPlanCard`) com **Aprovar e executar** / **Ajustar**. "Aprovar" dispara um evento que o
+`Home` escuta e envia o conteudo exato do plano, junto com chat, indice da mensagem e chave
+idempotente. O botao trava no primeiro clique e o PostgreSQL devolve a mesma run em uma repeticao,
+evitando duas implementacoes concorrentes. A execucao recebe o kit completo e fecha no
+`verify_project` (loop de verificar-e-corrigir).
+Assim o ciclo fica: planeja (so-leitura) -> aprova -> executa -> verifica.
 
 ## Prototipos de interface
 

@@ -60,6 +60,28 @@ public class GeneratedMediaAssetService {
                 .toList();
     }
 
+    public Optional<GeneratedMediaAsset> findOwnedById(Long assetId, UUID userId) {
+        if (assetId == null || userId == null) {
+            return Optional.empty();
+        }
+        return repository.findByIdAndUserId(assetId, userId);
+    }
+
+    public Optional<GeneratedMediaAsset> findOwnedByFilename(String filename, UUID userId) {
+        if (filename == null || filename.isBlank() || userId == null) {
+            return Optional.empty();
+        }
+        return repository.findByFilenameAndUserId(filename, userId);
+    }
+
+    public Optional<Path> resolveOwnedPath(GeneratedMediaAsset asset) {
+        if (asset == null || !isManagedMedia(asset.getFilename())) {
+            return Optional.empty();
+        }
+        Path file = mediaDirectory.resolve(asset.getFilename()).normalize();
+        return file.startsWith(mediaDirectory) && Files.isRegularFile(file) ? Optional.of(file) : Optional.empty();
+    }
+
     public Optional<Path> latestImageForChat(Long chatId, UUID userId) {
         return repository
                 .findFirstByChatIdAndUserIdAndMediaTypeOrderByIdDesc(chatId, userId, "image")
@@ -89,9 +111,11 @@ public class GeneratedMediaAssetService {
         return new AssetDeletionResult(assets.size(), deletedFiles);
     }
 
-    private boolean isManagedMedia(String filename) {
+    public boolean isManagedMedia(String filename) {
         return (filename.startsWith("avento-image-") && filename.endsWith(".png"))
-                || (filename.startsWith("avento-video-") && filename.endsWith(".webp"));
+                || (filename.startsWith("avento-video-") && filename.endsWith(".webp"))
+                || (filename.startsWith("avento-doc-") && filename.endsWith(".pdf"))
+                || (filename.startsWith("avento-mockup-") && filename.endsWith(".html"));
     }
 
     public static class MediaAssetDeletionException extends RuntimeException {

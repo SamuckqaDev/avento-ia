@@ -17,6 +17,8 @@ public interface AgentRunJobRepository extends JpaRepository<AgentRunJob, Long> 
 
     Optional<AgentRunJob> findByRunIdAndUserId(String runId, UUID userId);
 
+    Optional<AgentRunJob> findByUserIdAndChatIdAndIdempotencyKey(UUID userId, Long chatId, String idempotencyKey);
+
     List<AgentRunJob> findByChatIdAndUserId(Long chatId, UUID userId);
 
     List<AgentRunJob> findByStatusIn(List<AgentRunJob.Status> statuses);

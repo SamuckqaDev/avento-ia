@@ -20,9 +20,15 @@ import java.util.UUID;
         name = "agent_run_jobs",
         indexes = {
             @Index(name = "idx_agent_run_job_status", columnList = "status"),
-            @Index(name = "idx_agent_run_job_owner_chat", columnList = "user_id, chat_id")
+            @Index(name = "idx_agent_run_job_owner_chat", columnList = "user_id, chat_id"),
+            @Index(name = "idx_agent_run_job_idempotency", columnList = "user_id, chat_id, idempotency_key")
         },
-        uniqueConstraints = @UniqueConstraint(name = "uk_agent_run_job_run", columnNames = "run_id"))
+        uniqueConstraints = {
+            @UniqueConstraint(name = "uk_agent_run_job_run", columnNames = "run_id"),
+            @UniqueConstraint(
+                    name = "uk_agent_run_job_idempotency",
+                    columnNames = {"user_id", "chat_id", "idempotency_key"})
+        })
 public class AgentRunJob {
 
     @Id
@@ -37,6 +43,9 @@ public class AgentRunJob {
 
     @Column(name = "chat_id", nullable = false, updatable = false)
     private Long chatId;
+
+    @Column(name = "idempotency_key", length = 180)
+    private String idempotencyKey;
 
     @Column(name = "request_payload", nullable = false, columnDefinition = "TEXT")
     private String requestPayload;
@@ -105,6 +114,14 @@ public class AgentRunJob {
 
     public void setChatId(Long chatId) {
         this.chatId = chatId;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 
     public String getRequestPayload() {

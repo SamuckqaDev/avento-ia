@@ -24,7 +24,12 @@ class McpControllerDeleteDirectoryTest {
     private McpController newController(WorkspaceAccessService workspaceAccessService) throws Exception {
         McpController controller = new McpController();
         setField(controller, "workspaceAccessService", workspaceAccessService);
-        setField(controller, "fileBackupService", new FileBackupService());
+        setField(
+                controller,
+                "fileBackupService",
+                new FileBackupService(
+                        org.mockito.Mockito.mock(com.avento.repository.FileChangeBackupRepository.class),
+                        new com.avento.service.tools.ToolExecutionContext()));
         return controller;
     }
 

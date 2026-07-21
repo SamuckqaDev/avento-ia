@@ -5,7 +5,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "token_usage")
+@Table(
+        name = "token_usage",
+        indexes = {
+            // Todas as consultas do painel de uso filtram por user_id e faixa de data; o indice
+            // deixa o GROUP BY liso mesmo com muitas linhas (ddl-auto cria automaticamente).
+            @Index(name = "idx_token_usage_user_created", columnList = "user_id, created_at")
+        })
 public class TokenUsage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

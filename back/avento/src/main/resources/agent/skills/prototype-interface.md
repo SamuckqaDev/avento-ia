@@ -1,22 +1,18 @@
-# Cria e revisa interfaces locais interativas antes de alterar o projeto
-Gatilhos: criar prototipo de tela, desenhar interface, visualizar tela, criar layout interativo, prototipar frontend, mockup tela, mockup interface, mockup site, ui mockup, website mockup, wireframe tela
+# Cria um mockup de tela como preview HTML no chat
+Gatilhos: mockup, wireframe, prototipo, prototipar, criar prototipo de tela, desenhar interface, visualizar tela, criar layout interativo, prototipar frontend, mockup tela, mockup interface, mockup site, mockup mobile, ui mockup, website mockup, wireframe tela, tela de login, tela de cadastro, tela mobile, interface de
 
-Use esta skill quando o usuario quiser pensar, desenhar ou revisar uma interface antes da implementacao.
+Mockup/wireframe/tela = interface HTML, NUNCA imagem (não use generate_image/ComfyUI).
 
-1. Trate mockup, wireframe ou prototipo de tela como interface HTML executavel. Nao chame `generate_image`, ComfyUI ou outro gerador visual para esse tipo de pedido.
-2. Entregue a proposta em um unico bloco `ui-preview` contendo um documento HTML completo.
-3. Inclua `<title>`, viewport, HTML semantico, CSS responsivo e JavaScript apenas quando a interacao precisar dele.
-4. Use somente HTML, CSS, JavaScript e assets `data:` autocontidos. Nao carregue CDN, fonte, script, imagem ou API externa.
-5. Preserve o stack e os padroes visuais informados pelo usuario; o prototipo nao autoriza adicionar Tailwind ou outra dependencia ao projeto.
-6. Deixe controles demonstraveis: navegacao, menus, formularios, abas, modais e estados relevantes devem responder dentro da previa.
-7. A previa aparece primeiro como miniatura recolhida no chat. O usuario pode expandi-la, alternar o dispositivo, abrir o modal e habilitar interacoes.
-8. Depois de mostrar a previa, discuta alteracoes com o usuario e atualize o mesmo artefato. Nao edite o projeto ate receber aprovacao explicita para implementar.
-9. Quando aprovado, inspecione o repositorio, traduza o prototipo para os componentes e estilos reais e valide a pagina com Playwright nos tamanhos desktop, tablet e celular.
-10. Se Playwright estiver conectado, use a arvore de acessibilidade e o DOM da previa para revisar estrutura e comportamento. Screenshot e modelo visual sao opcionais, nunca requisito para produzir a tela.
+Pense em UMA linha (objetivo + elementos essenciais da tela) e já construa. Não escreva raciocínio longo.
 
-Formato obrigatorio:
+Entregue um único bloco `ui-preview` com um documento HTML CURTO e autocontido. Regras de tamanho (o modelo é local, HTML grande estoura o limite de contexto e a tela não renderiza):
+- CSS curto e limpo: layout, cor, espaçamento. Sem gradientes/animações/sombras decorativas.
+- Estático. SEM JavaScript, SEM modais, abas ou lógica — a menos que o usuário peça explicitamente.
+- Placeholders (blocos de cor / texto) no lugar de imagens. Nada de CDN, fonte ou asset externo.
+- Só a estrutura e o visual essencial da tela pedida. Enxuto de propósito.
 
-Gere EXATAMENTE e APENAS o bloco `ui-preview` como conteúdo principal da resposta (NUNCA coloque este bloco dentro de tags `<think>...</think>`). O bloco deve ficar solto no nível raiz do Markdown:
+Formato: gere o bloco `ui-preview` como conteúdo da resposta, solto no nível raiz do Markdown. NUNCA coloque este bloco dentro de `<think>...</think>` — o raciocínio fica no thinking, o bloco fica na resposta visível, senão o preview não aparece.
+
 ```ui-preview
 <!doctype html>
 <html lang="pt-BR">
@@ -24,4 +20,4 @@ Gere EXATAMENTE e APENAS o bloco `ui-preview` como conteúdo principal da respos
 </html>
 ```
 
-Fora do bloco, escreva apenas um resumo curto das decisoes e a pergunta objetiva que precisa da avaliacao do usuario.
+Fora do bloco, escreva no máximo uma frase e pergunte se quer ajustar. Só traduza o mockup para o código real do projeto depois de aprovação explícita do usuário.

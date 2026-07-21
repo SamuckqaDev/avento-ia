@@ -370,7 +370,10 @@ export const SkillSuggestions = styled.div`
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 8px;
-  overflow: hidden;
+  /* Abre para cima: sem teto, a lista de skills estoura pro topo da tela e some.
+     Limita a altura e deixa rolar para ver TODAS as skills. */
+  max-height: min(60vh, 440px);
+  overflow-y: auto;
   box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.14);
   z-index: 40;
 

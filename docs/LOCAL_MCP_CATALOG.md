@@ -12,7 +12,7 @@ Instalacao manual:
 ./scripts/setup-local-mcps.sh
 ```
 
-O `scripts/dev-up.sh` executa essa instalacao automaticamente na primeira subida. O ambiente Python fica em `.avento-tools/mcp`, fora do Git. Para desativar apenas essa preparacao automatica:
+O `scripts/dev-up.sh` executa essa instalacao automaticamente na primeira subida. O ambiente Python fica em `~/.avento/tools/mcp`, fora do repositorio e do Git. Para desativar apenas essa preparacao automatica:
 
 ```bash
 AVENTO_LOCAL_MCP_AUTO_SETUP=0 ./scripts/dev-up.sh

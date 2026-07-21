@@ -1,8 +1,9 @@
 package com.avento.controller;
 
 import com.avento.api.ApiResponses;
-import com.avento.api.dto.*;
 import com.avento.api.dto.BaseResponse;
+import com.avento.api.dto.CommandExecution;
+import com.avento.api.dto.ManagedProcess;
 import com.avento.api.exception.ApiServiceException;
 import com.avento.auth.security.AuthPrincipal;
 import com.avento.service.DocumentReaderService;
@@ -11,7 +12,10 @@ import com.avento.service.GeneratedMediaAssetService;
 import com.avento.service.ImageGenerationJobService;
 import com.avento.service.NotificationService;
 import com.avento.service.PdfGenerationService;
+import com.avento.service.ProjectVerificationService;
+import com.avento.service.SymbolSearchService;
 import com.avento.service.SystemAutomationService;
+import com.avento.service.UserMemoryService;
 import com.avento.service.VideoGenerationJobService;
 import com.avento.service.WorkspaceAccessService;
 import com.avento.service.dto.BackupEntry;
@@ -132,6 +136,15 @@ public class McpController implements ToolProvider {
 
     @Autowired(required = false)
     private GeneratedMediaAssetService generatedMediaAssetService;
+
+    @Autowired(required = false)
+    private ProjectVerificationService projectVerificationService;
+
+    @Autowired(required = false)
+    private SymbolSearchService symbolSearchService;
+
+    @Autowired(required = false)
+    private UserMemoryService userMemoryService;
 
     @Autowired
     private PdfGenerationService pdfGenerationService;
@@ -387,6 +400,30 @@ public class McpController implements ToolProvider {
                         "maxResults", numberProperty("Quantidade maxima opcional de resultados, padrao 50.")),
                 List.of("path", "pattern")));
         allTools.add(tool(
+                "find_symbol",
+                "Acha ONDE um simbolo e DEFINIDO no projeto (classe, interface, record, enum, funcao,"
+                        + " metodo, type, const) — busca a definicao, nao toda mencao. Use para entender o"
+                        + " codigo e navegar antes de editar. Retorna arquivo, linha e o texto da definicao.",
+                Map.of(
+                        "path", stringProperty("Diretorio absoluto do projeto dentro de [Workspace Roots]."),
+                        "symbol", stringProperty("Nome exato do simbolo a localizar (ex.: AgentService, generate).")),
+                List.of("path", "symbol")));
+        allTools.add(tool(
+                "remember",
+                "Guarda na memoria de longo prazo um fato ou preferencia DURAVEL do usuario, para lembrar em"
+                        + " conversas futuras (ex.: 'prefere styled-components', 'chama o projeto de monicare',"
+                        + " 'gosta de respostas em PT-BR informal'). Use SO para coisas que valem alem desta"
+                        + " conversa — nao use para pedidos pontuais nem para o que ja esta no historico. A memoria"
+                        + " fica PENDENTE ate o usuario confirmar, entao nao anuncie que ja lembrou em definitivo.",
+                Map.of(
+                        "content",
+                                stringProperty(
+                                        "O fato/preferencia em uma frase curta e objetiva, na terceira pessoa (ex.: 'Prefere TypeScript a JavaScript')."),
+                        "category",
+                                stringProperty(
+                                        "Rotulo opcional: preferencia, projeto, fato ou referencia. Padrao: fato.")),
+                List.of("content")));
+        allTools.add(tool(
                 "create_vite_project",
                 "Cria um projeto novo com Vite dentro de um workspace autorizado. Use quando o usuario pedir para criar projeto React/Vite, Vue/Vite etc. Para React com TypeScript, use template react-ts.",
                 Map.of(
@@ -471,7 +508,9 @@ public class McpController implements ToolProvider {
                 List.of()));
         allTools.add(tool(
                 "generate_pdf",
-                "Gera um documento PDF a partir de conteúdo Markdown ou HTML e salva na pasta de media.",
+                "Gera um documento PDF a partir de conteúdo Markdown ou HTML e salva na pasta de media."
+                        + " Use para relatorios e exportacoes de texto/tabela. NAO use para mockup, tela,"
+                        + " wireframe ou prototipo de interface — esses vao para um bloco ui-preview, nunca PDF.",
                 Map.of(
                         "title", stringProperty("Título do documento PDF."),
                         "markdown", stringProperty("Conteúdo em Markdown para converter."),
@@ -575,6 +614,24 @@ public class McpController implements ToolProvider {
                 "Para um processo iniciado pelo Avento usando o processId interno.",
                 Map.of("processId", stringProperty("ID retornado por terminal_start.")),
                 List.of("processId")));
+        allTools.add(tool(
+                "verify_project",
+                "Roda a verificacao do projeto (teste/build) no workspace e retorna se passou e os erros"
+                        + " resumidos. Detecta o comando sozinho: package.json (validate/build/typecheck/test/lint)"
+                        + " ou pom.xml (mvn test). USE SEMPRE depois de editar codigo: se ok=false, leia o"
+                        + " errorSummary, corrija os arquivos e chame de novo, ate ok=true.",
+                Map.of(
+                        "path",
+                        stringProperty("Diretorio absoluto autorizado do projeto (com package.json ou pom.xml).")),
+                List.of("path")));
+        allTools.add(tool(
+                "revert_changes",
+                "Desfaz (reverte) as alteracoes de arquivo da ultima resposta que editou o projeto —"
+                        + " restaura os arquivos ao estado anterior aquelas edicoes. Use quando o usuario pedir"
+                        + " para desfazer, reverter ou voltar o que voce mudou. Chamar de novo desfaz a resposta"
+                        + " anterior a essa.",
+                Map.of(),
+                List.of()));
     }
 
     private ObjectNode tool(
@@ -678,6 +735,8 @@ public class McpController implements ToolProvider {
             case "delete_directory" -> executeDeleteDirectory(payload);
             case "create_directory" -> executeCreateDirectory(payload);
             case "search_files" -> executeSearchFiles(payload);
+            case "find_symbol" -> executeFindSymbol(payload);
+            case "remember" -> executeRemember(payload);
             case "create_vite_project" -> executeCreateViteProject(payload);
             case "list_macos_apps" -> executeListMacosApps(payload);
             case "open_app" -> executeOpenApp(payload);
@@ -692,6 +751,8 @@ public class McpController implements ToolProvider {
             case "generate_pdf" -> executeGeneratePdf(payload);
             case "generate_image" -> executeGenerateImage(payload);
             case "generate_video" -> executeGenerateVideo(payload);
+            case "verify_project" -> executeVerifyProject(payload);
+            case "revert_changes" -> executeRevertChanges();
             case "terminal_run" -> executeTerminalRun(payload);
             case "terminal_start" -> executeTerminalStart(payload);
             case "terminal_list" -> executeTerminalList();
@@ -711,6 +772,85 @@ public class McpController implements ToolProvider {
         ObjectNode result = mapper.createObjectNode();
         result.put("path", root.toString());
         result.set("tree", buildTreeNode(root, 0, maxDepth));
+        return toolResult(result);
+    }
+
+    private JsonNode executeRevertChanges() throws IOException {
+        Context context = toolExecutionContext.current();
+        if (context.userId() == null || context.chatId() == null) {
+            return toolResult(mapper.createObjectNode().put("error", "Chat autenticado é obrigatório para reverter."));
+        }
+        var result = fileBackupService.revertMostRecent(context.userId(), context.chatId());
+        ObjectNode node = mapper.createObjectNode();
+        if (result.filesRestored() == 0) {
+            node.put("reverted", false);
+            node.put("message", "Não havia alterações de arquivo recentes para desfazer.");
+        } else {
+            node.put("reverted", true);
+            node.put("filesRestored", result.filesRestored());
+            node.put(
+                    "message",
+                    result.filesRestored() + " arquivo(s) restaurado(s) ao estado anterior às últimas edições.");
+        }
+        return toolResult(node);
+    }
+
+    private JsonNode executeRemember(Map<String, Object> payload) throws IOException {
+        if (userMemoryService == null) {
+            return toolResult(mapper.createObjectNode().put("error", "Memória de longo prazo indisponível."));
+        }
+        String content = requiredString(payload, "content");
+        String category = optionalString(payload, "category");
+        UUID userId = toolExecutionContext.current().userId();
+        if (userId == null) {
+            return toolResult(mapper.createObjectNode().put("error", "Usuário autenticado é obrigatório."));
+        }
+        var outcome = userMemoryService.suggest(
+                userId,
+                content,
+                category == null || category.isBlank() ? UserMemoryService.defaultCategory() : category);
+        ObjectNode result = mapper.createObjectNode();
+        result.put("saved", outcome.saved());
+        result.put("status", "PENDING");
+        result.put("content", outcome.content());
+        result.put(
+                "message",
+                outcome.saved()
+                        ? "Sugestão de memória registrada; aguarda confirmação do usuário."
+                        : "Essa memória já existia; nada foi duplicado.");
+        return toolResult(result);
+    }
+
+    private JsonNode executeFindSymbol(Map<String, Object> payload) throws IOException {
+        if (symbolSearchService == null) {
+            return toolResult(mapper.createObjectNode().put("error", "Busca de símbolo indisponível."));
+        }
+        var found = symbolSearchService.find(requiredString(payload, "path"), requiredString(payload, "symbol"));
+        ObjectNode result = mapper.createObjectNode();
+        result.put("symbol", requiredString(payload, "symbol"));
+        result.put("count", found.size());
+        ArrayNode matches = result.putArray("matches");
+        found.forEach(match -> {
+            ObjectNode node = matches.addObject();
+            node.put("file", match.file());
+            node.put("line", match.line());
+            node.put("text", match.text());
+        });
+        return toolResult(result);
+    }
+
+    private JsonNode executeVerifyProject(Map<String, Object> payload) throws IOException {
+        if (projectVerificationService == null) {
+            return toolResult(mapper.createObjectNode().put("error", "Verificação de projeto indisponível."));
+        }
+        var verification = projectVerificationService.verify(requiredString(payload, "path"));
+        ObjectNode result = mapper.createObjectNode();
+        result.put("detected", verification.detected());
+        result.put("ok", verification.ok());
+        result.put("command", verification.command());
+        result.put("exitCode", verification.exitCode());
+        result.put("timedOut", verification.timedOut());
+        result.put("errorSummary", verification.errorSummary());
         return toolResult(result);
     }
 
@@ -876,7 +1016,7 @@ public class McpController implements ToolProvider {
             Files.createDirectories(parent);
         }
 
-        BackupEntry backup = fileBackupService.backupBeforeWrite(file);
+        BackupEntry backup = fileBackupService.backupBeforeWrite(file, optionalString(payload, "_runId"));
         Files.writeString(file, content, StandardCharsets.UTF_8);
 
         ObjectNode result = mapper.createObjectNode();
@@ -922,7 +1062,7 @@ public class McpController implements ToolProvider {
                 ? content.replace(oldString, newString)
                 : replaceFirstOccurrence(content, oldString, newString);
 
-        BackupEntry backup = fileBackupService.backupBeforeWrite(file);
+        BackupEntry backup = fileBackupService.backupBeforeWrite(file, optionalString(payload, "_runId"));
         Files.writeString(file, updatedContent, StandardCharsets.UTF_8);
 
         ObjectNode result = mapper.createObjectNode();
@@ -955,7 +1095,7 @@ public class McpController implements ToolProvider {
             return mapper.createObjectNode().put("error", "Path is not a regular file: " + file);
         }
 
-        BackupEntry backup = fileBackupService.backupBeforeWrite(file);
+        BackupEntry backup = fileBackupService.backupBeforeWrite(file, optionalString(payload, "_runId"));
         Files.delete(file);
 
         ObjectNode result = mapper.createObjectNode();
@@ -975,7 +1115,8 @@ public class McpController implements ToolProvider {
                     .put("error", "Refusing to delete an entire authorized workspace root: " + directory);
         }
 
-        DirectoryBackupEntry backup = fileBackupService.backupDirectoryBeforeDelete(directory);
+        DirectoryBackupEntry backup =
+                fileBackupService.backupDirectoryBeforeDelete(directory, optionalString(payload, "_runId"));
         deleteRecursively(directory);
 
         ObjectNode result = mapper.createObjectNode();
@@ -1005,7 +1146,11 @@ public class McpController implements ToolProvider {
 
     private JsonNode executeCreateDirectory(Map<String, Object> payload) throws IOException {
         Path directory = workspaceAccessService.requireAuthorized(requiredString(payload, "path"));
+        boolean existed = Files.exists(directory);
         Files.createDirectories(directory);
+        if (!existed) {
+            fileBackupService.recordCreatedDirectory(directory, optionalString(payload, "_runId"));
+        }
 
         ObjectNode result = mapper.createObjectNode();
         result.put("status", "success");

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TOOLS_DIR="${AVENTO_LOCAL_MCP_TOOLS_DIR:-$ROOT/.avento-tools/mcp}"
+TOOLS_DIR="${AVENTO_LOCAL_MCP_TOOLS_DIR:-$HOME/.avento/tools/mcp}"
 PYTHON="${AVENTO_LOCAL_MCP_PYTHON:-python3}"
 
 info() {

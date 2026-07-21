@@ -76,4 +76,14 @@ class GeneratedMediaAssetServiceTest {
         assertThat(image).doesNotExist();
         verify(repository).deleteAllInBatch(List.of(asset));
     }
+
+    @Test
+    void doesNotResolveAnAssetOwnedByAnotherUser() {
+        GeneratedMediaAssetRepository repository = mock(GeneratedMediaAssetRepository.class);
+        GeneratedMediaAssetService service = new GeneratedMediaAssetService(repository, mediaDirectory.toString());
+        UUID otherUser = UUID.randomUUID();
+        when(repository.findByIdAndUserId(44L, otherUser)).thenReturn(Optional.empty());
+
+        assertThat(service.findOwnedById(44L, otherUser)).isEmpty();
+    }
 }

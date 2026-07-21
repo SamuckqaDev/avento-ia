@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { 
   Container, Brand, LogoContainer, LogoMesh, ScrollArea, Footer,
   Section, ActionBtn, ChatList, ProjectSelectorWrapper, FileTreeWrapper,
@@ -11,15 +11,17 @@ import { ChatSession } from '../../../hooks/useChatHistory';
 import { FileNode } from '../../../hooks/useFileSystem';
 import { AppNotification } from '../../../hooks/useNotifications';
 import { NotificationBell } from '../NotificationBell';
-import { Plus, Folder, FolderUser, FileText, ChatsCircle, List, CaretDown, CaretRight, Trash, X, ImageSquare, FilmSlate } from '@phosphor-icons/react';
+import { Plus, Folder, FolderUser, FileText, ChatsCircle, List, CaretDown, CaretRight, Trash, X, ImageSquare, FilmSlate, Browsers, FilePdf, DownloadSimple, PencilSimple, Check } from '@phosphor-icons/react';
 import logoUrl from '../../../assets/avento-logo.svg';
 import { SettingsModal } from '../SettingsModal';
 import { useAuth } from '../../auth/AuthProvider';
+import { api } from '../../../services/apiClient';
 
 export interface GeneratedMedia {
   id: string;
   url: string;
   name: string;
+  type?: 'image' | 'video' | 'document' | 'artifact';
   createdAt: string;
 }
 
@@ -30,6 +32,7 @@ interface SidebarProps {
   onNewChat: () => void;
   onLoadChat: (id: number, title: string, projectPaths: string[]) => void;
   onDeleteChat: (chat: ChatSession) => Promise<void>;
+  onRenameChat: (chatId: number, title: string) => Promise<void>;
 
   // Notifications
   notifications: AppNotification[];
@@ -121,16 +124,60 @@ function SidebarComponent({
   projectPaths, removeProjectPath, homeWorkspaceRoot, clearHomeWorkspaceRoot,
   browseFolder, authorizeHomeFolder, loadProjectTree,
   fileTree, selectedFiles, toggleFileSelection, media, onOpenMedia
-  ,onDeleteChat, isDarkMode, toggleTheme, isVoiceEnabled, handleToggleVoice
+  ,onDeleteChat, onRenameChat, isDarkMode, toggleTheme, isVoiceEnabled, handleToggleVoice
 }: SidebarProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
   const [isProjectContextExpanded, setIsProjectContextExpanded] = useState(true);
   const [chatToDelete, setChatToDelete] = useState<ChatSession | null>(null);
+  const [editingChatId, setEditingChatId] = useState<number | null>(null);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string>(() => localStorage.getItem('avento_avatar_url') || '');
+
+  // localStorage não é reativo: ouvimos o evento disparado pelo SettingsModal ao trocar a foto,
+  // além do evento nativo `storage` (troca em outra aba).
+  useEffect(() => {
+    const sync = () => setAvatarUrl(localStorage.getItem('avento_avatar_url') || '');
+    window.addEventListener('avento:avatar-changed', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('avento:avatar-changed', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  const commitRename = async (chatId: number) => {
+    const title = draftTitle.trim();
+    setEditingChatId(null);
+    const original = chats.find(c => c.id === chatId)?.title;
+    if (title && title !== original) {
+      try {
+        await onRenameChat(chatId, title);
+      } catch {
+        // Mantém o título antigo se a renomeação falhar.
+      }
+    }
+  };
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { user } = useAuth();
+
+  const openArtifactSafely = async (item: GeneratedMedia) => {
+    const previewWindow = window.open('', '_blank', 'noopener');
+    try {
+      const response = await api.get<string>(item.url, { responseType: 'text' });
+      const blobUrl = URL.createObjectURL(new Blob([response.data], { type: 'text/html' }));
+      if (previewWindow) {
+        previewWindow.location.replace(blobUrl);
+      } else {
+        window.open(blobUrl, '_blank', 'noopener');
+      }
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch {
+      previewWindow?.close();
+    }
+  };
 
   const confirmDeleteChat = async () => {
     if (!chatToDelete) return;
@@ -190,24 +237,53 @@ function SidebarComponent({
             aria-expanded={isMediaExpanded}
             title={isMediaExpanded ? 'Minimizar mídias' : 'Expandir mídias'}
           >
-            <span className="section-label"><ImageSquare size={16} /> Mídias</span>
-            <SectionCount aria-label={`${media.length} mídias`}>{media.length}</SectionCount>
+            <span className="section-label"><ImageSquare size={16} /> Mídias e Artefatos</span>
+            <SectionCount aria-label={`${media.length} itens`}>{media.length}</SectionCount>
             <CaretDown size={14} className="caret" />
           </SectionToggle>
           {isMediaExpanded && (
             media.length === 0 ? (
-              <p className="empty-section">As mídias geradas aparecerão aqui.</p>
+              <p className="empty-section">As mídias e artefatos gerados aparecerão aqui.</p>
             ) : (
               <MediaList>
-                {media.slice(0, 8).map(item => {
-                  const isVideo = /^avento-video-/i.test(item.name);
+                {media.slice(0, 12).map(item => {
+                  const kind = item.type
+                    ?? (/^avento-video-/i.test(item.name) ? 'video'
+                      : /^avento-doc-/i.test(item.name) ? 'document'
+                      : /^avento-mockup-/i.test(item.name) ? 'artifact' : 'image');
+                  const Icon = kind === 'video' ? FilmSlate
+                    : kind === 'document' ? FilePdf
+                    : kind === 'artifact' ? Browsers : ImageSquare;
+                  const label = item.name
+                    .replace(/^avento-(?:image|video|doc|mockup)-/, '')
+                    .replace(/\.(?:png|webp|pdf|html)$/, '');
+                  const handleClick = () => {
+                    if (kind === 'image' || kind === 'video') {
+                      onOpenMedia(item);
+                    } else if (kind === 'artifact') {
+                      void openArtifactSafely(item);
+                    } else {
+                      window.open(item.url, '_blank', 'noopener');
+                    }
+                  };
                   return (
-                    <MediaItemButton key={item.id} type="button" onClick={() => onOpenMedia(item)} title={item.name}>
-                      {isVideo ? <FilmSlate size={15} /> : <ImageSquare size={15} />}
-                      <span>{item.name.replace(/^avento-(?:image|video)-/, '').replace(/\.(?:png|webp)$/, '')}</span>
+                    <MediaItemButton key={item.id} type="button" onClick={handleClick} title={item.name}>
+                      <Icon size={15} />
+                      <span>{label}</span>
                     </MediaItemButton>
                   );
                 })}
+                {currentChatId && media.some(m => m.type === 'artifact' || m.type === 'document'
+                  || /^avento-(?:doc|mockup)-/i.test(m.name)) && (
+                  <MediaItemButton
+                    as="a"
+                    href={`/api/media/chat/${currentChatId}/artifacts.zip`}
+                    title="Baixar telas e documentos deste chat (.zip)"
+                  >
+                    <DownloadSimple size={15} />
+                    <span>Baixar telas (.zip)</span>
+                  </MediaItemButton>
+                )}
               </MediaList>
             )
           )}
@@ -220,24 +296,64 @@ function SidebarComponent({
           <ChatList>
             {chats.map(chat => (
               <ChatRow
-                key={chat.id} 
+                key={chat.id}
                 className={currentChatId === chat.id ? 'active' : ''}
-                onClick={() => onLoadChat(chat.id, chat.title, chat.projectPaths)}
+                onClick={() => editingChatId === chat.id ? undefined : onLoadChat(chat.id, chat.title, chat.projectPaths)}
                 title={chat.title}
               >
-                <span>{chat.title}</span>
-                <ChatDeleteButton
-                  type="button"
-                  title={`Apagar ${chat.title}`}
-                  aria-label={`Apagar ${chat.title}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setDeleteError(null);
-                    setChatToDelete(chat);
-                  }}
-                >
-                  <Trash size={15} />
-                </ChatDeleteButton>
+                {editingChatId === chat.id ? (
+                  <input
+                    className="chat-rename-input"
+                    value={draftTitle}
+                    autoFocus
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={(event) => setDraftTitle(event.target.value)}
+                    onBlur={() => commitRename(chat.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') { event.preventDefault(); commitRename(chat.id); }
+                      if (event.key === 'Escape') { setEditingChatId(null); }
+                    }}
+                  />
+                ) : (
+                  <span>{chat.title}</span>
+                )}
+                {editingChatId === chat.id ? (
+                  <ChatDeleteButton
+                    type="button"
+                    title="Salvar nome"
+                    aria-label="Salvar nome"
+                    onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); commitRename(chat.id); }}
+                  >
+                    <Check size={15} />
+                  </ChatDeleteButton>
+                ) : (
+                  <>
+                    <ChatDeleteButton
+                      type="button"
+                      title={`Renomear ${chat.title}`}
+                      aria-label={`Renomear ${chat.title}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setDraftTitle(chat.title);
+                        setEditingChatId(chat.id);
+                      }}
+                    >
+                      <PencilSimple size={15} />
+                    </ChatDeleteButton>
+                    <ChatDeleteButton
+                      type="button"
+                      title={`Apagar ${chat.title}`}
+                      aria-label={`Apagar ${chat.title}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setDeleteError(null);
+                        setChatToDelete(chat);
+                      }}
+                    >
+                      <Trash size={15} />
+                    </ChatDeleteButton>
+                  </>
+                )}
               </ChatRow>
             ))}
           </ChatList>
@@ -324,7 +440,11 @@ function SidebarComponent({
       <Footer>
         <AccountBtn onClick={() => setIsSettingsOpen(true)} title="Sua Conta e Configurações">
           <AccountAvatar>
-            {user?.displayName ? user.displayName.substring(0, 2) : 'US'}
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Foto de perfil" />
+            ) : (
+              (user?.displayName ? user.displayName.substring(0, 2) : 'US').toUpperCase()
+            )}
           </AccountAvatar>
           <AccountInfo className="hide-on-minimized">
             <AccountName>{user?.displayName || 'Usuário'}</AccountName>

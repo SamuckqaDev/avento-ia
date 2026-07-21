@@ -74,7 +74,7 @@ fi
 
 printf '\nLocal MCP runtime:\n'
 optional_command uvx
-LOCAL_MCP_TOOLS_DIR="${AVENTO_LOCAL_MCP_TOOLS_DIR:-$PWD/.avento-tools/mcp}"
+LOCAL_MCP_TOOLS_DIR="${AVENTO_LOCAL_MCP_TOOLS_DIR:-$HOME/.avento/tools/mcp}"
 if [ -x "$LOCAL_MCP_TOOLS_DIR/bin/python" ] \
   && [ -x "$LOCAL_MCP_TOOLS_DIR/bin/markitdown" ] \
   && [ -x "$LOCAL_MCP_TOOLS_DIR/bin/markitdown-mcp" ] \

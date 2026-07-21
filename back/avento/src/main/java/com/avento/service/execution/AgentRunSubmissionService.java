@@ -54,10 +54,20 @@ public class AgentRunSubmissionService {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("Redis execution is disabled");
         }
+        String idempotencyKey = request.path("idempotencyKey").asText("").trim();
+        if (!idempotencyKey.isBlank()) {
+            idempotencyKey = idempotencyKey.substring(0, Math.min(idempotencyKey.length(), 180));
+            Optional<AgentRunJob> existing =
+                    jobRepository.findByUserIdAndChatIdAndIdempotencyKey(userId, chatId, idempotencyKey);
+            if (existing.isPresent()) {
+                return existing.get();
+            }
+        }
         AgentRunJob job = new AgentRunJob();
         job.setRunId("run_" + UUID.randomUUID().toString().substring(0, 8));
         job.setUserId(userId);
         job.setChatId(chatId);
+        job.setIdempotencyKey(idempotencyKey.isBlank() ? null : idempotencyKey);
         job.setRequestPayload(request.toString());
         job = jobRepository.save(job);
         createOutbox(job);

@@ -882,7 +882,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   
   // Custom Hooks for Backend Integration
   const {
-    chats, currentChatId, setCurrentChatId, loadChats, loadChatMessages, saveMessageToDB, updateChatContext, deleteChat
+    chats, currentChatId, setCurrentChatId, loadChats, loadChatMessages, saveMessageToDB, updateChatContext, renameChat, deleteChat
   } = useChatHistory();
   const currentChatIdRef = useRef<number | null>(currentChatId);
   const streamDraftsRef = useRef<Map<number, ChunkData>>(new Map());
@@ -1376,7 +1376,8 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     if (context.chatId === null || !response.trim()) return;
     await saveMessageToDB('assistant', response, undefined, undefined, context.chatId);
     streamDraftsRef.current.delete(context.chatId);
-    if (response.includes('[[avento-image-job:') || response.includes('/api/media/')) {
+    if (response.includes('[[avento-image-job:') || response.includes('/api/media/')
+        || response.includes('```ui-preview')) {
       await loadMedia(context.chatId);
     }
   }, [loadMedia, saveMessageToDB]);
@@ -1759,6 +1760,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
       spokenLanguage?: string;
       images?: ImageAttachment[];
       documents?: DocumentAttachment[];
+      idempotencyKey?: string;
     } = {}
   ) => {
     const outgoingImages = options.images ?? imageAttachments;
@@ -1948,14 +1950,15 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
       effectiveProjectPaths,
       selectedImageModel,
       requestImageGenerationOptions,
-      activeChatId
+      activeChatId,
+      options.idempotencyKey
     );
     
     // Save AI message to DB
     if (finalResponse) {
       await saveMessageToDB('assistant', finalResponse, undefined, undefined, activeChatId);
       streamDraftsRef.current.delete(activeChatId);
-      if (finalResponse.includes('/api/media/')) {
+      if (finalResponse.includes('/api/media/') || finalResponse.includes('```ui-preview')) {
         await loadMedia(activeChatId);
       }
       if (currentChatIdRef.current === activeChatId && isVoiceEnabledRef.current && !isRealtimeVoiceActive) {
@@ -1966,6 +1969,36 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
       }
     }
   };
+
+  // Modo Plano: o card de plano de implementação dispara estes eventos. Usamos um ref para
+  // sempre chamar a versão mais recente de handleSend sem re-assinar o listener a cada render.
+  const handleSendRef = useRef(handleSend);
+  handleSendRef.current = handleSend;
+  useEffect(() => {
+    const approve = (event: Event) => {
+      const detail = (event as CustomEvent<{ plan?: string; messageIndex?: number }>).detail;
+      const plan = detail?.plan?.trim();
+      const chatId = currentChatIdRef.current;
+      if (!plan || chatId === null || detail?.messageIndex === undefined) return;
+      const idempotencyKey = `plan:${chatId}:${detail.messageIndex}:${plan.length}:${plan.slice(0, 48)}`;
+      void handleSendRef.current(
+        'Aprovado. Implemente exatamente este plano, passo a passo. Ao terminar, rode verify_project '
+          + `e corrija até passar.\n\nPLANO APROVADO:\n${plan}`,
+        { force: true, idempotencyKey }
+      );
+    };
+    const adjust = (event: Event) => {
+      const detail = (event as CustomEvent<{ plan?: string }>).detail;
+      if (detail?.plan) setInputValue(`Ajuste este plano:\n\n${detail.plan}\n\n`);
+      document.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+    };
+    window.addEventListener('avento:approve-plan', approve);
+    window.addEventListener('avento:adjust-plan', adjust);
+    return () => {
+      window.removeEventListener('avento:approve-plan', approve);
+      window.removeEventListener('avento:adjust-plan', adjust);
+    };
+  }, []);
 
   const toggleRecording = async () => {
     if (isRecording) {
@@ -2227,6 +2260,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
         onNewChat={startNewChat}
         onLoadChat={handleLoadChat}
         onDeleteChat={handleDeleteChat}
+        onRenameChat={renameChat}
         notifications={notifications}
         unreadNotificationCount={unreadNotificationCount}
         onMarkNotificationRead={markNotificationRead}

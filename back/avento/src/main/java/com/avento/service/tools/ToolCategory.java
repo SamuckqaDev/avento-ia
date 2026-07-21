@@ -12,5 +12,6 @@ public enum ToolCategory {
     IMAGE,
     DOCUMENT,
     TERMINAL,
+    MEMORY,
     MCP_EXTERNAL
 }

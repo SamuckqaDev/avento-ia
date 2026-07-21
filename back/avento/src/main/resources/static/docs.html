@@ -298,7 +298,7 @@
     <div class="content" id="content">
         <div class="doc-section" id="intro">
             <h1>Avento - Documentação Técnica</h1>
-            <p><span class="status-pill">Atualizado em 18/07/2026</span><span class="status-pill">Local-first</span><span class="status-pill">Auth + Projetos + Voz + Ferramentas</span><span class="status-pill">ComfyUI para mídia</span></p>
+            <p><span class="status-pill">Atualizado em 20/07/2026</span><span class="status-pill">Local-first</span><span class="status-pill">Auth + Projetos + Voz + Ferramentas</span><span class="status-pill">ComfyUI para mídia</span></p>
             <p>O Avento é um assistente local para projetos de software e fluxos pessoais. A meta atual é ele trabalhar como um parceiro de desenvolvimento: analisar um projeto apontado pelo usuário, dar feedback em tempo real, usar ferramentas locais com segurança, ler e editar arquivos autorizados, rodar validações permitidas e conversar por voz.</p>
             <p>O sistema roda com backend Spring Boot, frontend React/Vite, login local com JWT em cookie HttpOnly, PostgreSQL e Redis Stack via Docker/Colima, Ollama nativo no macOS, análise local de projetos, RAG, backups de arquivos, WebSocket para voz e serviços opcionais de Whisper.cpp/Piper.</p>
         </div>
@@ -545,10 +545,12 @@
                 <li><strong>Refresh coordenado:</strong> o frontend compartilha uma única chamada de <code>/api/auth/refresh</code> entre requests simultâneos para evitar corrida na rotação do <code>jti</code>.</li>
                 <li><strong>Cookie como credencial única:</strong> a sessão é validada pelo access JWT em cookie <code>HttpOnly</code>; o frontend não lê nem envia token de autenticação em JavaScript.</li>
                 <li><strong>Histórico por usuário:</strong> conversas e mensagens de <code>/api/chats</code> são filtradas pelo usuário autenticado; um perfil não carrega nem altera chats de outro.</li>
+                <li><strong>Ownership completo:</strong> memória, preferências Redis, mídias, aprovações e rollback usam o <code>userId</code> autenticado e, quando aplicável, o <code>chatId</code>; esses valores não são aceitos do frontend como prova de identidade.</li>
+                <li><strong>Aprovação recuperável:</strong> o payload pendente fica no PostgreSQL com usuário, chat e <code>runId</code>, podendo ser aprovado uma única vez mesmo após reiniciar o backend.</li>
                 <li><strong>Feedback de autorização:</strong> respostas <code>401</code> e <code>403</code> retornam JSON com status, mensagem e rota; o frontend exibe sessão vencida com revalidação ou snackbar de acesso negado.</li>
                 <li><strong>Autorização de workspace:</strong> o usuário precisa liberar uma pasta antes de ler, listar ou escrever arquivos.</li>
                 <li><strong>Aprovação por voz:</strong> ações pendentes podem ser aprovadas ou canceladas falando frases como “aprovo por 24 horas nesse projeto” ou “cancela”; permissões temporárias ficam vinculadas ao projeto, ferramenta e recurso/comando.</li>
-                <li><strong>Backup antes de escrita/remoção:</strong> cada alteração ou remoção controlada cria cópia restaurável.</li>
+                <li><strong>Backup antes de escrita/remoção:</strong> cada alteração ou remoção controlada cria cópia restaurável e manifesto persistente por usuário, chat e run; backups órfãos têm rotação automática.</li>
                 <li><strong>Restore:</strong> endpoint dedicado para restaurar versões salvas.</li>
                 <li><strong>Comandos restritos:</strong> nada de shell livre para o modelo; apenas validações aprovadas.</li>
                 <li><strong>Erros controlados:</strong> falhas do agente viram eventos de stream em vez de quebrar a UI com 500 genérico.</li>
@@ -635,6 +637,8 @@
             <p><span class="status-pill">Saída visual</span> O chat renderiza tabelas Markdown (GFM via <code>remark-gfm</code>), e o modelo pode responder com um bloco <code>ui-preview</code> autocontido para relatórios, dashboards e gráficos em SVG inline — sem rede, no mesmo iframe isolado dos protótipos. A skill <code>visual-report</code> orienta esse formato.</p>
             <p><span class="status-pill">Exportar PDF</span> A ferramenta <code>generate_pdf</code> converte Markdown (com tabelas) ou HTML em um PDF via openhtmltopdf, salvo em <code>~/Pictures/Avento Generated Images</code> e vinculado à conversa (marcador <code>[[avento-doc:...]]</code>, card de download no balão). É servido pelo mesmo endpoint de mídia e apagado junto com o chat.</p>
             <p><span class="status-pill">Pesquisa na internet</span> A skill <code>/research</code> declara <code>Ferramentas:</code> (plural — <code>fetch</code>, <code>web_url_read</code>, <code>browser_navigate</code>, <code>browser_snapshot</code>) e <code>MaxRodadas:</code>, que eleva o teto de rodadas só para a pesquisa (o global de 6 continua protegendo as demais conversas). O procedimento busca, extrai e sintetiza numa tabela ou relatório com fontes citadas.</p>
+            <p><span class="status-pill">Mídias e Artefatos</span> A seção lateral virou "Mídias e Artefatos": além de imagem e vídeo, lista PDFs e os mockups <code>ui-preview</code> como artefatos baixáveis. Cada bloco <code>ui-preview</code> é persistido com nome UUID e continua renderizando inline no chat. O backend só resolve uma mídia registrada para o usuário autenticado; HTML é entregue como texto com <code>nosniff</code> e CSP e o frontend o abre em uma URL <code>blob:</code> isolada, sem acesso ao cookie do Avento. O ZIP é escrito em streaming. Tudo vinculado à conversa é apagado junto com ela.</p>
+            <p><span class="status-pill">Painel de uso de tokens</span> Cada rodada do Ollama grava tokens reais de entrada (<code>prompt_eval_count</code>) e saída (<code>eval_count</code>) por usuário, chat, run e modelo (tabela <code>token_usage</code>). A aba "Uso" do painel de conta mostra, por período (hoje / 7 / 30 dias, via <code>GET /api/usage/summary</code>): total, entrada, saída e número de requisições; gráfico de barras diário responsivo; e tabelas por modelo (entrada/saída/total) e das conversas que mais consumiram. Token aqui é métrica de custo computacional local, não financeiro.</p>
         </div>
 
         <div class="doc-section" id="interface-prototypes">
@@ -647,7 +651,7 @@
         <div class="doc-section" id="documents">
             <h2>Documentos no Chat</h2>
             <p>O botão de clipe do composer aceita até quatro arquivos por mensagem: PDF, Word, Excel, PowerPoint, EPUB, ZIP, texto e formatos comuns de código. Cada arquivo pode ter até 50 MB.</p>
-            <p>O frontend envia o arquivo ao endpoint autenticado <code>POST /api/documents/extract</code>. O backend cria uma cópia temporária, lê texto simples diretamente ou converte formatos binários com o MarkItDown local e apaga a cópia ao terminar. A instalação padrão em <code>.avento-tools/mcp</code> é resolvida a partir da raiz do Avento, mesmo quando o Back é iniciado por outro diretório. O arquivo original não é movido nem alterado.</p>
+            <p>O frontend envia o arquivo ao endpoint autenticado <code>POST /api/documents/extract</code>. O backend cria uma cópia temporária, lê texto simples diretamente ou converte formatos binários com o MarkItDown local e apaga a cópia ao terminar. A instalação padrão em <code>~/.avento/tools/mcp</code> mantém os runtimes locais fora da árvore Git e funciona mesmo quando o Back é iniciado por outro diretório. O arquivo original não é movido nem alterado.</p>
             <p>O nome e o contexto extraído ficam persistidos com a mensagem, portanto o Avento continua reconhecendo o documento ao reabrir o chat. Para preservar a janela do modelo local, o limite padrão é de 5.000 caracteres por documento e pode ser alterado por <code>AVENTO_DOCUMENT_ATTACHMENT_MAX_CONTEXT_CHARS</code>.</p>
         </div>
 

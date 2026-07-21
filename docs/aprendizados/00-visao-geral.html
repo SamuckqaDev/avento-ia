@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avento — Visão geral: IA, LLM e contexto</title>
+<style>
+  :root {
+    --bg: #F4F7F3;
+    --surface: #FFFFFF;
+    --ink: #14231F;
+    --muted: #566661;
+    --accent: #147E6A;
+    --accent-soft: #E3F2ED;
+    --mint: #3BB79E;
+    --pop: #D6497A;
+    --pop-soft: #FBE7EE;
+    --border: #DCE6E0;
+    --code-bg: #EDF3EF;
+    --shadow: 0 1px 2px rgba(20,35,31,.05), 0 8px 24px rgba(20,35,31,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B1512;
+      --surface: #12201C;
+      --ink: #E9F1ED;
+      --muted: #9CB0A8;
+      --accent: #4FD1B4;
+      --accent-soft: #15302A;
+      --mint: #5CDDC1;
+      --pop: #F384AB;
+      --pop-soft: #2A1721;
+      --border: #21322C;
+      --code-bg: #16241F;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F4F7F3; --surface: #FFFFFF; --ink: #14231F; --muted: #566661;
+    --accent: #147E6A; --accent-soft: #E3F2ED; --mint: #3BB79E; --pop: #D6497A;
+    --pop-soft: #FBE7EE; --border: #DCE6E0; --code-bg: #EDF3EF;
+    --shadow: 0 1px 2px rgba(20,35,31,.05), 0 8px 24px rgba(20,35,31,.05);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B1512; --surface: #12201C; --ink: #E9F1ED; --muted: #9CB0A8;
+    --accent: #4FD1B4; --accent-soft: #15302A; --mint: #5CDDC1; --pop: #F384AB;
+    --pop-soft: #2A1721; --border: #21322C; --code-bg: #16241F;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 22px 96px; }
+
+  /* Header */
+  header.top { padding: 64px 0 40px; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    font-size: .72rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(2rem, 5.5vw, 3rem); line-height: 1.08; margin: 0 0 18px;
+    letter-spacing: -.02em; font-weight: 800; text-wrap: balance;
+  }
+  .lede { font-size: 1.12rem; color: var(--muted); margin: 0; max-width: 62ch; }
+  .lede strong { color: var(--ink); font-weight: 650; }
+
+  /* Sections */
+  section { padding-top: 52px; }
+  h2 {
+    font-size: 1.55rem; letter-spacing: -.01em; margin: 0 0 6px; font-weight: 750;
+    display: flex; align-items: baseline; gap: 12px; text-wrap: balance;
+  }
+  h2 .n {
+    font-size: .82rem; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums; background: var(--accent-soft);
+    padding: 3px 9px; border-radius: 999px; flex: 0 0 auto; transform: translateY(-2px);
+  }
+  h3 { font-size: 1.05rem; margin: 26px 0 6px; font-weight: 700; }
+  p { margin: 12px 0; }
+  .muted { color: var(--muted); }
+  a { color: var(--accent); }
+
+  strong.key { color: var(--pop); font-weight: 700; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: .88em; background: var(--code-bg); padding: 1px 6px; border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+
+  /* Analogy / plain-language callout */
+  .plain {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 18px 0;
+  }
+  .plain .lbl { font-weight: 750; color: var(--accent); }
+
+  /* "You saw this today" callout */
+  .saw {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin: 20px 0; box-shadow: var(--shadow);
+    position: relative;
+  }
+  .saw::before {
+    content: "VOCÊ VIU ISSO HOJE"; display: inline-block;
+    font-size: .64rem; letter-spacing: .14em; font-weight: 800; color: var(--pop);
+    background: var(--pop-soft); padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+  }
+  .saw p { margin: 6px 0; font-size: .96rem; }
+  .saw p:first-of-type { margin-top: 0; }
+
+  /* Diagram */
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 22px 0;
+  }
+  .step {
+    flex: 1 1 120px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .step .st { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .step .sd { font-size: .9rem; margin-top: 4px; }
+  .arrow { align-self: center; color: var(--muted); font-weight: 700; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--border); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: .94rem; min-width: 460px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; background: var(--code-bg); }
+  tr:last-child td { border-bottom: none; }
+  td strong { color: var(--ink); }
+
+  /* Layers stack */
+  .layers { display: flex; flex-direction: column; gap: 8px; margin: 20px 0; }
+  .layer {
+    display: flex; align-items: baseline; gap: 14px; padding: 13px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+  }
+  .layer .tag {
+    font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); flex: 0 0 96px;
+  }
+  .layer .desc { font-size: .93rem; }
+  .layer .desc b { font-weight: 700; }
+
+  .divider { height: 1px; background: var(--border); border: 0; margin: 8px 0; }
+
+  footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
+
+  ul.clean { padding-left: 20px; }
+  ul.clean li { margin: 7px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Avento IA · Guia pra pensar junto</p>
+    <h1>IA, LLM e contexto — explicado pelo teu próprio projeto</h1>
+    <p class="lede">Você nunca montou um assistente de IA e quer entender o terreno pra a gente pensar junto. Bora do zero, em português direto, e ancorando cada conceito no que <strong>você já viu travar hoje</strong> no Avento — os tokens, o "thinking", o limite de 8192, o mockup cortado. No fim você vai saber onde o gargalo é o modelo, onde é o código, e como me pedir as coisas.</p>
+  </header>
+
+  <section>
+    <h2><span class="n">01</span> O que é um LLM, sem enrolação</h2>
+    <p>LLM = <em>Large Language Model</em>, "modelo de linguagem grande". Na prática ele faz <strong>uma coisa só</strong>: dado um texto, ele prevê <strong>o próximo pedaço de texto mais provável</strong>. Só isso. Ele não "sabe" nem "entende" como uma pessoa — ele aprendeu, lendo uma montanha de texto, quais palavras costumam vir depois de quais. Repetindo essa previsão pedaço por pedaço, sai uma resposta que <em>parece</em> raciocínio.</p>
+    <div class="plain">
+      <span class="lbl">Analogia:</span> é um autocompletar do celular com esteroides. O do celular sugere a próxima palavra; o LLM sugere as próximas milhares, mantendo coerência, e por isso consegue escrever código, um mockup ou um plano.
+    </div>
+    <p>O teu Avento roda o <code>qwen3.5:9b</code>. Esse <strong>"9b" = 9 bilhões de parâmetros</strong> — os "botões" internos que ele ajustou aprendendo. Mais parâmetros = mais capacidade de raciocínio, porém mais pesado pra rodar. Os modelos gigantes (os da OpenAI, Anthropic) têm <em>centenas de bilhões a trilhões</em>. O teu de 9b é o que cabe e roda rápido num Mac de 16GB.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">02</span> Token — a unidade de tudo</h2>
+    <p>O LLM não lê letra por letra nem palavra por palavra. Ele lê <strong>tokens</strong>: pedaços de palavra. "estacionamento" pode virar 3–4 tokens; "casa" é 1. Regra de bolso: <strong>~1 token ≈ 4 caracteres</strong>, ou ~0,75 palavra.</p>
+    <p>Por que isso importa pra você? Porque <strong>tudo é medido e cobrado em token</strong>: o que entra (teu pedido + histórico + instruções) e o que sai (a resposta). E a <em>velocidade</em> do modelo é "tokens por segundo".</p>
+    <div class="saw">
+      <p>No teu log, o Ollama mostrou <code>22.83 tokens/second</code>. Isso é a velocidade de geração do teu modelo local no teu Mac. Pra comparar: gerar uma tela HTML de ~2.600 tokens a 22 tok/s = <strong>~2 minutos</strong>. É por isso que o mockup "demorava pra sempre" — não travou, tava gerando devagar, token por token.</p>
+      <p>E o teu painel "Uso" mostrou <strong>296 mil tokens de entrada</strong> contra 27 mil de saída. A entrada domina ~11x — porque toda vez vão junto: as instruções do sistema, a política, o histórico da conversa e os esquemas das ferramentas.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">03</span> Contexto — a memória de trabalho (o conceito-chave)</h2>
+    <p>O <strong>contexto</strong> (ou <em>context window</em>) é o quanto de token o modelo consegue "segurar na cabeça" de uma vez — entrada <strong>mais</strong> saída, somados. É a memória de trabalho dele. Fora dessa janela, ele não enxerga nada.</p>
+    <div class="plain">
+      <span class="lbl">Analogia:</span> é uma mesa de trabalho de tamanho fixo. Cabe teu pedido, as instruções, o histórico e a resposta sendo escrita. Quando a mesa lota, algo cai no chão — ou o começo da conversa é esquecido, ou a resposta é <strong>cortada no meio</strong>.
+    </div>
+    <p>No Avento o contexto é <code>num_ctx = 8192</code> tokens. Esse número é apertado de propósito: aumentar consome mais RAM, e num Mac de 16GB isso matava o Ollama. É um limite <strong>do hardware</strong>, não do código.</p>
+    <div class="saw">
+      <p>O mockup que "não mostrava nada na tela" foi <strong>exatamente isto</strong>. O log:</p>
+      <p><code>prompt = 4417 tokens · geração = 3775 · total = 8192 · truncated = 1</code></p>
+      <p>A entrada (4417) + o HTML gerado (3775) encheram os 8192 e o modelo foi <strong>cortado</strong>. O bloco do preview ficou aberto sem fechar → HTML quebrado → tela em branco. A correção foi enxugar as instruções (entrada menor) e o mockup (saída menor), pra caber com folga na mesa.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">04</span> "Thinking" — pensar antes de responder</h2>
+    <p>Modelos modernos como o qwen conseguem <strong>raciocinar em rascunho antes da resposta final</strong>. Esse rascunho é o "thinking" — ele lista o que vai fazer, pesa opções, e só então escreve a resposta. A interface do Avento mostra isso no bloco de raciocínio.</p>
+    <p>Duas verdades importantes: (1) pensar <strong>melhora</strong> a qualidade em tarefas difíceis; (2) pensar <strong>gasta token e tempo</strong> — o rascunho também é gerado a 22 tok/s. Se o modelo raciocina demais, ou pior, se ele escreve o <em>entregável inteiro dentro do rascunho</em>, a resposta demora e às vezes o resultado nem aparece no lugar certo.</p>
+    <div class="saw">
+      <p>Foi o que você sacou sozinho: o plano e o mockup estavam saindo <strong>dentro do thinking</strong>. O modelo tava "pensando o entregável" — gerando o HTML/plano inteiro como se fosse rascunho. Resultado: lento e sem aparecer o card. A correção: instruir ele a pensar <em>curto</em> e pôr o entregável na resposta, não no rascunho.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">05</span> Ferramentas e o loop do agente</h2>
+    <p>Sozinho, um LLM só produz texto. O que transforma ele num <strong>agente</strong> (que faz coisas no teu computador) são as <strong>ferramentas</strong>: ler arquivo, editar, rodar teste, buscar na web. O Avento oferece essas ferramentas ao modelo; ele "pede" pra usar uma, o backend executa e devolve o resultado, e o modelo continua. Isso roda em <strong>rodadas</strong>, num ciclo:</p>
+    <div class="flow">
+      <div class="step"><div class="st">Você</div><div class="sd">"corrige o bug X"</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st">Modelo pensa</div><div class="sd">decide qual ferramenta usar</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st">Ferramenta</div><div class="sd">lê/edita/roda teste</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st">Resultado volta</div><div class="sd">e o ciclo repete até pronto</div></div>
+    </div>
+    <p>Cada esquema de ferramenta que o modelo enxerga <strong>ocupa espaço no contexto</strong>. Por isso o Avento não expõe todas as ferramentas de uma vez — expor 23 ferramentas deixava o modelo lento demais. É um equilíbrio: ferramenta demais entope a mesa, de menos e ele não consegue agir.</p>
+    <div class="saw">
+      <p>Isso é o que a gente construiu hoje: <code>verify_project</code> (roda o teste e corrige até passar), <code>find_symbol</code> (acha onde algo é definido, pra ele <em>entender</em> o código), <code>revert_changes</code> (desfaz o que ele mexeu), e o modo Plano (ele planeja, você aprova, ele executa). Esse é o tripé de um bom agente de código: <strong>entende → planeja → executa → verifica → desfaz</strong>.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">06</span> Por que ele "inventa" (alucina)</h2>
+    <p>Lembra que o LLM só prevê o próximo token provável? Ele <strong>não tem um botão de "eu não sei"</strong>. Quando não sabe, ele gera o que <em>parece</em> plausível — e às vezes isso é errado com toda a confiança do mundo. Isso se chama <strong>alucinação</strong>. Não é mentira nem bug; é o jeito que a máquina funciona.</p>
+    <p>Modelo pequeno (9b local) alucina e desobedece instrução <strong>mais</strong> que um gigante. Ele "datilografa" bem, mas escorrega nas pontas: chama a ferramenta errada, esquece uma regra, inventa um nome de arquivo. Foi teu perrengue a sessão toda.</p>
+    <div class="plain">
+      <span class="lbl">Como a gente contorna:</span> não confiar que o modelo obedece — <strong>garantir no código</strong>. Ex.: pra mockup nunca virar imagem, a gente <em>tirou</em> a ferramenta de imagem da lista naquele caso; o modelo nem consegue mais errar. Essa é a filosofia: onde o modelo é fraco, o código segura.
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">07</span> Local vs Nuvem — o trade-off que te define</h2>
+    <p>Você escolheu rodar <strong>tudo local</strong> (no teu Mac, via Ollama), sem nuvem. Isso é uma decisão forte, com prós e contras reais:</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>&nbsp;</th><th>Local (o teu Avento hoje)</th><th>Nuvem / modelo de fronteira</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Privacidade</strong></td><td>Total — teu código nunca sai da máquina</td><td>Vai pra uma API de terceiro</td></tr>
+          <tr><td><strong>Custo</strong></td><td>R$ 0 por uso (só teu hardware)</td><td>Paga por token</td></tr>
+          <tr><td><strong>Inteligência</strong></td><td>Limitada (9b) — erra e alucina mais</td><td>Muito maior — segue instrução melhor</td></tr>
+          <tr><td><strong>Velocidade</strong></td><td>~22 tok/s (o teu Mac)</td><td>Muito mais rápido</td></tr>
+          <tr><td><strong>Contexto</strong></td><td>8192 (limite de RAM)</td><td>Centenas de milhares de tokens</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Repara: <strong>os teus dois maiores gargalos hoje — o modelo errar e o contexto de 8192 — são consequência da escolha local</strong>, não de código mal feito. O "provider híbrido" (usar a nuvem só nos pedidos difíceis) resolveria os dois de uma vez, mas você adiou de propósito. É uma decisão consciente, e tá tudo bem — só é bom você saber que o teto de qualidade tá amarrado nisso.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">08</span> Como o Avento é montado (as camadas)</h2>
+    <p>Teu projeto tem várias peças conversando. De cima (o que você vê) pra baixo (onde a mágica roda):</p>
+    <div class="layers">
+      <div class="layer"><span class="tag">Frontend</span><span class="desc"><b>React</b> — o chat, a sidebar, os cards de mídia/preview. Só desenha a tela e fala com o backend.</span></div>
+      <div class="layer"><span class="tag">Backend</span><span class="desc"><b>Spring Boot (Java)</b> — o cérebro da orquestração: recebe o pedido, monta o contexto, chama o modelo, executa ferramentas, controla permissão.</span></div>
+      <div class="layer"><span class="tag">Modelo</span><span class="desc"><b>Ollama + qwen3.5:9b</b> — o LLM local que gera o texto/raciocínio. Roda na tua GPU/CPU.</span></div>
+      <div class="layer"><span class="tag">Ferramentas</span><span class="desc"><b>Tools locais + MCP</b> — arquivos, terminal, git, navegador, geração de imagem (ComfyUI), voz. O que dá "mãos" pro agente.</span></div>
+      <div class="layer"><span class="tag">Dados</span><span class="desc"><b>PostgreSQL + Redis</b> — guarda conversas, mensagens, tokens usados, jobs. Redis também acelera e transporta os eventos ao vivo.</span></div>
+      <div class="layer"><span class="tag">Guardas</span><span class="desc"><b>Permission Engine + Políticas</b> — nada com efeito real (editar, rodar, apagar) acontece sem aprovação. É o que te mantém no controle.</span></div>
+    </div>
+    <p>O fluxo de um pedido: <strong>React</strong> manda o texto → <strong>Spring</strong> monta o contexto (sistema + política + histórico + ferramentas) → <strong>Ollama</strong> pensa e responde → se pediu ferramenta, a <strong>Permission Engine</strong> checa e a ferramenta roda → o resultado volta e streama de volta pro chat.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">09</span> Como pensar junto comigo</h2>
+    <p>Agora o payoff. Com esse mapa na cabeça, você consegue diagnosticar sozinho e me pedir melhor:</p>
+    <ul class="clean">
+      <li><strong>"Tá lento" quase sempre é o modelo local (22 tok/s), não bug.</strong> Se a resposta é grande (HTML, plano longo), vai demorar. Peça mais enxuto, ou aceite o tempo.</li>
+      <li><strong>"Cortou / não apareceu" geralmente é o contexto de 8192.</strong> Entrada + saída estourou. Solução: pedido/tela menor, ou dividir em partes.</li>
+      <li><strong>"Ele fez merda / inventou" é a limitação do modelo pequeno.</strong> Aí o conserto costuma ser no <em>código</em> (garantir a ferramenta certa, tirar a errada), não em brigar com o modelo.</li>
+      <li><strong>Ferramenta nova = mais capacidade, mas ocupa contexto.</strong> Por isso a gente é seletivo com o que o modelo enxerga por vez.</li>
+      <li><strong>Separe sempre: é problema de modelo, de contexto, ou de código?</strong> Modelo e contexto = limite do local (só nuvem resolve de vez). Código = a gente conserta na hora.</li>
+    </ul>
+    <p class="muted">Quando você me trouxer um problema, se puder já dizer <em>o que você viu</em> (demorou? cortou? fez errado? deu erro?) e, se tiver, o <em>log</em> — eu isolo a causa rápido, igual a gente fez com o mockup hoje.</p>
+  </section>
+
+  <footer>
+    Feito pra você entender o terreno e a gente pensar junto no Avento. Nada aqui é definitivo — pergunta o que ficou nebuloso e a gente aprofunda o que você quiser (contexto, tokens, ferramentas, o que for).
+  </footer>
+</div>
+</body>
+</html>

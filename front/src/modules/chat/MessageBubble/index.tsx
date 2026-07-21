@@ -34,6 +34,7 @@ import { ThinkingBlock } from './ThinkingBlock';
 import { ImageGenerationCard } from '../ImageGenerationCard';
 import { VideoGenerationCard } from '../VideoGenerationCard';
 import { UiPreviewCard } from '../UiPreviewCard';
+import { ImplPlanCard } from '../ImplPlanCard';
 import { DocumentCard } from '../DocumentCard';
 
 import { CaretDown, Check, Copy, FileCode, FileText, CaretRight, ImageSquare, Lightning } from '@phosphor-icons/react';
@@ -110,6 +111,15 @@ function hasVisibleContent(content: string): boolean {
 
 function hasUiPreview(content: string): boolean {
   return /```ui-preview(?:\s|\n)/i.test(content);
+}
+
+// Se o modelo local estoura o limite de contexto no meio do mockup, o bloco ui-preview vem aberto
+// e sem o ``` de fechamento. Sem tratar, a tela fica em branco. Detectamos para avisar o usuário.
+function hasTruncatedUiPreview(content: string): boolean {
+  const open = content.match(/```ui-preview\s*\n/i);
+  if (!open) return false;
+  const afterOpen = content.slice((open.index ?? 0) + open[0].length);
+  return !afterOpen.includes('```');
 }
 
 function extractMediaJobs(content: string): { markdown: string; imageJobIds: string[]; videoJobIds: string[]; documentNames: string[] } {
@@ -316,6 +326,15 @@ function MessageBubbleComponent({
             </SkillInvocationBadge>
           ) : !isUser && !hasVisibleContent(message.content) && !message.thinking ? (
             <TypingIndicator />
+          ) : !isUser && hasTruncatedUiPreview(message.content) ? (
+            <div style={{
+              border: '1px solid #d97706', borderRadius: 8, padding: '10px 14px',
+              background: 'rgba(217, 119, 6, 0.08)', fontSize: '0.9rem', lineHeight: 1.5,
+            }}>
+              ⚠️ O mockup ficou grande demais e estourou o limite do modelo local, então foi cortado
+              antes de terminar e não pôde ser renderizado. Peça uma versão <strong>mais simples</strong>
+              (menos elementos ou menos CSS) ou divida em telas menores.
+            </div>
           ) : (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
@@ -340,6 +359,9 @@ function MessageBubbleComponent({
                   const code = textFromNode(children).replace(/\n$/, '');
                   if (childClassName?.includes('language-ui-preview')) {
                     return <UiPreviewCard html={code} />;
+                  }
+                  if (childClassName?.includes('language-impl-plan')) {
+                    return <ImplPlanCard plan={code} messageIndex={messageIndex} />;
                   }
                   return (
                     <CodeBlock>

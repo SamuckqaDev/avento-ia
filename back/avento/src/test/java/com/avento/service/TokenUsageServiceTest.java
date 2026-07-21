@@ -57,12 +57,28 @@ class TokenUsageServiceTest {
     void testSummary() {
         UUID userId = UUID.randomUUID();
         when(repository.sumTotalSince(eq(userId), any())).thenReturn(100L);
-        when(repository.sumByModelSince(eq(userId), any())).thenReturn(List.of());
+        when(repository.sumPromptSince(eq(userId), any())).thenReturn(70L);
+        when(repository.sumCompletionSince(eq(userId), any())).thenReturn(30L);
+        when(repository.countSince(eq(userId), any())).thenReturn(4L);
+        when(repository.usageByModelSince(eq(userId), any())).thenReturn(List.of());
         when(repository.sumByDaySince(eq(userId), any())).thenReturn(List.of());
+        when(repository.usageByChatSince(eq(userId), any(), any())).thenReturn(List.of());
 
         UsageSummary summary = service.summary(userId, "today");
 
+        assertThat(summary.range()).isEqualTo("today");
         assertThat(summary.total()).isEqualTo(100L);
+        assertThat(summary.promptTotal()).isEqualTo(70L);
+        assertThat(summary.completionTotal()).isEqualTo(30L);
+        assertThat(summary.requestCount()).isEqualTo(4L);
         verify(repository).sumTotalSince(eq(userId), any());
+        verify(repository).usageByChatSince(eq(userId), any(), any());
+    }
+
+    @Test
+    void unknownRangeFallsBackToSevenDays() {
+        UsageSummary summary = service.summary(null, "banana");
+        assertThat(summary.range()).isEqualTo("7d");
+        assertThat(summary.total()).isZero();
     }
 }

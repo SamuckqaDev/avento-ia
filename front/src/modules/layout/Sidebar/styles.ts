@@ -320,6 +320,18 @@ export const ChatRow = styled.li`
       white-space: nowrap;
     }
 
+    & > .chat-rename-input {
+      flex: 1;
+      min-width: 0;
+      background: ${({ theme }) => theme.colors.surface};
+      color: ${({ theme }) => theme.colors.text};
+      border: 1px solid ${({ theme }) => theme.colors.accent};
+      border-radius: 6px;
+      padding: 3px 6px;
+      font-size: 0.84rem;
+      outline: none;
+    }
+
     &:hover,
     &.active {
       background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 9%, ${({ theme }) => theme.colors.surface});
@@ -679,6 +691,7 @@ export const AccountAvatar = styled.div`
   height: 32px;
   flex: 0 0 auto;
   border-radius: 8px;
+  overflow: hidden;
   background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 15%, transparent);
   color: ${({ theme }) => theme.colors.accent};
   display: grid;
@@ -686,6 +699,12 @@ export const AccountAvatar = styled.div`
   font-weight: 700;
   font-size: 0.85rem;
   text-transform: uppercase;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 `;
 
 export const AccountInfo = styled.div`

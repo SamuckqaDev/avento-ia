@@ -180,8 +180,11 @@ public class LocalAiOrchestratorController {
             @RequestBody(required = false) JsonNode requestBody,
             @AuthenticationPrincipal AuthPrincipal principal) {
         requireOwnedApproval(approvalId, principal);
-        String runId = agentOrchestrator.runIdForApproval(approvalId).orElse("");
         UUID userId = userId(principal);
+        String runId = agentOrchestrator
+                .runIdForApproval(approvalId)
+                .or(() -> agentService.persistedRunIdForApproval(approvalId, userId))
+                .orElse("");
         return agentOrchestrator
                 .approve(approvalId, approvalComment(requestBody))
                 .doOnComplete(() -> runSubmissionService.finishAfterApproval(
@@ -201,8 +204,11 @@ public class LocalAiOrchestratorController {
             @RequestBody(required = false) JsonNode requestBody,
             @AuthenticationPrincipal AuthPrincipal principal) {
         requireOwnedApproval(approvalId, principal);
-        String runId = agentOrchestrator.runIdForApproval(approvalId).orElse("");
         UUID userId = userId(principal);
+        String runId = agentOrchestrator
+                .runIdForApproval(approvalId)
+                .or(() -> agentService.persistedRunIdForApproval(approvalId, userId))
+                .orElse("");
         return agentOrchestrator
                 .reject(approvalId, approvalComment(requestBody))
                 .doOnComplete(() -> runSubmissionService.cancelAfterRejection(runId, userId));

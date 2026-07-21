@@ -73,8 +73,9 @@ class SkillRegistryTest {
 
         assertEquals("prototype-interface", portuguese.name());
         assertEquals("prototype-interface", english.name());
-        assertTrue(portuguese.body().contains("Nao chame `generate_image`"));
-        assertTrue(portuguese.body().contains("miniatura recolhida"));
+        // A skill roteia mockup para o preview HTML (ui-preview), nunca para geracao de imagem.
+        assertTrue(portuguese.body().contains("generate_image"));
+        assertTrue(portuguese.body().contains("ui-preview"));
     }
 
     @Test
@@ -169,6 +170,21 @@ class SkillRegistryTest {
         assertFalse(video.body().toLowerCase(java.util.Locale.ROOT).contains("gatilhos:"));
         assertFalse(video.body().toLowerCase(java.util.Locale.ROOT).contains("ferramenta:"));
         assertTrue(video.body().contains("generate_video com o argumento"));
+    }
+
+    @Test
+    void implementationPlanSkillDeclaresOnlyReadOnlyToolsForPlanMode() {
+        Skill plan = registry.find("implementation-plan").orElseThrow();
+
+        assertTrue(plan.tools().contains("read_file"));
+        assertTrue(plan.tools().contains("search_files"));
+        assertTrue(plan.tools().contains("directory_tree"));
+        // Modo plano é só-leitura: escrita/terminal NÃO podem estar no kit.
+        assertFalse(plan.tools().contains("write_file"));
+        assertFalse(plan.tools().contains("edit_file"));
+        assertFalse(plan.tools().contains("delete_file"));
+        assertFalse(plan.tools().contains("terminal_run"));
+        assertTrue(plan.triggers().contains("faz um plano"));
     }
 
     @Test

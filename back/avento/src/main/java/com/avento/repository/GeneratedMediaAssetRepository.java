@@ -13,4 +13,8 @@ public interface GeneratedMediaAssetRepository extends JpaRepository<GeneratedMe
             Long chatId, UUID userId, String mediaType);
 
     Optional<GeneratedMediaAsset> findByFilename(String filename);
+
+    Optional<GeneratedMediaAsset> findByIdAndUserId(Long id, UUID userId);
+
+    Optional<GeneratedMediaAsset> findByFilenameAndUserId(String filename, UUID userId);
 }

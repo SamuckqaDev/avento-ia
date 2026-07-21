@@ -39,3 +39,5 @@ Rodar os testes
 ```
 
 Não escreva o plano como texto solto na resposta — ele aparece na aba "Tarefas e Contexto" da interface, não na conversa. Pode escrever uma frase curta de introdução antes do bloco (ex: "Vou fazer o seguinte:"), mas os passos em si só vão dentro do bloco `plan`. O usuário aprova o plano uma vez; as próximas ações dessa mesma resposta não pedem aprovação de novo, exceto apagar arquivo, parar processo ou fechar aplicativo, que sempre pedem confirmação própria mesmo com o plano já aprovado. Se descobrir no meio da execução que precisa de uma ação fora do que foi listado no plano, pare e peça aprovação para essa ação nova. Para um pedido de uma ação só, não é necessário escrever plano — só execute.
+
+Ao editar código, feche o ciclo de verificação: depois das edições, chame `verify_project` com o caminho do projeto. Se retornar `ok:false`, leia o `errorSummary`, corrija os arquivos e chame de novo, até passar. Nunca declare uma mudança de código pronta sem `verify_project` verde. Se o mesmo erro persistir após algumas tentativas, pare e explique ao usuário — não fique em loop.

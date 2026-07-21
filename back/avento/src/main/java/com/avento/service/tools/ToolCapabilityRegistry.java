@@ -32,6 +32,22 @@ public class ToolCapabilityRegistry {
                 "Le arquivo autorizado.");
         register(
                 definitions,
+                "find_symbol",
+                ToolCategory.FILESYSTEM,
+                ToolRiskLevel.READ_ONLY,
+                ToolApprovalPolicy.AUTO,
+                false,
+                "Acha ONDE um simbolo (classe/metodo/funcao/tipo) e DEFINIDO no projeto.");
+        register(
+                definitions,
+                "remember",
+                ToolCategory.MEMORY,
+                ToolRiskLevel.READ_ONLY,
+                ToolApprovalPolicy.AUTO,
+                true,
+                "Sugere um fato/preferencia do usuario para a memoria de longo prazo (fica pendente ate o usuario confirmar).");
+        register(
+                definitions,
                 "read_document",
                 ToolCategory.FILESYSTEM,
                 ToolRiskLevel.READ_ONLY,
@@ -223,6 +239,24 @@ public class ToolCapabilityRegistry {
                 ToolApprovalPolicy.APPROVAL_REQUIRED,
                 false,
                 "Gera documento PDF a partir de Markdown ou HTML.");
+
+        register(
+                definitions,
+                "verify_project",
+                ToolCategory.TERMINAL,
+                ToolRiskLevel.MEDIUM,
+                ToolApprovalPolicy.APPROVAL_REQUIRED,
+                false,
+                "Roda a verificação do projeto (teste/build) e diz se passou, com os erros resumidos.");
+
+        register(
+                definitions,
+                "revert_changes",
+                ToolCategory.FILESYSTEM,
+                ToolRiskLevel.MEDIUM,
+                ToolApprovalPolicy.APPROVAL_REQUIRED,
+                false,
+                "Desfaz (reverte) as alterações de arquivo da última resposta que editou o projeto.");
 
         register(
                 definitions,

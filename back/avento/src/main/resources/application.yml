@@ -32,7 +32,7 @@ avento:
     enable-thinking: ${AVENTO_AGENT_ENABLE_THINKING:true}
     keep-alive: ${AVENTO_AGENT_KEEP_ALIVE:30m}
     max-tools-per-request: ${AVENTO_AGENT_MAX_TOOLS_PER_REQUEST:12}
-    project-toolkit: ${AVENTO_AGENT_PROJECT_TOOLKIT:directory_tree,read_file,read_document,write_file,edit_file,delete_file,delete_directory,create_directory,search_files,terminal_run,terminal_start,terminal_logs}
+    project-toolkit: ${AVENTO_AGENT_PROJECT_TOOLKIT:directory_tree,read_file,read_document,write_file,edit_file,delete_file,delete_directory,create_directory,search_files,find_symbol,verify_project,terminal_run,terminal_start,terminal_logs}
     max-model-messages: ${AVENTO_AGENT_MAX_MODEL_MESSAGES:10}
     max-message-content-chars: ${AVENTO_AGENT_MAX_MESSAGE_CONTENT_CHARS:6000}
     max-total-message-content-chars: ${AVENTO_AGENT_MAX_TOTAL_MESSAGE_CONTENT_CHARS:8000}
@@ -68,8 +68,8 @@ avento:
     candidate-limit: ${AVENTO_RAG_CANDIDATE_LIMIT:30}
     result-limit: ${AVENTO_RAG_RESULT_LIMIT:5}
   documents:
-    markitdown-command: ${AVENTO_MARKITDOWN_COMMAND:.avento-tools/mcp/bin/markitdown}
-    markitdown-mcp-command: ${AVENTO_MARKITDOWN_MCP_COMMAND:.avento-tools/mcp/bin/markitdown-mcp}
+    markitdown-command: ${AVENTO_MARKITDOWN_COMMAND:${user.home}/.avento/tools/mcp/bin/markitdown}
+    markitdown-mcp-command: ${AVENTO_MARKITDOWN_MCP_COMMAND:${user.home}/.avento/tools/mcp/bin/markitdown-mcp}
     timeout: ${AVENTO_DOCUMENT_READ_TIMEOUT:120s}
     max-output-chars: ${AVENTO_DOCUMENT_MAX_OUTPUT_CHARS:200000}
     max-file-size: ${AVENTO_DOCUMENT_MAX_FILE_SIZE:100MB}

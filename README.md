@@ -144,7 +144,7 @@ flowchart LR
     API --> VOICE["Whisper.cpp + Piper"]
 ```
 
-The frontend never receives the authentication token. The backend concentrates session, workspace authorization, persistence, model calls, and tool execution. Actions with an effect on the computer pass through the Permission Engine before reaching the local or MCP provider. MCP clients, permissions, approvals, processes, and timeline are isolated per user and chat.
+The frontend never receives the authentication token. The backend concentrates session, workspace authorization, persistence, model calls, and tool execution. Actions with an effect on the computer pass through the Permission Engine before reaching the local or MCP provider. Memories, settings, media, approvals, rollback manifests, MCP clients, processes, and timeline are scoped by the authenticated user and chat. Pending approvals and file-change manifests are persisted in PostgreSQL, so a backend restart does not transfer ownership or silently lose the action awaiting confirmation.
 
 The JSON REST routes use a single contract:
 
@@ -169,7 +169,7 @@ avento-ia/
 │   ├── avento/                # Spring Boot, Maven resources and tests
 │   └── whisper.cpp/           # Local runtime; not versioned
 ├── piper_tts/                 # Local runtime and voices; not versioned
-├── .avento-tools/             # MarkItDown and local MCP tools
+├── ~/.avento/tools/           # MarkItDown and MCP runtimes, outside the repository
 ├── scripts/                   # Setup, startup, and smoke tests
 ├── docs/                      # Technical and operational guides
 ├── docker-compose.yml         # PostgreSQL and Redis Stack
@@ -253,7 +253,7 @@ npm --prefix front install
 npm --prefix front run dev
 ```
 
-The backend must be started from the root to find `.env`, `.avento-tools`, `back/whisper.cpp`, `piper_tts`, and the temporary directories.
+The backend must be started from the root to find `.env`, `back/whisper.cpp`, `piper_tts`, and the temporary directories. MarkItDown and the npm cache live under `~/.avento/tools` by default, keeping about a gigabyte of local runtime outside the Git worktree.
 
 ## Local Models and Services
 
@@ -296,7 +296,7 @@ Requests for `screen mockup`, `interface mockup`, `ui mockup`, `website mockup`,
 
 ### Documents in the chat
 
-The clip button in the composer accepts up to four documents per message, at a maximum of 50 MB per file. PDF, Word, Excel, PowerPoint, EPUB, ZIP, text files, and common code formats are accepted. The authenticated endpoint `POST /api/documents/extract` creates a temporary copy, extracts the content locally, and removes that copy when done. Plain text is read directly; the other formats use the MarkItDown installed by `scripts/setup-local-mcps.sh`. The relative path `.avento-tools/mcp` is always resolved from the Avento root, regardless of the directory used to start the backend.
+The clip button in the composer accepts up to four documents per message, at a maximum of 50 MB per file. PDF, Word, Excel, PowerPoint, EPUB, ZIP, text files, and common code formats are accepted. The authenticated endpoint `POST /api/documents/extract` creates a temporary copy, extracts the content locally, and removes that copy when done. Plain text is read directly; the other formats use the MarkItDown installed by `scripts/setup-local-mcps.sh` under `~/.avento/tools/mcp`.
 
 To protect the local model's context window, each document contributes up to `AVENTO_DOCUMENT_ATTACHMENT_MAX_CONTEXT_CHARS` characters, 5,000 by default. The name and the extracted context are persisted in the message and reused when reopening the conversation; the original file stays only in the location chosen by the user.
 
@@ -557,7 +557,7 @@ flowchart LR
     API --> VOICE["Whisper.cpp + Piper"]
 ```
 
-O frontend nunca recebe o token de autenticação. O backend concentra sessão, autorização de workspaces, persistência, chamadas aos modelos e execução de ferramentas. Ações com efeito no computador passam pelo Permission Engine antes de chegar ao provider local ou MCP. Clientes MCP, permissões, aprovações, processos e timeline são isolados por usuário e chat.
+O frontend nunca recebe o token de autenticação. O backend concentra sessão, autorização de workspaces, persistência, chamadas aos modelos e execução de ferramentas. Ações com efeito no computador passam pelo Permission Engine antes de chegar ao provider local ou MCP. Memórias, preferências, mídias, aprovações, manifestos de rollback, clientes MCP, processos e timeline são isolados pelo usuário autenticado e pelo chat. Aprovações pendentes e mudanças de arquivo ficam no PostgreSQL, então reiniciar o backend não transfere ownership nem perde silenciosamente a ação aguardando confirmação.
 
 As rotas REST JSON usam um contrato único:
 
@@ -584,7 +584,7 @@ avento-ia/
 │   ├── avento/                # Spring Boot, recursos e testes Maven
 │   └── whisper.cpp/           # Runtime local; não é versionado
 ├── piper_tts/                 # Runtime e vozes locais; não é versionado
-├── .avento-tools/             # MarkItDown e ferramentas MCP locais
+├── ~/.avento/tools/           # MarkItDown e runtimes MCP, fora do repositorio
 ├── scripts/                   # Setup, inicialização e smoke tests
 ├── docs/                      # Guias técnicos e operacionais
 ├── docker-compose.yml         # PostgreSQL e Redis Stack
@@ -668,7 +668,7 @@ npm --prefix front install
 npm --prefix front run dev
 ```
 
-O backend deve ser iniciado a partir da raiz para encontrar `.env`, `.avento-tools`, `back/whisper.cpp`, `piper_tts` e os diretórios temporários.
+O backend deve ser iniciado a partir da raiz para encontrar `.env`, `back/whisper.cpp`, `piper_tts` e os diretórios temporários. MarkItDown e o cache npm ficam em `~/.avento/tools` por padrão, mantendo cerca de um gigabyte de runtime local fora da árvore Git.
 
 ## Modelos e Serviços Locais
 
@@ -719,7 +719,7 @@ pode validá-los com Playwright. Veja o
 
 ### Documentos no chat
 
-O botão de clipe no composer aceita até quatro documentos por mensagem, com no máximo 50 MB por arquivo. São aceitos PDF, Word, Excel, PowerPoint, EPUB, ZIP, arquivos de texto e formatos comuns de código. O endpoint autenticado `POST /api/documents/extract` cria uma cópia temporária, extrai o conteúdo localmente e remove essa cópia ao terminar. Texto simples é lido diretamente; os demais formatos usam o MarkItDown instalado por `scripts/setup-local-mcps.sh`. O caminho relativo `.avento-tools/mcp` é sempre resolvido a partir da raiz do Avento, independentemente do diretório usado para iniciar o Back.
+O botão de clipe no composer aceita até quatro documentos por mensagem, com no máximo 50 MB por arquivo. São aceitos PDF, Word, Excel, PowerPoint, EPUB, ZIP, arquivos de texto e formatos comuns de código. O endpoint autenticado `POST /api/documents/extract` cria uma cópia temporária, extrai o conteúdo localmente e remove essa cópia ao terminar. Texto simples é lido diretamente; os demais formatos usam o MarkItDown instalado por `scripts/setup-local-mcps.sh` em `~/.avento/tools/mcp`.
 
 Para proteger a janela de contexto do modelo local, cada documento contribui com até `AVENTO_DOCUMENT_ATTACHMENT_MAX_CONTEXT_CHARS` caracteres, 5.000 por padrão. O nome e o contexto extraído ficam persistidos na mensagem e voltam a ser usados ao reabrir a conversa; o arquivo original permanece somente no local escolhido pelo usuário.
 

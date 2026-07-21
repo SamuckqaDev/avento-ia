@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -38,24 +39,33 @@ public class TokenUsageService {
     }
 
     public UsageSummary summary(UUID userId, String range) {
+        String normalizedRange = normalizeRange(range);
         if (userId == null) {
-            return new UsageSummary(0, java.util.List.of(), java.util.List.of());
+            return new UsageSummary(
+                    normalizedRange, 0, 0, 0, 0, java.util.List.of(), java.util.List.of(), java.util.List.of());
         }
 
-        LocalDateTime since;
-        if ("30d".equals(range)) {
-            since = LocalDate.now().minusDays(30).atStartOfDay();
-        } else if ("7d".equals(range)) {
-            since = LocalDate.now().minusDays(7).atStartOfDay();
-        } else {
-            // today
-            since = LocalDate.now().atStartOfDay();
-        }
-
-        long total = tokenUsageRepository.sumTotalSince(userId, since);
+        LocalDateTime since = sinceFor(normalizedRange);
         return new UsageSummary(
-                total,
-                tokenUsageRepository.sumByModelSince(userId, since),
-                tokenUsageRepository.sumByDaySince(userId, since));
+                normalizedRange,
+                tokenUsageRepository.sumTotalSince(userId, since),
+                tokenUsageRepository.sumPromptSince(userId, since),
+                tokenUsageRepository.sumCompletionSince(userId, since),
+                tokenUsageRepository.countSince(userId, since),
+                tokenUsageRepository.usageByModelSince(userId, since),
+                tokenUsageRepository.sumByDaySince(userId, since),
+                tokenUsageRepository.usageByChatSince(userId, since, PageRequest.of(0, 5)));
+    }
+
+    private String normalizeRange(String range) {
+        return "today".equals(range) || "30d".equals(range) ? range : "7d";
+    }
+
+    private LocalDateTime sinceFor(String normalizedRange) {
+        return switch (normalizedRange) {
+            case "today" -> LocalDate.now().atStartOfDay();
+            case "30d" -> LocalDate.now().minusDays(29).atStartOfDay();
+            default -> LocalDate.now().minusDays(6).atStartOfDay();
+        };
     }
 }

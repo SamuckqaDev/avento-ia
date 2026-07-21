@@ -59,6 +59,13 @@ export function useChatHistory() {
     await loadChats();
   }, [loadChats]);
 
+  const renameChat = useCallback(async (chatId: number, title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    await api.patch(`${API_CHATS_DB}/${chatId}`, { title: trimmed });
+    await loadChats();
+  }, [loadChats]);
+
   const deleteChat = useCallback(async (chatId: number) => {
     try {
       await api.delete(`${API_CHATS_DB}/${chatId}`);
@@ -131,6 +138,7 @@ export function useChatHistory() {
     loadChatMessages,
     saveMessageToDB,
     updateChatContext,
+    renameChat,
     deleteChat
   };
 }

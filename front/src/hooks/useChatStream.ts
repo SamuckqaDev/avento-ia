@@ -324,7 +324,8 @@ export function useChatStream(
       adherenceValidationEnabled: true,
       maxAdherenceRetries: 1,
     },
-    chatId: number | null = null
+    chatId: number | null = null,
+    idempotencyKey?: string
   ): Promise<string | undefined> => {
     const context = startStream(chatId);
     const abortController = abortControllersRef.current.get(context.requestId)!.controller;
@@ -339,6 +340,7 @@ export function useChatStream(
         messages: messageContext,
         workspaceRoots,
         chatId,
+        idempotencyKey,
       };
 
       const { data: submission } = await api.post<{ runId: string; status: string }>('/api/ai/runs', reqBody);

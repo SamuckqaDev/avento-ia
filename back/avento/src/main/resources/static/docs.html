@@ -558,7 +558,7 @@
                 <li><strong>Feedback de autorização:</strong> respostas <code>401</code> e <code>403</code> retornam JSON com status, mensagem e rota; o frontend exibe sessão vencida com revalidação ou snackbar de acesso negado.</li>
                 <li><strong>Autorização de workspace:</strong> o usuário precisa liberar uma pasta antes de ler, listar ou escrever arquivos.</li>
                 <li><strong>Aprovação por voz:</strong> ações pendentes podem ser aprovadas ou canceladas falando frases como “aprovo por 24 horas nesse projeto” ou “cancela”; permissões temporárias ficam vinculadas ao projeto, ferramenta e recurso/comando.</li>
-                <li><strong>Backup antes de escrita/remoção:</strong> cada alteração ou remoção controlada cria cópia restaurável e manifesto persistente por usuário, chat e run; backups órfãos têm rotação automática.</li>
+                <li><strong>Backup antes de escrita/remoção:</strong> cada alteração ou remoção controlada cria cópia restaurável e manifesto persistente por usuário, chat e run; backups órfãos têm rotação automática serializada e uma falha nessa manutenção é registrada sem derrubar o backend.</li>
                 <li><strong>Restore:</strong> endpoint dedicado para restaurar versões salvas.</li>
                 <li><strong>Comandos restritos:</strong> nada de shell livre para o modelo; apenas validações aprovadas.</li>
                 <li><strong>Erros controlados:</strong> falhas do agente viram eventos de stream em vez de quebrar a UI com 500 genérico.</li>

@@ -1,5 +1,6 @@
 package com.avento.service;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,12 +16,19 @@ import com.avento.service.tools.ToolExecutionContext;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 class FileBackupServiceTest {
 
@@ -30,6 +38,23 @@ class FileBackupServiceTest {
     private FileBackupService service() {
         return new FileBackupService(
                 org.mockito.Mockito.mock(FileChangeBackupRepository.class), new ToolExecutionContext());
+    }
+
+    private FileBackupService service(Path backupDirectory, FileChangeBackupRepository repository) {
+        return new FileBackupService(repository, new ToolExecutionContext(), backupDirectory);
+    }
+
+    @Test
+    void springSelectsTheProductionConstructor() {
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.registerBean(
+                    FileChangeBackupRepository.class, () -> org.mockito.Mockito.mock(FileChangeBackupRepository.class));
+            context.registerBean(ToolExecutionContext.class, ToolExecutionContext::new);
+            context.register(FileBackupService.class);
+            context.refresh();
+
+            assertTrue(context.containsBean("fileBackupService"));
+        }
     }
 
     @Test
@@ -188,5 +213,55 @@ class FileBackupServiceTest {
 
         assertEquals(1, result.filesRestored());
         assertEquals("before", Files.readString(file));
+    }
+
+    @Test
+    void concurrentOrphanCleanupDoesNotFailWhenTheSameTreeDisappears() throws Exception {
+        FileChangeBackupRepository repository = org.mockito.Mockito.mock(FileChangeBackupRepository.class);
+        org.mockito.Mockito.when(repository.findAll()).thenReturn(List.of());
+        Path backupDirectory = Files.createDirectory(tempDir.resolve("backups"));
+        Path orphan = Files.createDirectory(backupDirectory.resolve("orphan"));
+        Path nested = Files.createDirectory(orphan.resolve("nested"));
+        for (int index = 0; index < 200; index++) {
+            Files.writeString(nested.resolve("file-" + index + ".txt"), "backup");
+        }
+        Files.setLastModifiedTime(orphan, FileTime.from(Instant.now().minusSeconds(4 * 24 * 60 * 60)));
+        FileBackupService service = service(backupDirectory, repository);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<?> first = executor.submit(() -> {
+                await(start);
+                service.cleanupOrphanedBackups();
+            });
+            Future<?> second = executor.submit(() -> {
+                await(start);
+                service.cleanupOrphanedBackups();
+            });
+            start.countDown();
+            first.get();
+            second.get();
+        }
+
+        assertFalse(Files.exists(orphan));
+    }
+
+    @Test
+    void startupContinuesWhenOrphanMaintenanceFails() throws Exception {
+        FileChangeBackupRepository repository = org.mockito.Mockito.mock(FileChangeBackupRepository.class);
+        org.mockito.Mockito.when(repository.findAll()).thenThrow(new IllegalStateException("database unavailable"));
+        Path backupDirectory = Files.createDirectory(tempDir.resolve("failing-backups"));
+        FileBackupService service = service(backupDirectory, repository);
+
+        assertDoesNotThrow(service::cleanupOrphanedBackupsOnStartup);
+    }
+
+    private void await(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting to start backup cleanup", exception);
+        }
     }
 }

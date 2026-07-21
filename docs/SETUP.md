@@ -547,6 +547,11 @@ Cada alteracao de arquivo feita por ferramenta tambem cria um manifesto em `file
 `revert_changes` consulta somente a ultima run do usuario e chat atuais, cobre arquivos e diretorios e
 continua funcionando depois de reiniciar. O Avento mantem as 30 runs recentes por conversa; arquivos
 de backup sem manifesto sao reduzidos a no maximo 100 e expiram apos tres dias.
+Essa limpeza roda na inicializacao e depois a cada `avento.backups.cleanup-delay-ms` (24 horas por
+padrao). Ela e serializada e best-effort: uma corrida com outro processo removendo o mesmo arquivo e
+registrada no log, mas nunca deve impedir o backend de subir.
+O `dev-up.sh` tambem exige duas respostas de health consecutivas antes de anunciar um servico como
+pronto, evitando continuar a subida quando um processo abre a porta e encerra logo em seguida.
 
 Para expor em rede local no futuro, trate como uma decisao explicita de produto: habilitar HTTPS, usar segredo JWT forte, revisar CORS, limitar escopo de workspace e auditar acoes do agente.
 

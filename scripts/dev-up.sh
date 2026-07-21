@@ -54,11 +54,17 @@ wait_for_url() {
   local url="$1"
   local label="$2"
   local attempts="${3:-60}"
+  local consecutive_successes=0
 
   for _ in $(seq 1 "$attempts"); do
     if curl -fsS "$url" >/dev/null 2>&1; then
-      info "$label ready at $url"
-      return 0
+      consecutive_successes=$((consecutive_successes + 1))
+      if [ "$consecutive_successes" -ge 2 ]; then
+        info "$label ready at $url"
+        return 0
+      fi
+    else
+      consecutive_successes=0
     fi
     sleep 1
   done

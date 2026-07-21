@@ -9,10 +9,14 @@ import com.avento.service.dto.RevertResult;
 import com.avento.service.tools.ToolExecutionContext;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -27,6 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -34,6 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 public class FileBackupService {
 
     // Backing up a directory before delete_directory means copying it whole. That's fine for
@@ -41,7 +48,7 @@ public class FileBackupService {
     // this many files we skip the copy and rely on the mandatory approval step instead.
     private static final int MAX_DIRECTORY_BACKUP_FILES = 5000;
 
-    private final Path backupDirectory = Paths.get(System.getProperty("user.dir"), "tmp", "avento-backups");
+    private final Path backupDirectory;
     private final FileChangeBackupRepository backupRepository;
     private final ToolExecutionContext executionContext;
     private final Map<String, BackupEntry> backups = new ConcurrentHashMap<>();
@@ -56,9 +63,16 @@ public class FileBackupService {
     private final Map<String, Deque<String>> fileBackupsByRun = new ConcurrentHashMap<>();
     private final Deque<String> runOrder = new ConcurrentLinkedDeque<>();
 
+    @Autowired
     public FileBackupService(FileChangeBackupRepository backupRepository, ToolExecutionContext executionContext) {
+        this(backupRepository, executionContext, Paths.get(System.getProperty("user.dir"), "tmp", "avento-backups"));
+    }
+
+    FileBackupService(
+            FileChangeBackupRepository backupRepository, ToolExecutionContext executionContext, Path backupDirectory) {
         this.backupRepository = backupRepository;
         this.executionContext = executionContext;
+        this.backupDirectory = backupDirectory.toAbsolutePath().normalize();
     }
 
     /** Variante que registra o backup sob a run, para permitir reverter a run inteira depois. */
@@ -361,11 +375,34 @@ public class FileBackupService {
         if (!Files.exists(directory)) {
             return;
         }
-        try (Stream<Path> stream = Files.walk(directory)) {
-            List<Path> paths = stream.sorted(Comparator.reverseOrder()).toList();
-            for (Path path : paths) {
-                Files.deleteIfExists(path);
-            }
+        try {
+            Files.walkFileTree(directory, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
+                    Files.deleteIfExists(file);
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException exception) throws IOException {
+                    if (exception instanceof NoSuchFileException) {
+                        return FileVisitResult.CONTINUE;
+                    }
+                    throw exception;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path currentDirectory, IOException exception)
+                        throws IOException {
+                    if (exception != null && !(exception instanceof NoSuchFileException)) {
+                        throw exception;
+                    }
+                    Files.deleteIfExists(currentDirectory);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (NoSuchFileException ignored) {
+            // Another best-effort cleanup may remove the root between exists() and traversal.
         }
     }
 
@@ -402,18 +439,36 @@ public class FileBackupService {
     }
 
     @EventListener(ApplicationReadyEvent.class)
-    @Scheduled(fixedDelayString = "${avento.backups.cleanup-delay-ms:86400000}")
-    public void cleanupOrphanedBackups() {
-        if (!Files.isDirectory(backupDirectory)) {
-            return;
+    public void cleanupOrphanedBackupsOnStartup() {
+        cleanupOrphanedBackups();
+    }
+
+    @Scheduled(
+            initialDelayString = "${avento.backups.cleanup-delay-ms:86400000}",
+            fixedDelayString = "${avento.backups.cleanup-delay-ms:86400000}")
+    public void cleanupOrphanedBackupsOnSchedule() {
+        cleanupOrphanedBackups();
+    }
+
+    public synchronized void cleanupOrphanedBackups() {
+        try {
+            if (!Files.isDirectory(backupDirectory)) {
+                return;
+            }
+            Set<Path> referenced = backupRepository.findAll().stream()
+                    .map(FileChangeBackup::getBackupPath)
+                    .filter(path -> path != null && !path.isBlank())
+                    .map(Paths::get)
+                    .map(Path::toAbsolutePath)
+                    .map(Path::normalize)
+                    .collect(Collectors.toSet());
+            cleanupOrphanedBackupPaths(referenced);
+        } catch (IOException | RuntimeException exception) {
+            log.warn("Could not clean orphaned file backups; startup will continue", exception);
         }
-        Set<Path> referenced = backupRepository.findAll().stream()
-                .map(FileChangeBackup::getBackupPath)
-                .filter(path -> path != null && !path.isBlank())
-                .map(Paths::get)
-                .map(Path::toAbsolutePath)
-                .map(Path::normalize)
-                .collect(Collectors.toSet());
+    }
+
+    private void cleanupOrphanedBackupPaths(Set<Path> referenced) throws IOException {
         try (Stream<Path> stream = Files.list(backupDirectory)) {
             List<Path> candidates = stream.filter(
                             path -> !referenced.contains(path.toAbsolutePath().normalize()))
@@ -426,8 +481,6 @@ public class FileBackupService {
                     deleteBackupPath(candidate);
                 }
             }
-        } catch (IOException ignored) {
-            // Maintenance is best effort and must never prevent startup.
         }
     }
 

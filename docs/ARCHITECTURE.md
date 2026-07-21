@@ -409,6 +409,9 @@ resposta anterior. A skill `revert-changes` (com `Ferramenta: revert_changes`) r
 de sobrescrever. Cobre criacao, edicao e exclusao de arquivos e diretorios. Diretorios acima de
 5.000 arquivos continuam exigindo aprovacao, mas nao sao copiados. As ultimas 30 runs por conversa
 sao mantidas e backups orfaos antigos passam por rotacao automatica.
+O cleanup roda uma vez apos o backend ficar pronto e depois em intervalo configuravel. As execucoes
+sao serializadas e a remocao tolera arquivos que desaparecam durante a varredura; como se trata de
+manutencao best-effort, uma falha de limpeza e registrada no log sem encerrar a aplicacao.
 
 ## Navegacao de codigo por simbolo
 

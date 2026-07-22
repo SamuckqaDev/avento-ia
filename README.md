@@ -58,6 +58,7 @@ Avento was created and developed by **Samuel Tomimatu, software engineer and sol
 - A per-run context window with a predictable ceiling: the compacted tool history stays bounded regardless of how many rounds the task takes, avoiding blowing past the model's `num_ctx` on long analyses.
 - A failure to load history when switching chats shows an explicit notice with automatic retry instead of rendering the conversation as empty; the messages remain intact in PostgreSQL.
 - The task panel opens once when a plan appears and respects a manual close for the rest of the execution.
+- Autonomous plans persist ordered tasks per chat, run them one at a time through the durable Redis backbone, verify each workspace, and resume idempotently after a backend restart.
 - Chat model and visual-generation model selection in the header.
 - Token usage tracking per model, day, and chat, with a visual metrics dashboard.
 - Analysis of stack, scripts, entrypoints, and workspace structure.
@@ -462,6 +463,7 @@ O Avento foi criado e desenvolvido por **Samuel Tomimatu, engenheiro de software
 - Janela de contexto por execucao com teto previsivel: o historico compactado de ferramentas fica limitado independente de quantas rodadas a tarefa tiver, evitando estourar o `num_ctx` do modelo em analises longas.
 - Falha ao carregar o historico na troca de chat mostra um aviso explicito com nova tentativa automatica, em vez de renderizar a conversa como vazia; as mensagens permanecem integras no PostgreSQL.
 - O painel de tarefas abre uma vez quando um plano surge e respeita o fechamento manual durante o restante da execucao.
+- Planos autonomos persistem tarefas ordenadas por chat, executam uma por vez no backbone duravel com Redis, verificam cada workspace e retomam de forma idempotente apos reiniciar o backend.
 - Seleção de modelo de chat e de geração visual no header.
 - Rastreamento do consumo de tokens por modelo, dia e chat, com dashboard visual de métricas.
 - Análise de stack, scripts, entrypoints e estrutura do workspace.

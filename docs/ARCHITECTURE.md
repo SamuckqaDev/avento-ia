@@ -437,6 +437,42 @@ evitando duas implementacoes concorrentes. A execucao recebe o kit completo e fe
 `verify_project` (loop de verificar-e-corrigir).
 Assim o ciclo fica: planeja (so-leitura) -> aprova -> executa -> verifica.
 
+## Planos autonomos tarefa a tarefa
+
+O painel **Plano de execucao** complementa o card de plano textual acima. O usuario informa um
+objetivo e os workspaces ja autorizados; `PlanBuilderService` pede ao modelo somente uma definicao
+JSON limitada a 20 tarefas e persiste `AgentPlan` e `AgentTask`, sempre com `userId` e `chatId`.
+O painel mostra apenas os planos da conversa atual e permite editar, reordenar, pular, aprovar,
+pausar, retomar e cancelar.
+
+`PlanExecutionService` executa uma tarefa por vez em um executor local limitado. Cada tarefa gera
+um `AgentRunJob` idempotente no backbone existente (PostgreSQL + Outbox + Redis Streams + worker),
+recebe apenas titulo, detalhes, arquivos-alvo e ate dez resumos curtos das etapas anteriores. As
+edicoes continuam passando pelo `FileBackupService`, que registra os backups com o run da tarefa;
+depois da execucao, cada workspace passa pelo `ProjectVerificationService`. Uma verificacao
+vermelha desfaz a tentativa e repete no maximo uma vez; nova falha pausa o plano.
+
+```mermaid
+flowchart LR
+    GOAL["Objetivo no chat"] --> BUILD["PlanBuilderService"]
+    BUILD --> DB["AgentPlan e AgentTask no PostgreSQL"]
+    DB --> RUN["PlanExecutionService"]
+    RUN --> JOB["AgentRunJob + Outbox"]
+    JOB --> REDIS["Redis Streams"]
+    REDIS --> WORKER["AgentRunWorker"]
+    WORKER --> TOOLS["Ferramentas com backup por run"]
+    TOOLS --> VERIFY["ProjectVerificationService"]
+    VERIFY -->|"ok"| NEXT["Proxima tarefa"]
+    VERIFY -->|"falha"| ROLLBACK["Rollback e tentativa limitada"]
+    NEXT --> SSE["Eventos SSE do plano"]
+```
+
+O plano e as tentativas ficam persistidos. Se o backend reiniciar com um plano `RUNNING`, a tarefa
+interrompida volta a `PENDING`, reutiliza a mesma chave idempotente e o executor retoma sem criar
+uma segunda execucao logica. As raizes persistidas pelo plano sao registradas novamente para o
+mesmo dono antes da retomada. O SSE e apenas transporte de atualizacao; polling curto no painel e o
+estado no PostgreSQL permitem reconstruir a tela mesmo quando a conexao de eventos cai.
+
 ## Prototipos de interface
 
 Uma proposta de tela nao precisa passar pelo pipeline de imagem. A skill `prototype-interface`

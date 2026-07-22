@@ -399,6 +399,18 @@ Endpoints principais:
 - `POST /api/ai/runs` para criar um job assincrono do agente.
 - `GET /api/ai/runs/{runId}/events` para acompanhar texto, ferramentas e estado por SSE.
 - `POST /api/ai/runs/{runId}/cancel` para cancelar uma execucao propria.
+- `POST /api/plans` para gerar um plano autonomo limitado e vinculado ao chat.
+- `GET /api/plans` e `GET /api/plans/{id}` para listar e consultar planos do usuario autenticado.
+- `PUT /api/plans/{id}/tasks/{taskId}` para editar, reordenar ou pular uma tarefa.
+- `POST /api/plans/{id}/run`, `/pause`, `/resume` ou `/cancel` para controlar a execucao tarefa a tarefa.
+- `POST /api/plans/{id}/tasks/{taskId}/approve` para liberar uma etapa bloqueada.
+- `GET /api/plans/{id}/stream` para acompanhar o plano por SSE autenticado.
+
+No frontend, abra **Plano de execucao** no header da conversa, informe o objetivo e confirme os
+workspaces selecionados. O backend valida que o chat e as pastas pertencem ao usuario antes de
+persistir o plano. A execucao e assincrona e recuperavel: trocar de chat ou recarregar a pagina nao
+move o estado, e um reinicio do backend reutiliza a tentativa idempotente interrompida. Cada tarefa
+e verificada antes de avancar; falhas repetidas pausam o plano para revisao.
 
 ## Frontend
 

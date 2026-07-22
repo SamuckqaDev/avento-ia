@@ -15,6 +15,11 @@ public class ToolExecutionGateway {
     private final ToolResultVerifier resultVerifier;
     private final ToolExecutionContext executionContext;
 
+    // Auto-connect sob demanda de servidores MCP relevantes ao pedido. Injeção por campo opcional
+    // para não ampliar o construtor nem quebrar os testes que instanciam o gateway diretamente.
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.avento.service.mcp.McpAutoConnectService autoConnectService;
+
     public ToolExecutionGateway(
             ToolProvider toolProvider, ToolResultVerifier resultVerifier, ToolExecutionContext executionContext) {
         this.toolProvider = toolProvider;
@@ -29,6 +34,26 @@ public class ToolExecutionGateway {
     public ArrayNode listTools(UUID userId, Long chatId, String runId) {
         try {
             return executionContext.call(new Context(userId, chatId, runId), toolProvider::listTools);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Could not list tools for the current chat", exception);
+        }
+    }
+
+    /**
+     * Lista as ferramentas depois de conectar sob demanda os servidores MCP relevantes ao pedido —
+     * assim as ferramentas de um servidor que o pedido precisa (ex.: git) aparecem já nesta rodada,
+     * sem depender de o modelo lembrar de conectar. O auto-connect roda dentro do contexto de
+     * execução (escopo do chat), como a listagem.
+     */
+    public ArrayNode listTools(
+            UUID userId, Long chatId, String runId, String requestText, java.util.List<String> workspaceRoots) {
+        try {
+            return executionContext.call(new Context(userId, chatId, runId), () -> {
+                if (autoConnectService != null) {
+                    autoConnectService.connectRelevant(requestText, workspaceRoots);
+                }
+                return toolProvider.listTools();
+            });
         } catch (Exception exception) {
             throw new IllegalStateException("Could not list tools for the current chat", exception);
         }

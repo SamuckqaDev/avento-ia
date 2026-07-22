@@ -64,6 +64,16 @@ avento:
     translation-model: ${AVENTO_IMAGE_TRANSLATION_MODEL:${avento.agent.default-model}}
     translation-timeout-seconds: ${AVENTO_IMAGE_TRANSLATION_TIMEOUT_SECONDS:45}
     presets-file: ${AVENTO_IMAGE_PRESETS_FILE:${user.home}/.avento/image-presets.json}
+  memory:
+    # Extração automática de memória de longo prazo pós-conversa (sugere fatos duráveis -> pendentes).
+    # Estrangulada para não pesar na RAM/tempo de uma máquina local: roda em background, throttled.
+    extraction-enabled: ${AVENTO_MEMORY_EXTRACTION_ENABLED:true}
+    extraction-model: ${AVENTO_MEMORY_EXTRACTION_MODEL:${avento.agent.default-model}}
+    extraction-timeout-seconds: ${AVENTO_MEMORY_EXTRACTION_TIMEOUT_SECONDS:60}
+    extraction-min-new-messages: ${AVENTO_MEMORY_EXTRACTION_MIN_NEW_MESSAGES:4}
+    extraction-throttle-seconds: ${AVENTO_MEMORY_EXTRACTION_THROTTLE_SECONDS:180}
+    extraction-context-messages: ${AVENTO_MEMORY_EXTRACTION_CONTEXT_MESSAGES:12}
+    extraction-max-suggestions: ${AVENTO_MEMORY_EXTRACTION_MAX_SUGGESTIONS:4}
   rag:
     similarity-threshold: ${AVENTO_RAG_SIMILARITY_THRESHOLD:0.62}
     candidate-limit: ${AVENTO_RAG_CANDIDATE_LIMIT:30}
@@ -98,6 +108,8 @@ avento:
     memory-guard-enabled: ${AVENTO_COMFYUI_MEMORY_GUARD_ENABLED:true}
     adherence-min-score: ${AVENTO_COMFYUI_ADHERENCE_MIN_SCORE:85}
   mcp:
+    # Conexão sob demanda por intenção: os gatilhos (id do servidor -> palavras-chave) ficam em
+    # resources/agent/mcp-auto-connect.md, por categoria — fora do yml.
     packages:
       filesystem: ${AVENTO_MCP_FILESYSTEM_PACKAGE:@modelcontextprotocol/server-filesystem@2026.7.10}
       memory: ${AVENTO_MCP_MEMORY_PACKAGE:@modelcontextprotocol/server-memory@2026.7.4}
@@ -111,7 +123,10 @@ avento:
       searxng: ${AVENTO_MCP_SEARXNG_PACKAGE:mcp-searxng@1.11.1}
       dbhub: ${AVENTO_MCP_DBHUB_PACKAGE:@bytebase/dbhub@0.23.0}
     catalog:
-      auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,memory,sequential-thinking,time,macos-automator,apple,playwright,chrome-devtools,puppeteer,git}
+      # git fora do auto-connect: o servidor MCP git precisa de um binario externo (uvx mcp-server-git)
+      # que nem sempre esta instalado; auto-conectar sem ele trava 10s e polui o log. Continua enabled
+      # abaixo, entao conecta sob demanda quando o binario existir.
+      auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,memory,sequential-thinking,time,macos-automator,apple,playwright,chrome-devtools,puppeteer}
     sdk:
       enabled: ${AVENTO_MCP_SDK_ENABLED:true}
       request-timeout: ${AVENTO_MCP_SDK_REQUEST_TIMEOUT:10s}

@@ -90,7 +90,7 @@ avento:
     adherence-min-score: ${AVENTO_COMFYUI_ADHERENCE_MIN_SCORE:85}
   mcp:
     catalog:
-      auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,memory,sequential-thinking,time,desktop-commander,macos-automator,apple,playwright,chrome-devtools,puppeteer,git}
+      auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,memory,sequential-thinking,time,desktop-commander,macos-automator,apple,playwright,chrome-devtools,puppeteer}
     sdk:
       enabled: ${AVENTO_MCP_SDK_ENABLED:true}
       request-timeout: ${AVENTO_MCP_SDK_REQUEST_TIMEOUT:60s}

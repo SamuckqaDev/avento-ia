@@ -22,7 +22,7 @@ import {
   SkillSuggestionItem,
   SkillSuggestionsHint,
 } from './styles';
-import { FileText, Microphone, Paperclip, SpinnerGap, StopCircle, PaperPlaneRight, ChatCircleDots, ImageSquare, X } from '@phosphor-icons/react';
+import { FileText, Microphone, Paperclip, SpinnerGap, StopCircle, PaperPlaneRight, ChatCircleDots, ImageSquare, X, Robot } from '@phosphor-icons/react';
 import type { DocumentAttachment, ImageAttachment } from '../MessageBubble';
 import type { QueuedMessage } from '../../../pages/Home';
 import type { Skill } from '../../../hooks/useSkills';
@@ -54,6 +54,8 @@ interface InputAreaProps {
   messageQueue: QueuedMessage[];
   onRemoveFromQueue: (id: string) => void;
   skills: Skill[];
+  agentMode: boolean;
+  onToggleAgentMode: () => void;
 }
 
 export function InputArea({
@@ -79,7 +81,9 @@ export function InputArea({
   onRemoveDocumentAttachment,
   messageQueue,
   onRemoveFromQueue,
-  skills
+  skills,
+  agentMode,
+  onToggleAgentMode
 }: InputAreaProps) {
 
   const [history, setHistory] = useState<string[]>([]);
@@ -229,6 +233,17 @@ export function InputArea({
           }}
         />
         <ActionBar>
+          <AttachButton
+            as="button"
+            type="button"
+            onClick={onToggleAgentMode}
+            title={agentMode
+              ? 'Modo agente LIGADO: seu pedido vira um plano executável, feito passo a passo'
+              : 'Modo agente: transformar o pedido em passos executáveis no painel'}
+            style={agentMode ? { color: '#66E6C8', background: 'rgba(102, 230, 200, 0.12)' } : undefined}
+          >
+            <Robot size={22} weight={agentMode ? 'fill' : 'regular'} />
+          </AttachButton>
           <AttachButton as="label" title="Anexar imagem para o Avento ler">
             <ImageSquare size={22} />
             <HiddenFileInput

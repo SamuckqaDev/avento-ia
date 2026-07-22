@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
 import {
@@ -7,7 +7,8 @@ import {
   Tabs, TabButton, UsageCard, BarChart, UsageTable,
   RangeSelector, RangeButton, StatGrid, StatBox,
   MemoryIntro, MemoryAddRow, MemorySectionTitle, MemoryList,
-  MemoryCard, MemoryActionButton, MemoryEmpty
+  MemoryCard, MemoryActionButton, MemoryEmpty,
+  AgentForm, AgentField, AgentDefaultToggleRow, AgentDefaultBadge
 } from './styles';
 import { api } from '../../../services/apiClient';
 import { useAuth } from '../../auth/AuthProvider';
@@ -59,6 +60,18 @@ interface MemoryItem {
   updatedAt: string;
 }
 
+interface AgentItem {
+  id: number;
+  name: string;
+  specialty: string;
+  systemInstructions: string;
+  triggers: string;
+  model: string | null;
+  isDefault: boolean;
+}
+
+const EMPTY_AGENT_FORM = { name: '', specialty: '', systemInstructions: '', triggers: '', isDefault: false };
+
 type UsageRange = 'today' | '7d' | '30d';
 
 const RANGE_LABEL: Record<UsageRange, string> = {
@@ -74,7 +87,7 @@ export function SettingsModal({
   isVoiceEnabled,
   handleToggleVoice
 }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<'conta' | 'uso' | 'preferencias' | 'memoria'>('conta');
+  const [activeTab, setActiveTab] = useState<'conta' | 'uso' | 'preferencias' | 'memoria' | 'agentes'>('conta');
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -91,6 +104,11 @@ export function SettingsModal({
   const [isLoadingMemory, setIsLoadingMemory] = useState(true);
   const [newMemory, setNewMemory] = useState('');
   const [memoryBusy, setMemoryBusy] = useState(false);
+
+  const [agents, setAgents] = useState<AgentItem[]>([]);
+  const [isLoadingAgents, setIsLoadingAgents] = useState(true);
+  const [agentForm, setAgentForm] = useState(EMPTY_AGENT_FORM);
+  const [agentBusy, setAgentBusy] = useState(false);
   
   const { user, logout } = useAuth();
 
@@ -195,6 +213,58 @@ export function SettingsModal({
       console.error("Erro ao remover memória", error);
     } finally {
       setMemoryBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'agentes') {
+      loadAgents();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const loadAgents = async () => {
+    setIsLoadingAgents(true);
+    try {
+      const { data } = await api.get<AgentItem[]>('/api/agents');
+      setAgents(data);
+    } catch (error) {
+      console.error("Erro ao carregar agentes", error);
+    } finally {
+      setIsLoadingAgents(false);
+    }
+  };
+
+  const handleCreateAgent = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!agentForm.name.trim()) return;
+    setAgentBusy(true);
+    try {
+      await api.post('/api/agents', {
+        name: agentForm.name.trim(),
+        specialty: agentForm.specialty.trim(),
+        systemInstructions: agentForm.systemInstructions.trim(),
+        triggers: agentForm.triggers.trim(),
+        isDefault: agentForm.isDefault,
+      });
+      setAgentForm(EMPTY_AGENT_FORM);
+      await loadAgents();
+    } catch (error) {
+      console.error("Erro ao criar agente", error);
+    } finally {
+      setAgentBusy(false);
+    }
+  };
+
+  const handleDeleteAgent = async (id: number) => {
+    setAgentBusy(true);
+    try {
+      await api.delete(`/api/agents/${id}`);
+      await loadAgents();
+    } catch (error) {
+      console.error("Erro ao remover agente", error);
+    } finally {
+      setAgentBusy(false);
     }
   };
 
@@ -500,6 +570,100 @@ export function SettingsModal({
     </>
   );
 
+  const renderAgentes = () => (
+    <Body>
+      <MemoryIntro>
+        Agentes especializados que o Avento usa para executar tarefas — ex.: um para backend, outro para
+        testes, outro para UI. Cada agente tem sua própria persona e é escolhido por tarefa. A execução é
+        sempre <strong>uma de cada vez</strong> (nunca dois ao mesmo tempo), pra não sobrecarregar a máquina.
+      </MemoryIntro>
+
+      <AgentForm onSubmit={handleCreateAgent}>
+        <AgentField>
+          <span>Nome</span>
+          <input
+            type="text"
+            value={agentForm.name}
+            placeholder="Ex.: Backend Java"
+            onChange={(e) => setAgentForm({ ...agentForm, name: e.target.value })}
+            disabled={agentBusy}
+          />
+        </AgentField>
+        <AgentField>
+          <span>Especialidade (ajuda o Avento a escolher o agente certo)</span>
+          <input
+            type="text"
+            value={agentForm.specialty}
+            placeholder="Ex.: APIs Spring Boot, JPA, segurança"
+            onChange={(e) => setAgentForm({ ...agentForm, specialty: e.target.value })}
+            disabled={agentBusy}
+          />
+        </AgentField>
+        <AgentField>
+          <span>Instruções (a persona — como este agente deve trabalhar)</span>
+          <textarea
+            value={agentForm.systemInstructions}
+            placeholder="Ex.: Você é especialista em backend Java. Siga os padrões do projeto, escreva testes, mexa o mínimo possível."
+            onChange={(e) => setAgentForm({ ...agentForm, systemInstructions: e.target.value })}
+            disabled={agentBusy}
+          />
+        </AgentField>
+        <AgentField>
+          <span>Gatilhos (palavras-chave, separadas por vírgula — opcional)</span>
+          <input
+            type="text"
+            value={agentForm.triggers}
+            placeholder="Ex.: api, endpoint, controller, repository"
+            onChange={(e) => setAgentForm({ ...agentForm, triggers: e.target.value })}
+            disabled={agentBusy}
+          />
+        </AgentField>
+        <AgentDefaultToggleRow>
+          <input
+            type="checkbox"
+            checked={agentForm.isDefault}
+            onChange={(e) => setAgentForm({ ...agentForm, isDefault: e.target.checked })}
+            disabled={agentBusy}
+          />
+          Usar como agente padrão (fallback quando nenhum outro casa com a tarefa)
+        </AgentDefaultToggleRow>
+        <SaveButton type="submit" disabled={agentBusy || !agentForm.name.trim()}>
+          {agentBusy ? 'Salvando...' : 'Criar agente'}
+        </SaveButton>
+      </AgentForm>
+
+      <MemorySectionTitle>Seus agentes</MemorySectionTitle>
+      {isLoadingAgents ? (
+        <MemoryEmpty>Carregando agentes...</MemoryEmpty>
+      ) : agents.length === 0 ? (
+        <MemoryEmpty>Nenhum agente ainda. Crie o primeiro acima.</MemoryEmpty>
+      ) : (
+        <MemoryList>
+          {agents.map((agent) => (
+            <MemoryCard key={agent.id}>
+              <div className="memory-content">
+                <span className="memory-text">
+                  {agent.name}
+                  {agent.isDefault && <> <AgentDefaultBadge>padrão</AgentDefaultBadge></>}
+                </span>
+                <span className="memory-tag">{agent.specialty || 'sem especialidade'}</span>
+              </div>
+              <div className="memory-actions">
+                <MemoryActionButton
+                  $variant="delete"
+                  onClick={() => handleDeleteAgent(agent.id)}
+                  disabled={agentBusy}
+                >
+                  Excluir
+                </MemoryActionButton>
+              </div>
+            </MemoryCard>
+          ))}
+        </MemoryList>
+      )}
+    </Body>
+  );
+
   const renderMemoria = () => {
     const pending = memories.filter((memory) => memory.status === 'PENDING');
     const active = memories.filter((memory) => memory.status === 'ACTIVE');
@@ -613,12 +777,14 @@ export function SettingsModal({
         <Tabs>
           <TabButton $active={activeTab === 'conta'} onClick={() => setActiveTab('conta')}>Conta</TabButton>
           <TabButton $active={activeTab === 'uso'} onClick={() => setActiveTab('uso')}>Uso de Tokens</TabButton>
+          <TabButton $active={activeTab === 'agentes'} onClick={() => setActiveTab('agentes')}>Agentes</TabButton>
           <TabButton $active={activeTab === 'memoria'} onClick={() => setActiveTab('memoria')}>Memória</TabButton>
           <TabButton $active={activeTab === 'preferencias'} onClick={() => setActiveTab('preferencias')}>Preferências</TabButton>
         </Tabs>
 
         {activeTab === 'conta' && renderConta()}
         {activeTab === 'uso' && renderUso()}
+        {activeTab === 'agentes' && renderAgentes()}
         {activeTab === 'memoria' && renderMemoria()}
         {activeTab === 'preferencias' && renderPreferencias()}
 

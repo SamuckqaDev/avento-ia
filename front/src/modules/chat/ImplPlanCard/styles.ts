@@ -6,6 +6,28 @@ export const Card = styled.div`
   background: ${({ theme }) => theme.colors.surface};
   margin: 10px 0;
   overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover,
+  &:focus-within {
+    border-color: ${({ theme }) => theme.colors.accent};
+    box-shadow: 0 8px 24px color-mix(in srgb, ${({ theme }) => theme.colors.accent} 12%, transparent);
+  }
+`;
+
+export const PreviewButton = styled.button`
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    box-shadow: inset 0 0 0 2px ${({ theme }) => theme.colors.accent};
+  }
 `;
 
 export const Header = styled.div`
@@ -17,30 +39,48 @@ export const Header = styled.div`
   color: ${({ theme }) => theme.colors.accent};
   background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 10%, transparent);
   border-bottom: 1px solid color-mix(in srgb, ${({ theme }) => theme.colors.accent} 18%, ${({ theme }) => theme.colors.border});
+
+  > span:nth-child(2) {
+    flex: 1;
+    min-width: 0;
+  }
+`;
+
+export const Status = styled.span<{ $ready: boolean }>`
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, ${({ theme }) => theme.colors.accent} 24%, ${({ theme }) => theme.colors.border});
+  border-radius: 999px;
+  color: ${({ theme, $ready }) => ($ready ? theme.colors.accent : theme.colors.textMuted)};
+  font-size: 0.68rem;
+  font-weight: 650;
+  white-space: nowrap;
 `;
 
 export const Content = styled.div`
-  padding: 4px 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   font-size: 0.9rem;
   color: ${({ theme }) => theme.colors.text};
 
-  h2 {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+  strong {
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  > span {
+    font-size: 0.78rem;
     color: ${({ theme }) => theme.colors.textMuted};
-    margin: 14px 0 6px;
   }
 
-  ul, ol {
-    margin: 4px 0 4px 18px;
-  }
-
-  code {
-    background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 12%, transparent);
-    padding: 1px 5px;
-    border-radius: 4px;
-    font-size: 0.85em;
+  .open-hint {
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: ${({ theme }) => theme.colors.accent};
+    font-weight: 650;
   }
 `;
 
@@ -49,6 +89,15 @@ export const Actions = styled.div`
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid ${({ theme }) => theme.colors.border};
+
+  @media (max-width: 520px) {
+    flex-direction: column;
+
+    button {
+      justify-content: center;
+      width: 100%;
+    }
+  }
 `;
 
 export const ApproveButton = styled.button`

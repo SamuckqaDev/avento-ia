@@ -54,6 +54,7 @@ public class AgentRunWorker {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper mapper;
     private final RedisExecutionProperties properties;
+    private final com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry;
     private final String consumerName = "agent-" + UUID.randomUUID().toString().substring(0, 8);
     private final AtomicBoolean queueFailureLogged = new AtomicBoolean();
 
@@ -66,7 +67,8 @@ public class AgentRunWorker {
             RunEventPublisher eventPublisher,
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
             ObjectMapper mapper,
-            RedisExecutionProperties properties) {
+            RedisExecutionProperties properties,
+            com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry) {
         this.jobRepository = jobRepository;
         this.submissionService = submissionService;
         this.cancellationRegistry = cancellationRegistry;
@@ -76,6 +78,7 @@ public class AgentRunWorker {
         this.redisTemplate = redisTemplateProvider.getIfAvailable();
         this.mapper = mapper;
         this.properties = properties;
+        this.toolPolicyRegistry = toolPolicyRegistry;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -168,6 +171,8 @@ public class AgentRunWorker {
             ArrayNode messages = contextCache.resolve(job.getUserId(), job.getChatId(), requestMessages);
             List<String> workspaceRoots = stringList(request.path("workspaceRoots"));
             ImageGenerationOptions imageOptions = ImageGenerationOptions.from(request.path("imageOptions"));
+            // Restricts this run's toolset to the agent's allow-list, if the plan sent one.
+            toolPolicyRegistry.allow(job.getRunId(), java.util.Set.copyOf(stringList(request.path("allowedTools"))));
 
             CountDownLatch completed = new CountDownLatch(1);
             AtomicReference<Throwable> error = new AtomicReference<>();
@@ -197,6 +202,7 @@ public class AgentRunWorker {
                 }
             } finally {
                 cancellationRegistry.unregister(job.getRunId(), execution);
+                toolPolicyRegistry.clear(job.getRunId());
             }
 
             AgentRunJob current = jobRepository.findById(jobId).orElse(job);

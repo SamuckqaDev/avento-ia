@@ -38,8 +38,20 @@ public class ProjectVerificationService {
         this.mapper = mapper;
     }
 
+    /** Verifica usando o usuário do contexto de execução (thread da requisição). */
     public VerificationResult verify(String path) {
-        Path dir = workspaceAccessService.requireAuthorized(path);
+        return verifyDir(workspaceAccessService.requireAuthorized(path));
+    }
+
+    /**
+     * Verifica com um userId explícito. Necessário quando roda fora da thread da requisição — ex.:
+     * a execução de plano em background, onde o contexto de execução não tem o usuário atual.
+     */
+    public VerificationResult verify(java.util.UUID userId, String path) {
+        return verifyDir(workspaceAccessService.requireAuthorized(userId, path));
+    }
+
+    private VerificationResult verifyDir(Path dir) {
         if (!Files.isDirectory(dir)) {
             throw new IllegalArgumentException("O caminho de verificação precisa ser um diretório.");
         }

@@ -1,7 +1,7 @@
 package com.avento.service.execution;
 
 import com.avento.config.RedisExecutionProperties;
-import com.avento.service.dto.*;
+import com.avento.service.dto.RunScope;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
@@ -113,6 +113,9 @@ public class RedisRunEventPublisher implements RunEventPublisher {
     private boolean terminal(String type) {
         return "agent.run.completed".equals(type)
                 || "agent.run.failed".equals(type)
-                || "agent.run.cancelled".equals(type);
+                || "agent.run.cancelled".equals(type)
+                || "plan.completed".equals(type)
+                || "plan.failed".equals(type)
+                || "plan.cancelled".equals(type);
     }
 }

@@ -154,8 +154,14 @@ public class AgentService implements AgentExecutionEngine {
     @Value("${avento.agent.policy-override-dir:}")
     private String policyOverrideDirectory;
 
+    // Per-run tool allow-list (agent mode). Optional field injection so the constructor and the
+    // tests that build AgentService directly stay untouched; null means "no restriction".
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry;
+
     private final UserSettingsService userSettingsService;
     private final UserMemoryService userMemoryService;
+    private final MemoryExtractionService memoryExtractionService;
     private final PendingToolApprovalService pendingApprovalService;
     private final VisualIntentClassifier visualIntentClassifier;
 
@@ -215,6 +221,7 @@ public class AgentService implements AgentExecutionEngine {
             TokenUsageService tokenUsageService,
             UserSettingsService userSettingsService,
             UserMemoryService userMemoryService,
+            MemoryExtractionService memoryExtractionService,
             PendingToolApprovalService pendingApprovalService,
             VisualIntentClassifier visualIntentClassifier,
             ObjectMapper mapper,
@@ -249,6 +256,7 @@ public class AgentService implements AgentExecutionEngine {
         this.tokenUsageService = tokenUsageService;
         this.userSettingsService = userSettingsService;
         this.userMemoryService = userMemoryService;
+        this.memoryExtractionService = memoryExtractionService;
         this.pendingApprovalService = pendingApprovalService;
         this.visualIntentClassifier = visualIntentClassifier;
         this.mapper = mapper;
@@ -278,6 +286,33 @@ public class AgentService implements AgentExecutionEngine {
     public Mono<List<String>> getModels() {
         return getModelDetails()
                 .map(models -> models.stream().map(LocalModelInfo::name).toList());
+    }
+
+    /** Executa uma conclusão textual isolada, sem identidade, heurísticas ou ferramentas do agente. */
+    public Mono<String> completeTextOnly(String model, ArrayNode messages, int maxNewTokens) {
+        ObjectNode request = mapper.createObjectNode();
+        request.put("model", normalizeChatModel(model));
+        request.set("messages", messages == null ? mapper.createArrayNode() : messages);
+        request.put("stream", false);
+        request.put("think", false);
+        request.put("keep_alive", keepAlive);
+        ObjectNode options = request.putObject("options");
+        options.put("num_ctx", numCtx);
+        options.put("num_predict", Math.max(128, Math.min(maxNewTokens, numPredict)));
+        options.put("temperature", 0.1);
+        options.put("top_p", topP);
+        options.put("top_k", topK);
+        options.put("repeat_penalty", repeatPenalty);
+
+        return webClient
+                .post()
+                .uri("/api/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .timeout(Duration.ofSeconds(120))
+                .map(response -> response.path("message").path("content").asText(""));
     }
 
     public Mono<List<LocalModelInfo>> getModelDetails() {
@@ -557,6 +592,25 @@ public class AgentService implements AgentExecutionEngine {
 
     @Override
     public Flux<String> streamChat(
+            String model,
+            ArrayNode messages,
+            List<String> workspaceRoots,
+            String imageModel,
+            ImageGenerationOptions imageOptions,
+            String runId,
+            Long chatId,
+            UUID userId) {
+        // Ao terminar o turno com sucesso, dispara em background a extração de memória de longo
+        // prazo desta conversa (throttled, fora do caminho da resposta). Nunca bloqueia o stream.
+        return streamChatDispatch(model, messages, workspaceRoots, imageModel, imageOptions, runId, chatId, userId)
+                .doFinally(signal -> {
+                    if (signal == reactor.core.publisher.SignalType.ON_COMPLETE) {
+                        memoryExtractionService.maybeExtractAsync(userId, chatId);
+                    }
+                });
+    }
+
+    private Flux<String> streamChatDispatch(
             String model,
             ArrayNode messages,
             List<String> workspaceRoots,
@@ -961,12 +1015,17 @@ public class AgentService implements AgentExecutionEngine {
         options.put("repeat_penalty", repeatPenalty);
 
         boolean conversationHasImages = conversationHasImages(messages);
-        ArrayNode availableTools = toolGateway.listTools(state.userId, state.chatId, state.runId);
+        // Conecta sob demanda os servidores MCP que o pedido precisa (ex.: git) antes de listar, para
+        // que as ferramentas deles já entrem no toolset desta rodada — "pega a ferramenta que precisa".
+        ArrayNode availableTools = toolGateway.listTools(
+                state.userId, state.chatId, state.runId, lastUserMessage(messages), state.workspaceRoots);
         ArrayNode tools = modelsWithoutToolSupport.contains(model) || conversationHasImages
                 ? mapper.createArrayNode()
                 : state.forceFullToolset
                         ? availableTools
                         : selectToolsForCurrentRequest(availableTools, messages, state);
+        // Restringe ao escopo do agente da tarefa (modo agente), se houver allow-list para esta run.
+        tools = applyAgentToolPolicy(tools, state);
         if (tools != null && tools.size() > 0) {
             ArrayNode openAiTools = mapper.createArrayNode();
             for (JsonNode mcpTool : tools) {
@@ -1102,6 +1161,16 @@ public class AgentService implements AgentExecutionEngine {
     // Preserva a ordem do catalogo: com o mesmo conjunto, o payload de tools fica identico
     // entre requisicoes do mesmo chat, que e o que permite o cache de prompt reaproveitar
     // o prefixo em vez de reprocessa-lo.
+    // No modo agente, restringe o toolset já selecionado à allow-list do agente da tarefa (se houver).
+    // Sem registry ou sem allow-list para esta run, o conjunto passa inalterado.
+    private ArrayNode applyAgentToolPolicy(ArrayNode tools, AgentRunState state) {
+        if (toolPolicyRegistry == null || tools == null || tools.isEmpty()) {
+            return tools;
+        }
+        Set<String> allowed = toolPolicyRegistry.allowed(state.runId);
+        return allowed.isEmpty() ? tools : filterToolsByName(tools, allowed);
+    }
+
     private ArrayNode filterToolsByName(ArrayNode tools, Set<String> allowedNames) {
         ArrayNode filtered = mapper.createArrayNode();
         for (JsonNode tool : tools) {
@@ -1549,6 +1618,9 @@ public class AgentService implements AgentExecutionEngine {
         }
         try {
             String block = userMemoryService.promptBlock(userId);
+            if (block != null && !block.isBlank()) {
+                logger.debug("Bloco de memória injetado para o usuário {} ({} caracteres)", userId, block.length());
+            }
             return block == null ? "" : block;
         } catch (RuntimeException exception) {
             logger.debug("Não foi possível montar o bloco de memória; seguindo sem ele", exception);
@@ -1828,13 +1900,16 @@ public class AgentService implements AgentExecutionEngine {
 
         int requestStart = directUserRequestStart(content);
         if (requestStart < 0) {
-            return compactContent(content);
+            return content;
         }
 
         String request = content.substring(requestStart).trim();
         String separator = "\n\n[... contexto adicional compactado; pedido atual preservado ...]\n\n";
-        if (request.isBlank() || request.length() + separator.length() > maxMessageContentChars) {
-            return compactContent(content);
+        if (request.isBlank()) {
+            return content;
+        }
+        if (request.length() + separator.length() > maxMessageContentChars) {
+            return request;
         }
 
         int contextBudget = maxMessageContentChars - request.length() - separator.length();
@@ -2224,6 +2299,7 @@ public class AgentService implements AgentExecutionEngine {
                             toolCall.arguments());
                     state.executedToolCalls++;
                     JsonNode toolResult = executeToolCall(messages, sink, toolCall, state.runId);
+                    recordToolOutcome(state, toolCall.name(), toolResult);
                     emitGeneratedMediaCompletion(toolCall, toolResult, sink);
                     if (isMediaGenerationTool(toolCall)) {
                         mediaGenerationAttempted = true;
@@ -2239,6 +2315,7 @@ public class AgentService implements AgentExecutionEngine {
 
             state.executedToolCalls++;
             JsonNode toolResult = executeToolCall(messages, sink, toolCall, state.runId);
+            recordToolOutcome(state, toolCall.name(), toolResult);
             emitGeneratedMediaCompletion(toolCall, toolResult, sink);
             if (isMediaGenerationTool(toolCall)) {
                 mediaGenerationAttempted = true;
@@ -2256,6 +2333,25 @@ public class AgentService implements AgentExecutionEngine {
                             mediaGenerationCompleted
                                     ? "A geração foi concluída pela ferramenta; nenhuma resposta adicional do modelo foi necessária."
                                     : "A ferramenta retornou um erro técnico; nenhuma explicação inventada pelo modelo foi adicionada."));
+            sink.complete();
+            return;
+        }
+
+        // Guarda: se a mesma ferramenta falhou repetidas vezes seguidas, para e explica em vez de
+        // insistir por mais rodadas (cada rodada custa ~50s no modelo local). Melhor um "não deu"
+        // rápido e claro do que ficar batendo numa ferramenta indisponível.
+        if (state.consecutiveToolFailures >= REPEATED_TOOL_FAILURE_LIMIT) {
+            planApprovedRuns.remove(state.runId);
+            String failedTool = state.lastFailedTool;
+            sink.next(eventChunk(
+                    "agent.tool.repeated_failure",
+                    "Ferramenta falhando repetidamente",
+                    "A ferramenta " + failedTool + " falhou " + state.consecutiveToolFailures
+                            + " vezes seguidas; parando para não insistir."));
+            sink.next(contentChunk("\n> A ferramenta `" + failedTool + "` falhou "
+                    + state.consecutiveToolFailures
+                    + " vezes seguidas — provavelmente está indisponível ou não conectada. Parei aqui em vez"
+                    + " de insistir. Verifique essa ferramenta ou me peça por outro caminho.\n"));
             sink.complete();
             return;
         }
@@ -3474,6 +3570,26 @@ public class AgentService implements AgentExecutionEngine {
         return outgoing;
     }
 
+    // Mesma ferramenta falhando este número de vezes seguidas = para de insistir.
+    private static final int REPEATED_TOOL_FAILURE_LIMIT = 2;
+
+    // Atualiza o contador de falhas consecutivas por ferramenta. Sucesso zera; uma ferramenta
+    // diferente falhando reinicia a contagem para ela.
+    private void recordToolOutcome(AgentRunState state, String toolName, JsonNode toolResult) {
+        boolean failed = toolResult != null && toolResult.has("error");
+        if (!failed) {
+            state.lastFailedTool = "";
+            state.consecutiveToolFailures = 0;
+            return;
+        }
+        if (toolName.equals(state.lastFailedTool)) {
+            state.consecutiveToolFailures++;
+        } else {
+            state.lastFailedTool = toolName;
+            state.consecutiveToolFailures = 1;
+        }
+    }
+
     private JsonNode executeToolCall(ArrayNode messages, FluxSink<String> sink, ToolCall toolCall, String runId) {
         JsonNode visibleArguments = permissionArguments(toolCall);
         timelineService.record(runId, "tool.started", toolCall.name(), compactJson(visibleArguments), visibleArguments);
@@ -3781,6 +3897,11 @@ public class AgentService implements AgentExecutionEngine {
         boolean forceFullToolset = false;
         boolean retriedWithFullToolset = false;
         boolean retriedEmptyTurn = false;
+        // Guarda contra insistir numa ferramenta quebrada: nome da última ferramenta que falhou e
+        // quantas vezes seguidas. Um sucesso zera. Ao bater no limite, o Avento para e explica em
+        // vez de gastar mais rodadas (~50s cada no modelo local) repetindo a mesma falha.
+        String lastFailedTool = "";
+        int consecutiveToolFailures = 0;
         // Rodadas 2+ sao subscriptions filhas criadas por forward() dentro do sink da rodada 1.
         // O slot de onCancel/onDispose de um FluxSink so guarda um Disposable, entao registrar
         // cada filha direto no sink deixava as continuacoes orfas: cancelar a run matava so a

@@ -5,7 +5,7 @@ import com.avento.model.AgentRunJob;
 import com.avento.model.ExecutionOutboxEvent;
 import com.avento.repository.AgentRunJobRepository;
 import com.avento.repository.ExecutionOutboxEventRepository;
-import com.avento.service.dto.*;
+import com.avento.service.dto.AgentRunView;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -51,8 +51,16 @@ public class AgentRunSubmissionService {
 
     @Transactional
     public AgentRunJob submit(UUID userId, Long chatId, JsonNode request) {
+        return submit(userId, chatId, request, null);
+    }
+
+    @Transactional
+    public AgentRunJob submit(UUID userId, Long chatId, JsonNode request, String requestedRunId) {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("Redis execution is disabled");
+        }
+        if (userId == null || chatId == null) {
+            throw new IllegalArgumentException("Authenticated user and chat are required");
         }
         String idempotencyKey = request.path("idempotencyKey").asText("").trim();
         if (!idempotencyKey.isBlank()) {
@@ -64,7 +72,7 @@ public class AgentRunSubmissionService {
             }
         }
         AgentRunJob job = new AgentRunJob();
-        job.setRunId("run_" + UUID.randomUUID().toString().substring(0, 8));
+        job.setRunId(normalizeRunId(requestedRunId));
         job.setUserId(userId);
         job.setChatId(chatId);
         job.setIdempotencyKey(idempotencyKey.isBlank() ? null : idempotencyKey);
@@ -72,6 +80,17 @@ public class AgentRunSubmissionService {
         job = jobRepository.save(job);
         createOutbox(job);
         return job;
+    }
+
+    private String normalizeRunId(String requestedRunId) {
+        if (requestedRunId == null || requestedRunId.isBlank()) {
+            return "run_" + UUID.randomUUID().toString().substring(0, 8);
+        }
+        String normalized = requestedRunId.trim().replaceAll("[^A-Za-z0-9_-]", "_");
+        if (normalized.isBlank()) {
+            return "run_" + UUID.randomUUID().toString().substring(0, 8);
+        }
+        return normalized.substring(0, Math.min(normalized.length(), 80));
     }
 
     @EventListener(ApplicationReadyEvent.class)

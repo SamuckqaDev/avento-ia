@@ -669,3 +669,76 @@ export const MemoryEmpty = styled.p`
   font-style: italic;
   margin: 6px 0;
 `;
+
+export const AgentForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(33, 67, 61, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+`;
+
+export const AgentField = styled.label`
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  span {
+    color: #9FB8B1;
+    font-size: 0.78rem;
+  }
+
+  input, textarea {
+    background: rgba(16, 42, 38, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: #F2FFFB;
+    padding: 9px 11px;
+    font-size: 0.88rem;
+    font-family: inherit;
+    outline: none;
+    resize: vertical;
+
+    &:focus {
+      border-color: rgba(102, 230, 200, 0.5);
+    }
+
+    &::placeholder {
+      color: #6E857F;
+    }
+  }
+
+  textarea {
+    min-height: 72px;
+    line-height: 1.4;
+  }
+`;
+
+export const AgentDefaultToggleRow = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #9FB8B1;
+  font-size: 0.82rem;
+  cursor: pointer;
+  user-select: none;
+
+  input {
+    accent-color: #66E6C8;
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+export const AgentDefaultBadge = styled.span`
+  background: rgba(102, 230, 200, 0.15);
+  color: #66E6C8;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+`;

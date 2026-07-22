@@ -62,6 +62,8 @@ class AgentServiceDirectAutomationTest {
     private final TokenUsageService tokenUsageService = org.mockito.Mockito.mock(TokenUsageService.class);
     private final UserSettingsService userSettingsService = org.mockito.Mockito.mock(UserSettingsService.class);
     private final UserMemoryService userMemoryService = org.mockito.Mockito.mock(UserMemoryService.class);
+    private final MemoryExtractionService memoryExtractionService =
+            org.mockito.Mockito.mock(MemoryExtractionService.class);
     private final PendingToolApprovalService pendingApprovalService =
             org.mockito.Mockito.mock(PendingToolApprovalService.class);
     private final AgentService service = new AgentService(
@@ -75,6 +77,7 @@ class AgentServiceDirectAutomationTest {
             tokenUsageService,
             userSettingsService,
             userMemoryService,
+            memoryExtractionService,
             pendingApprovalService,
             new VisualIntentClassifier(),
             mapper,
@@ -257,6 +260,22 @@ class AgentServiceDirectAutomationTest {
                 .hasSizeLessThanOrEqualTo(6000)
                 .contains("contexto adicional compactado")
                 .endsWith(currentRequest);
+    }
+
+    @Test
+    void neverCutsTheCurrentRequestEvenWhenItExceedsThePerMessageBudget() throws Exception {
+        String currentRequest = "REQUISITO-IMPORTANTE ".repeat(360) + "FIM-DO-PEDIDO";
+        String content = "[Project Analysis]\n" + "contexto antigo ".repeat(600)
+                + "\n\nCom base no contexto local acima, responda ao seguinte pedido do usuário:\n\n"
+                + currentRequest;
+
+        Method method = AgentService.class.getDeclaredMethod("withBackendIdentityPrompt", ArrayNode.class, List.class);
+        method.setAccessible(true);
+        ArrayNode guardedMessages = (ArrayNode) method.invoke(service, userMessages(content), List.of());
+
+        org.assertj.core.api.Assertions.assertThat(
+                        guardedMessages.get(1).path("content").asText())
+                .isEqualTo(currentRequest);
     }
 
     @Test

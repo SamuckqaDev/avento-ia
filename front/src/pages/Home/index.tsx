@@ -32,6 +32,7 @@ import {
   ChatContainer, 
   WelcomeState,
   RightPanel,
+  PlanPanel,
   RightPanelHeader,
   CloseButton,
   PanelContent,
@@ -57,6 +58,8 @@ import {
 } from './styles';
 import { X } from '@phosphor-icons/react';
 import { FileDiffViewer } from '../../modules/chat/FileDiffViewer';
+import { PlanExecutionPanel } from '../../modules/chat/PlanExecutionPanel';
+import { planApi } from '../../services/planApi';
 
 interface HomeProps {
   isDarkMode: boolean;
@@ -348,6 +351,7 @@ function sanitizeSpeechText(text: string): string {
   return text
     .replace(/\[\[avento-image-job:[0-9a-f-]{36}\]\]/gi, ' ')
     .replace(/\[\[avento-video-job:[0-9a-f-]{36}\]\]/gi, ' ')
+    .replace(/\[\[avento-plan:\d+\]\]/gi, ' ')
     .replace(/```[\s\S]*?```/g, ' bloco de código omitido. ')
     .replace(/~~~[\s\S]*?~~~/g, ' bloco de código omitido. ')
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
@@ -364,6 +368,18 @@ function sanitizeSpeechText(text: string): string {
     .replace(/[\uFE0E\uFE0F\u200D]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function extractImplementationPlan(content: string): string | null {
+  const match = content.match(/```impl-plan\s*\n([\s\S]*?)```/i);
+  return match?.[1]?.trim() || null;
+}
+
+function implementationPlanGoal(plan: string, fallback: string): string {
+  const objective = plan.match(/##\s*Objetivo\s*\n([\s\S]*?)(?=\n##\s|$)/i)?.[1]?.trim();
+  const heading = objective || fallback.trim() || 'Plano de implementação';
+  const proposal = `\n\nPlano proposto para execução:\n${plan}`;
+  return `${heading}${proposal}`.slice(0, 4000);
 }
 
 export function extractFileEditContent(messageContent: string, targetPath: string): string {
@@ -450,7 +466,10 @@ function extractPlanSteps(messageContent: string): string[] | null {
     if (steps.length > 0) return steps;
   }
 
-  return extractLooseNumberedList(messageContent);
+  const withoutImplementationPlan = messageContent
+    .replace(/```impl-plan\s*\n[\s\S]*?```/gi, '')
+    .replace(/```impl-plan[\s\S]*$/gi, '');
+  return extractLooseNumberedList(withoutImplementationPlan);
 }
 
 function buildProjectContextText(
@@ -731,6 +750,12 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const [projectAnalysisError, setProjectAnalysisError] = useState<string | null>(null);
   const [activityEvents, setActivityEvents] = useState<AgentActivityEvent[]>([]);
   const [isLoadingTimeline, setIsLoadingTimeline] = useState<boolean>(false);
+  const [isPlanPanelOpen, setIsPlanPanelOpen] = useState(false);
+  const [focusedPlanId, setFocusedPlanId] = useState<number>();
+  // Modo agente: quando ligado, o pedido do chat vira um plano executável (fatiado em passos,
+  // rodado um de cada vez) em vez de uma resposta de chat comum.
+  const [agentMode, setAgentMode] = useState(false);
+  const [planProposalPreview, setPlanProposalPreview] = useState<string>();
   const [runningProcesses, setRunningProcesses] = useState<Record<string, RunningProcess>>({});
   const processPollTimersRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
@@ -1870,6 +1895,46 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
       return;
     }
 
+    // Modo agente: o pedido vira um plano executável (gerado sem ferramentas, portanto confiável)
+    // em vez de ir pro loop de chat com ferramentas. Cada pedido = um mini-plano que aparece no
+    // painel e roda passo a passo. É o caminho certo pra "construa X".
+    if (agentMode) {
+      const planRoots = [...new Set([
+        ...effectiveProjectPaths,
+        ...(homeWorkspaceRoot && !effectiveProjectPaths.includes(homeWorkspaceRoot) ? [homeWorkspaceRoot] : []),
+      ])];
+      const fillAssistant = (content: string) => setMessages(prev => {
+        const next = [...prev];
+        for (let index = next.length - 1; index >= 0; index -= 1) {
+          if (next[index].role === 'assistant') {
+            next[index] = { ...next[index], content };
+            break;
+          }
+        }
+        return next;
+      });
+      if (planRoots.length === 0) {
+        const notice = 'Pra usar o modo agente, conecte uma pasta de projeto primeiro.';
+        fillAssistant(notice);
+        await saveMessageToDB('assistant', notice, undefined, undefined, activeChatId);
+        return;
+      }
+      try {
+        const plan = await planApi.createPlan({ goal: text, chatId: activeChatId, workspaceRoots: planRoots });
+        await planApi.runPlan(plan.id);
+        setFocusedPlanId(plan.id);
+        setIsPlanPanelOpen(true);
+        const note = `Plano criado e em execução — acompanhe os passos no painel ao lado.\n\n[[avento-plan:${plan.id}]]`;
+        fillAssistant(note);
+        await saveMessageToDB('assistant', note, undefined, undefined, activeChatId);
+      } catch (error) {
+        const message = apiErrorMessage(error);
+        fillAssistant(`Não consegui criar o plano: ${message}`);
+        showTemporaryNotice(`Falha ao criar o plano: ${message}`);
+      }
+      return;
+    }
+
     let activeProjectAnalysis = projectAnalysis;
     if (shouldUseProjectContext && effectiveProjectPaths.length > 0 && (!activeProjectAnalysis || activeProjectAnalysis.rootPath !== effectiveProjectPaths[0])) {
       activeProjectAnalysis = await analyzeProject(effectiveProjectPaths[0]);
@@ -1954,9 +2019,42 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
       options.idempotencyKey
     );
     
-    // Save AI message to DB
+    // Implementation plans are persisted as DRAFT before the assistant message is saved. The
+    // marker binds the chat card to the exact backend plan; creating the draft never starts it.
     if (finalResponse) {
-      await saveMessageToDB('assistant', finalResponse, undefined, undefined, activeChatId);
+      let responseToPersist = finalResponse;
+      const implementationPlan = extractImplementationPlan(finalResponse);
+      const planWorkspaceRoots = [...new Set([
+        ...effectiveProjectPaths,
+        ...(homeWorkspaceRoot && !effectiveProjectPaths.includes(homeWorkspaceRoot) ? [homeWorkspaceRoot] : []),
+      ])];
+      if (implementationPlan && planWorkspaceRoots.length > 0) {
+        try {
+          const createdPlan = await planApi.createPlan({
+            goal: implementationPlanGoal(implementationPlan, persistedUserText),
+            chatId: activeChatId,
+            workspaceRoots: planWorkspaceRoots,
+          });
+          responseToPersist = `${finalResponse}\n\n[[avento-plan:${createdPlan.id}]]`;
+          if (currentChatIdRef.current === activeChatId) {
+            setMessages(previous => {
+              const next = [...previous];
+              for (let index = next.length - 1; index >= 0; index -= 1) {
+                if (next[index].role === 'assistant') {
+                  next[index] = { ...next[index], content: responseToPersist };
+                  break;
+                }
+              }
+              return next;
+            });
+          }
+        } catch (error) {
+          console.error('Erro ao persistir plano em rascunho', error);
+          showTemporaryNotice('O plano foi gerado, mas não consegui sincronizá-lo com o painel.');
+        }
+      }
+
+      await saveMessageToDB('assistant', responseToPersist, undefined, undefined, activeChatId);
       streamDraftsRef.current.delete(activeChatId);
       if (finalResponse.includes('/api/media/') || finalResponse.includes('```ui-preview')) {
         await loadMedia(activeChatId);
@@ -1970,35 +2068,80 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     }
   };
 
-  // Modo Plano: o card de plano de implementação dispara estes eventos. Usamos um ref para
-  // sempre chamar a versão mais recente de handleSend sem re-assinar o listener a cada render.
-  const handleSendRef = useRef(handleSend);
-  handleSendRef.current = handleSend;
+  // The implementation-plan card and side panel are two views of the same persisted DRAFT. Opening
+  // only reveals details; approval is the sole transition that starts execution.
   useEffect(() => {
-    const approve = (event: Event) => {
-      const detail = (event as CustomEvent<{ plan?: string; messageIndex?: number }>).detail;
+    type PlanCardDetail = { plan?: string; planId?: number; messageIndex?: number };
+
+    const open = (event: Event) => {
+      const detail = (event as CustomEvent<PlanCardDetail>).detail;
+      if (!detail?.plan?.trim()) return;
+      setPlanProposalPreview(detail.plan.trim());
+      setFocusedPlanId(detail.planId);
+      setIsPlanPanelOpen(true);
+    };
+
+    const approve = async (event: Event) => {
+      const detail = (event as CustomEvent<PlanCardDetail>).detail;
       const plan = detail?.plan?.trim();
       const chatId = currentChatIdRef.current;
       if (!plan || chatId === null || detail?.messageIndex === undefined) return;
-      const idempotencyKey = `plan:${chatId}:${detail.messageIndex}:${plan.length}:${plan.slice(0, 48)}`;
-      void handleSendRef.current(
-        'Aprovado. Implemente exatamente este plano, passo a passo. Ao terminar, rode verify_project '
-          + `e corrija até passar.\n\nPLANO APROVADO:\n${plan}`,
-        { force: true, idempotencyKey }
-      );
+
+      setPlanProposalPreview(plan);
+      setIsPlanPanelOpen(true);
+      try {
+        let planId = detail.planId;
+        if (!planId) {
+          const workspaceRoots = [...new Set([
+            ...projectPaths,
+            ...(homeWorkspaceRoot && !projectPaths.includes(homeWorkspaceRoot) ? [homeWorkspaceRoot] : []),
+          ])];
+          if (workspaceRoots.length === 0) {
+            throw new Error('Autorize uma pasta de projeto antes de executar o plano.');
+          }
+          const created = await planApi.createPlan({
+            goal: implementationPlanGoal(plan, 'Plano de implementação'),
+            chatId,
+            workspaceRoots,
+          });
+          planId = created.id;
+        }
+
+        setFocusedPlanId(planId);
+        const persisted = await planApi.getPlan(planId);
+        if (persisted.status === 'DRAFT') {
+          await planApi.runPlan(planId);
+        } else if (persisted.status === 'PAUSED') {
+          await planApi.resumePlan(planId);
+        } else if (persisted.status !== 'RUNNING') {
+          throw new Error(`O plano está com status ${persisted.status} e não pode ser iniciado.`);
+        }
+        showTemporaryNotice('Plano aprovado. A execução foi iniciada.');
+        window.dispatchEvent(new CustomEvent('avento:plan-approval-result', {
+          detail: { messageIndex: detail.messageIndex, planId, success: true },
+        }));
+      } catch (error) {
+        const message = apiErrorMessage(error);
+        showTemporaryNotice(message);
+        window.dispatchEvent(new CustomEvent('avento:plan-approval-result', {
+          detail: { messageIndex: detail.messageIndex, planId: detail.planId, success: false },
+        }));
+      }
     };
     const adjust = (event: Event) => {
       const detail = (event as CustomEvent<{ plan?: string }>).detail;
       if (detail?.plan) setInputValue(`Ajuste este plano:\n\n${detail.plan}\n\n`);
       document.querySelector<HTMLTextAreaElement>('textarea')?.focus();
     };
+    window.addEventListener('avento:open-plan', open);
     window.addEventListener('avento:approve-plan', approve);
     window.addEventListener('avento:adjust-plan', adjust);
     return () => {
+      window.removeEventListener('avento:open-plan', open);
       window.removeEventListener('avento:approve-plan', approve);
       window.removeEventListener('avento:adjust-plan', adjust);
     };
-  }, []);
+  }, [homeWorkspaceRoot, projectPaths, showTemporaryNotice]);
 
   const toggleRecording = async () => {
     if (isRecording) {
@@ -2296,6 +2439,9 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
             {renderModelSelectors()}
             <HeaderIconButton onClick={() => setIsRightPanelOpen(!isRightPanelOpen)} title="Tarefas e contexto">
               <Columns size={24} weight={isRightPanelOpen ? "fill" : "regular"} />
+            </HeaderIconButton>
+            <HeaderIconButton onClick={() => setIsPlanPanelOpen(!isPlanPanelOpen)} title="Plano de Execução (Codex)">
+              <List size={22} weight={isPlanPanelOpen ? "fill" : "regular"} />
             </HeaderIconButton>
             <HeaderIconButton className="secondary-header-action" onClick={() => setIsSkillsManagerOpen(true)} title="Skills — procedimentos reutilizáveis">
               <Lightning size={22} />
@@ -2665,8 +2811,29 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
           messageQueue={messageQueue}
           onRemoveFromQueue={removeFromQueue}
           skills={skills}
+          agentMode={agentMode}
+          onToggleAgentMode={() => setAgentMode(value => !value)}
         />
       </MainContent>
+
+      {isPlanPanelOpen && (
+        <PlanPanel>
+          <PlanExecutionPanel
+            chatId={currentChatId || undefined}
+            focusPlanId={focusedPlanId}
+            proposalPreview={planProposalPreview}
+            workspaceRoots={[
+              ...projectPaths,
+              ...(homeWorkspaceRoot && !projectPaths.includes(homeWorkspaceRoot) ? [homeWorkspaceRoot] : []),
+            ]}
+            onClose={() => {
+              setIsPlanPanelOpen(false);
+              setFocusedPlanId(undefined);
+              setPlanProposalPreview(undefined);
+            }}
+          />
+        </PlanPanel>
+      )}
 
       {isRightPanelOpen && (
         <RightPanel>

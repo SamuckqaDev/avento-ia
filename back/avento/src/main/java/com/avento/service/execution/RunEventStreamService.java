@@ -112,6 +112,9 @@ public class RunEventStreamService {
         return "agent.run.completed".equals(type)
                 || "agent.run.failed".equals(type)
                 || "agent.run.cancelled".equals(type)
+                || "plan.completed".equals(type)
+                || "plan.failed".equals(type)
+                || "plan.cancelled".equals(type)
                 || "tool.approval.required".equals(type);
     }
 

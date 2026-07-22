@@ -672,6 +672,29 @@ export const RightPanel = styled.aside`
   }
 `;
 
+export const PlanPanel = styled.aside`
+  width: min(430px, 38vw);
+  min-width: 360px;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  overflow: hidden;
+  border-left: 1px solid ${({ theme }) => theme.colors.border};
+  box-shadow: -18px 0 44px rgba(15, 23, 42, 0.08);
+
+  @media (max-width: 1024px) {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 1000;
+    width: min(430px, 92vw);
+  }
+
+  @media (max-width: 768px) {
+    width: 100vw;
+    min-width: 0;
+  }
+`;
+
 export const RightPanelHeader = styled.div`
   min-height: 58px;
   display: flex;

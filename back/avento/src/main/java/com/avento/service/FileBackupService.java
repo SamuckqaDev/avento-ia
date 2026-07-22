@@ -81,6 +81,7 @@ public class FileBackupService {
         Context context = executionContext.current();
         if (canPersist(context, runId)) {
             persistFileBackup(context, runId, entry);
+            backups.remove(entry.id());
             evictOldPersistentRuns(context);
         } else {
             trackForRun(runId, entry.id());
@@ -268,6 +269,7 @@ public class FileBackupService {
         Context context = executionContext.current();
         if (canPersist(context, runId)) {
             persistDirectoryBackup(context, runId, entry, true);
+            directoryBackups.remove(entry.id());
             evictOldPersistentRuns(context);
         }
         return entry;

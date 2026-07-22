@@ -27,6 +27,10 @@ COMFYUI_FLUX2_AUTO_INSTALL="${AVENTO_COMFYUI_FLUX2_AUTO_INSTALL:-1}"
 COMFYUI_VIDEO_AUTO_INSTALL="${AVENTO_COMFYUI_VIDEO_AUTO_INSTALL:-1}"
 OLLAMA_URL="${AVENTO_OLLAMA_URL:-http://127.0.0.1:11434}"
 OLLAMA_AUTOSTART="${AVENTO_OLLAMA_AUTOSTART:-1}"
+# Quantized KV cache trims context RAM (q8_0 halves it with negligible quality loss); needs flash
+# attention. Set AVENTO_OLLAMA_KV_CACHE_TYPE=f16 to disable.
+OLLAMA_FLASH_ATTENTION="${AVENTO_OLLAMA_FLASH_ATTENTION:-1}"
+OLLAMA_KV_CACHE_TYPE="${AVENTO_OLLAMA_KV_CACHE_TYPE:-q8_0}"
 NPM_CACHE_DIR="${AVENTO_NPM_CACHE_DIR:-$HOME/.avento/tools/npm-cache}"
 SPRING_PROFILE="${AVENTO_SPRING_PROFILE:-local}"
 LOG_DIR="$ROOT/tmp/dev"
@@ -153,7 +157,10 @@ start_ollama() {
 
   info "starting Ollama at $OLLAMA_URL"
   ollama_host="$(node -e 'const url = new URL(process.argv[1]); process.stdout.write(url.host);' "$OLLAMA_URL")"
-  OLLAMA_HOST="$ollama_host" ollama serve >"$LOG_DIR/ollama.log" 2>&1 &
+  OLLAMA_HOST="$ollama_host" \
+    OLLAMA_FLASH_ATTENTION="$OLLAMA_FLASH_ATTENTION" \
+    OLLAMA_KV_CACHE_TYPE="$OLLAMA_KV_CACHE_TYPE" \
+    ollama serve >"$LOG_DIR/ollama.log" 2>&1 &
   OLLAMA_PID=$!
 
   if ! wait_for_url "$OLLAMA_URL/api/tags" "Ollama" 60; then

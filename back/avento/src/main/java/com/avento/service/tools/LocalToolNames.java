@@ -35,7 +35,13 @@ public final class LocalToolNames {
             "terminal_start",
             "terminal_list",
             "terminal_logs",
-            "terminal_stop");
+            "terminal_stop",
+            // Local tools that had a dispatch case and were exposed to the model but were missing from
+            // this router allow-list, so every call returned "Tool not found or server disconnected".
+            "find_symbol",
+            "verify_project",
+            "revert_changes",
+            "remember");
 
     private LocalToolNames() {}
 }

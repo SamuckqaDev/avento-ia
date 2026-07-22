@@ -63,6 +63,23 @@ class UserMemoryServiceTest {
     }
 
     @Test
+    void suggestionsThatDifferOnlyByAccentsAndPunctuationAreIgnored() {
+        when(repository.findByUserIdOrderByUpdatedAtDesc(userId))
+                .thenReturn(List.of(new UserMemory(
+                        userId,
+                        "Prefere respostas em português!",
+                        "fato",
+                        null,
+                        UserMemory.STATUS_ACTIVE,
+                        UserMemory.ORIGIN_MANUAL)));
+
+        UserMemoryService.SuggestionOutcome outcome = service.suggest(userId, "prefere respostas em portugues", "fato");
+
+        assertFalse(outcome.saved());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void promptBlockListsOnlyActiveFactsUnderAHeader() {
         when(repository.findByUserIdAndStatusOrderByUpdatedAtDesc(userId, UserMemory.STATUS_ACTIVE))
                 .thenReturn(List.of(

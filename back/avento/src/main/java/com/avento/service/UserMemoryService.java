@@ -2,6 +2,7 @@ package com.avento.service;
 
 import com.avento.model.UserMemory;
 import com.avento.repository.UserMemoryRepository;
+import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -53,8 +54,8 @@ public class UserMemoryService {
         UUID owner = requireUser(userId);
         String normalized = normalize(content);
         if (repository.existsByUserIdAndStatusAndContentIgnoreCase(owner, UserMemory.STATUS_ACTIVE, normalized)
-                || repository.existsByUserIdAndStatusAndContentIgnoreCase(
-                        owner, UserMemory.STATUS_PENDING, normalized)) {
+                || repository.existsByUserIdAndStatusAndContentIgnoreCase(owner, UserMemory.STATUS_PENDING, normalized)
+                || hasEquivalentMemory(owner, normalized)) {
             return new SuggestionOutcome(false, normalized);
         }
         if (repository.countByUserIdAndStatus(owner, UserMemory.STATUS_PENDING) >= MAX_PENDING) {
@@ -136,6 +137,25 @@ public class UserMemoryService {
         return trimmed.length() > MAX_CONTENT_CHARS
                 ? trimmed.substring(0, MAX_CONTENT_CHARS).strip()
                 : trimmed;
+    }
+
+    private boolean hasEquivalentMemory(UUID userId, String content) {
+        String fingerprint = fingerprint(content);
+        return repository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
+                .filter(memory -> UserMemory.STATUS_ACTIVE.equals(memory.getStatus())
+                        || UserMemory.STATUS_PENDING.equals(memory.getStatus()))
+                .map(UserMemory::getContent)
+                .map(this::fingerprint)
+                .anyMatch(fingerprint::equals);
+    }
+
+    private String fingerprint(String content) {
+        String decomposed = Normalizer.normalize(content, Normalizer.Form.NFD);
+        return decomposed
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", " ")
+                .strip();
     }
 
     /** Resultado de uma sugestão do modelo: {@code saved=false} quando era duplicata e foi ignorada. */

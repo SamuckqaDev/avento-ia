@@ -37,7 +37,8 @@ import { UiPreviewCard } from '../UiPreviewCard';
 import { ImplPlanCard } from '../ImplPlanCard';
 import { DocumentCard } from '../DocumentCard';
 
-import { CaretDown, Check, Copy, FileCode, FileText, CaretRight, ImageSquare, Lightning } from '@phosphor-icons/react';
+import { CaretDown, Check, Copy, FileCode, FileText, CaretRight, ImageSquare, Lightning, Brain } from '@phosphor-icons/react';
+import { api } from '../../../services/apiClient';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -122,10 +123,17 @@ function hasTruncatedUiPreview(content: string): boolean {
   return !afterOpen.includes('```');
 }
 
-function extractMediaJobs(content: string): { markdown: string; imageJobIds: string[]; videoJobIds: string[]; documentNames: string[] } {
+function extractMediaJobs(content: string): {
+  markdown: string;
+  imageJobIds: string[];
+  videoJobIds: string[];
+  documentNames: string[];
+  planIds: number[];
+} {
   const imageJobIds: string[] = [];
   const videoJobIds: string[] = [];
   const documentNames: string[] = [];
+  const planIds: number[] = [];
   let markdown = content.replace(/\[\[avento-image-job:([0-9a-f-]{36})\]\]/gi, (_, jobId: string) => {
     imageJobIds.push(jobId);
     return '';
@@ -138,11 +146,16 @@ function extractMediaJobs(content: string): { markdown: string; imageJobIds: str
     documentNames.push(name);
     return '';
   });
+  markdown = markdown.replace(/\[\[avento-plan:(\d+)\]\]/gi, (_, id: string) => {
+    planIds.push(Number(id));
+    return '';
+  });
   return {
     markdown,
     imageJobIds: [...new Set(imageJobIds)],
     videoJobIds: [...new Set(videoJobIds)],
     documentNames: [...new Set(documentNames)],
+    planIds: [...new Set(planIds)],
   };
 }
 
@@ -172,6 +185,38 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   return (
     <CopyAction type="button" onClick={copy} aria-label={copied ? 'Copiado' : label} title={copied ? 'Copiado' : label}>
       {copied ? <Check size={16} weight="bold" /> : <Copy size={16} />}
+    </CopyAction>
+  );
+}
+
+// Metade manual da memória híbrida: salva um fato durável na hora. O texto é editável antes de
+// gravar (uma resposta inteira raramente é um bom "fato"), e entra ativo direto (POST /api/memory).
+function SaveToMemoryButton({ text }: { text: string }) {
+  const [saved, setSaved] = useState(false);
+
+  const save = async () => {
+    const seed = text.trim().slice(0, 200);
+    const content = window.prompt('Salvar na memória do Avento (edite para uma frase curta):', seed);
+    if (content === null) return;
+    const fact = content.trim();
+    if (!fact) return;
+    try {
+      await api.post('/api/memory', { content: fact });
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 1400);
+    } catch (error) {
+      console.error('Não foi possível salvar na memória', error);
+    }
+  };
+
+  return (
+    <CopyAction
+      type="button"
+      onClick={save}
+      aria-label={saved ? 'Salvo na memória' : 'Salvar na memória'}
+      title={saved ? 'Salvo na memória' : 'Salvar na memória'}
+    >
+      {saved ? <Check size={16} weight="bold" /> : <Brain size={16} />}
     </CopyAction>
   );
 }
@@ -287,7 +332,12 @@ function MessageBubbleComponent({
           <Header>
             <span className="ai-icon">A</span>
             <span className="ai-name">Avento</span>
-            {message.content && <HeaderActions><CopyButton text={mediaContent.markdown.trim()} label="Copiar resposta" /></HeaderActions>}
+            {message.content && (
+              <HeaderActions>
+                <CopyButton text={mediaContent.markdown.trim()} label="Copiar resposta" />
+                <SaveToMemoryButton text={mediaContent.markdown.trim()} />
+              </HeaderActions>
+            )}
           </Header>
         )}
         
@@ -361,7 +411,13 @@ function MessageBubbleComponent({
                     return <UiPreviewCard html={code} />;
                   }
                   if (childClassName?.includes('language-impl-plan')) {
-                    return <ImplPlanCard plan={code} messageIndex={messageIndex} />;
+                    return (
+                      <ImplPlanCard
+                        plan={code}
+                        planId={mediaContent.planIds[0]}
+                        messageIndex={messageIndex}
+                      />
+                    );
                   }
                   return (
                     <CodeBlock>

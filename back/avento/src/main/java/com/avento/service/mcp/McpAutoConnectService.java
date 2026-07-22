@@ -37,6 +37,9 @@ public class McpAutoConnectService {
     private final McpServerCatalogService catalogService;
     private final Map<String, List<Pattern>> patternsByServer;
 
+    // Two constructors exist (the test injects keywords through the package-private one), so Spring
+    // needs this one marked explicitly — otherwise it looks for a default constructor and fails.
+    @org.springframework.beans.factory.annotation.Autowired
     public McpAutoConnectService(McpServerCatalogService catalogService) {
         this(catalogService, loadKeywords());
     }

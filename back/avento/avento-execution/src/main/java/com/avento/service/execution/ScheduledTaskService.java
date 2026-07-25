@@ -141,11 +141,16 @@ public class ScheduledTaskService {
 
     private String normalizeCronExpression(String cron) {
         if (cron == null || cron.isBlank()) return "0 0 * * * *";
-        String[] parts = cron.trim().split("\\s+");
+        String trimmed = cron.trim();
+        // Se o usuário digitou asteriscos sem espaço (ex: "*****" ou "****")
+        if (trimmed.matches("^\\*+$")) {
+            trimmed = "* * * * *";
+        }
+        String[] parts = trimmed.split("\\s+");
         if (parts.length == 5) {
             // Adiciona os segundos 0 no início para o Spring CronExpression (6 campos)
-            return "0 " + cron.trim();
+            return "0 " + trimmed;
         }
-        return cron.trim();
+        return trimmed;
     }
 }

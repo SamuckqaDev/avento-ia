@@ -128,7 +128,7 @@ export const EmptyStateWrapper = styled.div`
   align-items: center;
   justify-content: center;
 
-  svg {
+  > svg {
     color: ${({ theme }) => theme.colors.primary};
     margin-bottom: 16px;
     opacity: 0.9;

@@ -290,14 +290,15 @@ function SidebarComponent({
             ) : (
               <MediaList>
                 {media.slice(0, 12).map(item => {
+                  const rawName = item.name || item.id || 'Mídia';
                   const kind = item.type
-                    ?? (/^avento-video-/i.test(item.name) ? 'video'
-                      : /^avento-doc-/i.test(item.name) ? 'document'
-                      : /^avento-mockup-/i.test(item.name) ? 'artifact' : 'image');
+                    ?? (/^avento-video-/i.test(rawName) ? 'video'
+                      : /^avento-doc-/i.test(rawName) ? 'document'
+                      : /^avento-mockup-/i.test(rawName) ? 'artifact' : 'image');
                   const Icon = kind === 'video' ? FilmSlate
                     : kind === 'document' ? FilePdf
                     : kind === 'artifact' ? Browsers : ImageSquare;
-                  const label = item.name
+                  const label = rawName
                     .replace(/^avento-(?:image|video|doc|mockup)-/, '')
                     .replace(/\.(?:png|webp|pdf|html)$/, '');
                   const handleClick = () => {
@@ -310,9 +311,9 @@ function SidebarComponent({
                     }
                   };
                   return (
-                    <MediaItemButton key={item.id} type="button" onClick={handleClick} title={label || item.name}>
+                    <MediaItemButton key={item.id} type="button" onClick={handleClick} title={label || rawName}>
                       {kind === 'image' ? (
-                        <img src={item.url} alt={label} />
+                        <img src={item.url} alt={label || rawName} />
                       ) : (
                         <>
                           <Icon size={18} />

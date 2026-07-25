@@ -2938,10 +2938,10 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
           <PanelContent>
             {selectedMedia ? (
               <AnalysisSection>
-                <h4>{selectedMedia.name}</h4>
+                <h4>{selectedMedia.name || 'Mídia gerada'}</h4>
                 <img
                   src={selectedMedia.url}
-                  alt={selectedMedia.name}
+                  alt={selectedMedia.name || 'Mídia gerada'}
                   style={{ width: '100%', display: 'block', borderRadius: 8 }}
                 />
                 <p>Gerada em {new Date(selectedMedia.createdAt).toLocaleString('pt-BR')}</p>

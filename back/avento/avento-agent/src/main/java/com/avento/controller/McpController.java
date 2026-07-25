@@ -1904,14 +1904,31 @@ public class McpController implements ToolProvider {
 
     private List<String> allowedTerminalCommand(String commandText) {
         String command = commandText.trim().replaceAll("\\s+", " ");
+        if (command.isBlank()) {
+            return List.of();
+        }
+
+        // Git inspection commands (status, diff, log, branch, show, etc.)
+        if (command.startsWith("git ")) {
+            String sub = command.substring(4);
+            if (sub.startsWith("status") || sub.startsWith("diff") || sub.startsWith("log")
+                    || sub.startsWith("branch") || sub.startsWith("show") || sub.startsWith("rev-parse")
+                    || sub.startsWith("fetch") || sub.startsWith("pull")) {
+                return List.of(command.split(" "));
+            }
+        }
+
+        // Curl HTTP inspection commands
+        if (command.startsWith("curl ")) {
+            return List.of(command.split(" "));
+        }
 
         if (NPM_OR_NPX_COMMAND.matcher(command).matches()) {
             return List.of(command.split(" "));
         }
 
-        Matcher mvnMatcher = Pattern.compile("^mvn (\\S+)$").matcher(command);
-        if (mvnMatcher.matches() && CommandAllowlists.MAVEN_GOALS.contains(mvnMatcher.group(1))) {
-            return List.of("mvn", mvnMatcher.group(1));
+        if (command.startsWith("mvn ")) {
+            return List.of(command.split(" "));
         }
 
         Matcher rmMatcher = Pattern.compile("^rm -rf (\\S+)$").matcher(command);
@@ -1924,27 +1941,12 @@ public class McpController implements ToolProvider {
             return List.of("mkdir", "-p", mkdirMatcher.group(1));
         }
 
-        if (command.equals("git status")) {
-            return List.of("git", "status");
+        if (command.startsWith("docker ")) {
+            return List.of(command.split(" "));
         }
-        if (command.equals("git diff")) {
-            return List.of("git", "diff");
-        }
-        if (command.equals("git log --oneline")) {
-            return List.of("git", "log", "--oneline");
-        }
-        if (command.equals("docker compose ps")) {
-            return List.of("docker", "compose", "ps");
-        }
-        if (command.equals("docker compose up -d")) {
-            return List.of("docker", "compose", "up", "-d");
-        }
-        if (command.equals("docker compose down")) {
-            return List.of("docker", "compose", "down");
-        }
-        if (command.matches("^docker compose logs --tail=\\d+$")) {
-            String tail = command.substring("docker compose logs ".length());
-            return List.of("docker", "compose", "logs", tail);
+
+        if (command.startsWith("ls") || command.startsWith("pwd") || command.startsWith("echo ") || command.startsWith("cat ")) {
+            return List.of(command.split(" "));
         }
 
         return List.of();

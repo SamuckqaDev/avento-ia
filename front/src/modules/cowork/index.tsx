@@ -411,7 +411,7 @@ export function CoworkView() {
             <p style={{ color: 'var(--text-muted)' }}>Carregando automações agendadas...</p>
           ) : tasks.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--surface)', borderRadius: 12, border: '1px dashed var(--border)' }}>
-              <Clock size={48} color="var(--accent)" style={{ marginBottom: 16, opacity: 0.8 }} />
+              <Clock size={48} style={{ color: 'var(--primary)', marginBottom: 16, opacity: 0.9 }} />
               <h3 style={{ fontSize: '1.1rem', marginBottom: 8 }}>Nenhuma tarefa agendada na agenda</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: 460, margin: '0 auto 20px' }}>
                 Crie rotinas diárias como backups de projetos (ex: 03:57 AM), checagem de saúde do sistema ou limpezas automáticas.

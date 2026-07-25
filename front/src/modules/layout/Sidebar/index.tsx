@@ -310,9 +310,15 @@ function SidebarComponent({
                     }
                   };
                   return (
-                    <MediaItemButton key={item.id} type="button" onClick={handleClick} title={item.name}>
-                      <Icon size={15} />
-                      <span>{label}</span>
+                    <MediaItemButton key={item.id} type="button" onClick={handleClick} title={label || item.name}>
+                      {kind === 'image' ? (
+                        <img src={item.url} alt={label} />
+                      ) : (
+                        <>
+                          <Icon size={18} />
+                          <span>{label}</span>
+                        </>
+                      )}
                     </MediaItemButton>
                   );
                 })}

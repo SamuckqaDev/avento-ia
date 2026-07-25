@@ -532,44 +532,62 @@ export const DeleteModalButton = styled.button<{ $danger?: boolean }>`
 `;
 
 export const MediaList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 240px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  max-height: 115px;
   overflow-y: auto;
+  padding: 4px 0;
+
+  /* Custom thin scrollbar */
+  &::-webkit-scrollbar {
+    width: 3px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+  }
 `;
 
 export const MediaItemButton = styled.button`
-  min-width: 0;
-  min-height: 32px;
-  padding: 6px 9px;
-  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  background: color-mix(in srgb, ${({ theme }) => theme.colors.bg} 70%, ${({ theme }) => theme.colors.surface});
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, ${({ theme }) => theme.colors.bg} 85%, ${({ theme }) => theme.colors.surface});
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 8px;
   color: ${({ theme }) => theme.colors.textMuted};
   cursor: pointer;
-  text-align: left;
+  transition: all 0.15s ease;
 
-  & > svg {
-    flex: 0 0 auto;
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.accent};
     color: ${({ theme }) => theme.colors.accent};
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 
   span {
-    min-width: 0;
-    padding: 0;
+    font-size: 0.6rem;
+    line-height: 1.1;
+    text-align: center;
+    padding: 2px 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.68rem;
+    width: 100%;
   }
 `;
 

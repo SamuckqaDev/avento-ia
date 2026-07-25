@@ -26,6 +26,16 @@ export interface ScheduledTask {
   createdAt: string;
 }
 
+export interface ScheduledTaskRun {
+  id: number;
+  taskId: number;
+  status: 'SUCCESS' | 'FAILED';
+  prompt?: string;
+  output?: string;
+  error?: string;
+  createdAt: string;
+}
+
 type FrequencyMode = 'daily' | 'interval' | 'specific_date' | 'cron';
 
 export function CoworkView() {
@@ -34,6 +44,22 @@ export function CoworkView() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [selectedOutputTask, setSelectedOutputTask] = useState<ScheduledTask | null>(null);
+  const [selectedLogTask, setSelectedLogTask] = useState<ScheduledTask | null>(null);
+  const [taskRuns, setTaskRuns] = useState<ScheduledTaskRun[]>([]);
+  const [isLoadingRuns, setIsLoadingRuns] = useState<boolean>(false);
+
+  const handleViewLogs = async (task: ScheduledTask) => {
+    setSelectedLogTask(task);
+    setIsLoadingRuns(true);
+    try {
+      const response = await api.get(`/api/scheduled-tasks/${task.id}/runs`);
+      setTaskRuns(response.data);
+    } catch (err) {
+      console.error("Erro ao carregar histórico de execuções", err);
+    } finally {
+      setIsLoadingRuns(false);
+    }
+  };
 
   // Calendar date state
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -338,27 +364,49 @@ export function CoworkView() {
                         </div>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOutputTask(task)}
-                        style={{
-                          marginTop: 8,
-                          background: 'var(--surface)',
-                          border: '1px solid var(--border)',
-                          color: 'var(--text)',
-                          padding: '4px 10px',
-                          borderRadius: 6,
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          fontWeight: 600,
-                          width: 'fit-content'
-                        }}
-                      >
-                        <Eye size={14} /> Ver Retorno Completo da IA / Terminal
-                      </button>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOutputTask(task)}
+                          style={{
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text)',
+                            padding: '4px 10px',
+                            borderRadius: 6,
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontWeight: 600,
+                            width: 'fit-content'
+                          }}
+                        >
+                          <Eye size={14} /> Ver Último Retorno
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleViewLogs(task)}
+                          style={{
+                            background: 'var(--primary)',
+                            border: 'none',
+                            color: '#fff',
+                            padding: '4px 10px',
+                            borderRadius: 6,
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontWeight: 600,
+                            width: 'fit-content'
+                          }}
+                        >
+                          <FileText size={14} /> 📋 Histórico & Logs de Execução
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -649,6 +697,74 @@ export function CoworkView() {
                 style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
               >
                 Fechar
+              </button>
+            </div>
+          </Modal>
+        </ModalBackdrop>
+      )}
+
+      {selectedLogTask && (
+        <ModalBackdrop onClick={() => setSelectedLogTask(null)}>
+          <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 760, width: '90%' }}>
+            <div className="modal-header">
+              <h2><FileText size={22} style={{ verticalAlign: 'middle', marginRight: 8, color: 'var(--primary)' }} /> Histórico de Execuções e Logs - {selectedLogTask.name}</h2>
+              <button type="button" onClick={() => setSelectedLogTask(null)}><X size={20} /></button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {isLoadingRuns ? (
+                <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Carregando histórico de execuções...</div>
+              ) : taskRuns.length === 0 ? (
+                <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Nenhuma execução registrada até o momento.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 420, overflowY: 'auto' }}>
+                  {taskRuns.map(run => (
+                    <div key={run.id} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: '0.82rem' }}>
+                        <span>
+                          <strong>Status:</strong> {run.status === 'SUCCESS' ? '✅ Sucesso (Validado)' : '❌ Falha'}
+                        </span>
+                        <span style={{ color: 'var(--text-secondary)' }}>
+                          🕒 {new Date(run.createdAt).toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+
+                      {run.prompt && (
+                        <div style={{ fontSize: '0.78rem', marginBottom: 6, color: 'var(--text-secondary)' }}>
+                          <strong>Prompt/Instrução:</strong> {run.prompt}
+                        </div>
+                      )}
+
+                      <div style={{ fontSize: '0.78rem', fontWeight: 700, marginBottom: 4 }}>Log Bruto / Resposta do Terminal:</div>
+                      <pre style={{
+                        background: '#0d1117',
+                        color: '#e6edf3',
+                        padding: 10,
+                        borderRadius: 6,
+                        border: '1px solid #30363d',
+                        fontSize: '0.78rem',
+                        fontFamily: 'monospace',
+                        maxHeight: 160,
+                        overflowY: 'auto',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        margin: 0
+                      }}>
+                        {run.output || run.error || 'Nenhum log retornado.'}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                onClick={() => setSelectedLogTask(null)}
+                style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
+              >
+                Fechar Logs
               </button>
             </div>
           </Modal>

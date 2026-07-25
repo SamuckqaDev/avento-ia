@@ -21,6 +21,7 @@ public class CronTaskScheduler {
     private final ScheduledTaskService taskService;
     private final AgentRunSubmissionService submissionService;
     private final NotificationService notificationService;
+    private final com.avento.repository.ScheduledTaskRunRepository runRepository;
     private final ObjectMapper objectMapper;
 
     public CronTaskScheduler(
@@ -28,11 +29,13 @@ public class CronTaskScheduler {
             ScheduledTaskService taskService,
             AgentRunSubmissionService submissionService,
             NotificationService notificationService,
+            com.avento.repository.ScheduledTaskRunRepository runRepository,
             ObjectMapper objectMapper) {
         this.repository = repository;
         this.taskService = taskService;
         this.submissionService = submissionService;
         this.notificationService = notificationService;
+        this.runRepository = runRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -77,7 +80,15 @@ public class CronTaskScheduler {
             submissionService.submit(task.getUserId(), targetChatId, payload);
 
             // Sucesso na submissão do job
-            taskService.markRunCompleted(task, true, null, "Execução iniciada no motor de agentes com sucesso.");
+            String logMessage = "Execução autônoma iniciada às " + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")) + ".\nComando/Instrução: " + task.getPrompt();
+            taskService.markRunCompleted(task, true, null, "Execução iniciada no motor de agentes com sucesso.", logMessage);
+            runRepository.save(new com.avento.model.ScheduledTaskRun(
+                    task.getId(),
+                    com.avento.model.ScheduledTask.RunStatus.SUCCESS,
+                    task.getPrompt(),
+                    logMessage,
+                    null
+            ));
             notificationService.record(
                     "COWORK_TASK_EXECUTED",
                     "Automação Concluída: " + task.getName(),
@@ -87,6 +98,13 @@ public class CronTaskScheduler {
             logger.error("Erro na execução da tarefa '{}'", task.getName(), e);
             String errorDiag = "Causa Raiz: " + e.getMessage() + "\nSugestão: Verifique as permissões da sandbox e a conectividade com o modelo de IA.";
             taskService.markRunCompleted(task, false, e.getMessage(), errorDiag);
+            runRepository.save(new com.avento.model.ScheduledTaskRun(
+                    task.getId(),
+                    com.avento.model.ScheduledTask.RunStatus.FAILED,
+                    task.getPrompt(),
+                    null,
+                    e.getMessage()
+            ));
             notificationService.record(
                     "COWORK_TASK_FAILED",
                     "Falha na Automação: " + task.getName(),

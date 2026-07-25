@@ -16,17 +16,24 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.avento.model.ScheduledTaskRun;
+import com.avento.repository.ScheduledTaskRunRepository;
+
 @RestController
 @RequestMapping("/api/scheduled-tasks")
 public class ScheduledTaskController {
 
     private final ScheduledTaskService taskService;
     private final CronTaskScheduler cronTaskScheduler;
+    private final ScheduledTaskRunRepository runRepository;
 
     public ScheduledTaskController(
-            ScheduledTaskService taskService, CronTaskScheduler cronTaskScheduler) {
+            ScheduledTaskService taskService,
+            CronTaskScheduler cronTaskScheduler,
+            ScheduledTaskRunRepository runRepository) {
         this.taskService = taskService;
         this.cronTaskScheduler = cronTaskScheduler;
+        this.runRepository = runRepository;
     }
 
     public record CreateTaskRequest(
@@ -102,6 +109,15 @@ public class ScheduledTaskController {
                 .orElseThrow(() -> new IllegalArgumentException("Tarefa não encontrada"));
         cronTaskScheduler.executeScheduledTask(task);
         return ResponseEntity.ok(task);
+    }
+
+    @GetMapping("/{id}/runs")
+    public ResponseEntity<List<ScheduledTaskRun>> getTaskRuns(
+            @PathVariable("id") Long id, @AuthenticationPrincipal AuthPrincipal principal) {
+        if (principal == null) return ResponseEntity.status(401).build();
+        taskService.getTask(id, principal.userId())
+                .orElseThrow(() -> new IllegalArgumentException("Tarefa não encontrada"));
+        return ResponseEntity.ok(runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(id));
     }
 
     @DeleteMapping("/{id}")

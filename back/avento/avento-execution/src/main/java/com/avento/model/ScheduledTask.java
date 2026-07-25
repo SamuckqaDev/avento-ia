@@ -61,6 +61,9 @@ public class ScheduledTask {
     @Column(name = "project_path", length = 1000)
     private String projectPath;
 
+    @Column(name = "on_success_task_id")
+    private Long onSuccessTaskId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private TaskStatus status = TaskStatus.ACTIVE;
@@ -164,6 +167,14 @@ public class ScheduledTask {
 
     public void setProjectPath(String projectPath) {
         this.projectPath = projectPath;
+    }
+
+    public Long getOnSuccessTaskId() {
+        return onSuccessTaskId;
+    }
+
+    public void setOnSuccessTaskId(Long onSuccessTaskId) {
+        this.onSuccessTaskId = onSuccessTaskId;
     }
 
     public TaskStatus getStatus() {

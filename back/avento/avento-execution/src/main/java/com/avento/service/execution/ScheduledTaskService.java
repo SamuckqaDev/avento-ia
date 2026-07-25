@@ -39,6 +39,7 @@ public class ScheduledTaskService {
             String prompt,
             Long chatId,
             String projectPath,
+            Long onSuccessTaskId,
             UUID userId) {
         ScheduledTask task = new ScheduledTask();
         task.setName(name);
@@ -47,6 +48,7 @@ public class ScheduledTaskService {
         task.setPrompt(prompt);
         task.setChatId(chatId);
         task.setProjectPath(projectPath);
+        task.setOnSuccessTaskId(onSuccessTaskId);
         task.setUserId(userId);
         task.setStatus(ScheduledTask.TaskStatus.ACTIVE);
         task.setLastRunStatus(ScheduledTask.RunStatus.IDLE);
@@ -59,6 +61,18 @@ public class ScheduledTaskService {
     }
 
     @Transactional
+    public ScheduledTask createTask(
+            String name,
+            String description,
+            String cronExpression,
+            String prompt,
+            Long chatId,
+            String projectPath,
+            UUID userId) {
+        return createTask(name, description, cronExpression, prompt, chatId, projectPath, null, userId);
+    }
+
+    @Transactional
     public ScheduledTask updateTask(
             Long id,
             String name,
@@ -66,6 +80,7 @@ public class ScheduledTaskService {
             String cronExpression,
             String prompt,
             String projectPath,
+            Long onSuccessTaskId,
             UUID userId) {
         ScheduledTask task = repository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Tarefa agendada não encontrada"));
@@ -75,11 +90,24 @@ public class ScheduledTaskService {
         task.setCronExpression(cronExpression);
         task.setPrompt(prompt);
         task.setProjectPath(projectPath);
+        task.setOnSuccessTaskId(onSuccessTaskId);
 
         LocalDateTime nextRun = calculateNextRun(cronExpression);
         task.setNextRunAt(nextRun);
 
         return repository.save(task);
+    }
+
+    @Transactional
+    public ScheduledTask updateTask(
+            Long id,
+            String name,
+            String description,
+            String cronExpression,
+            String prompt,
+            String projectPath,
+            UUID userId) {
+        return updateTask(id, name, description, cronExpression, prompt, projectPath, null, userId);
     }
 
     @Transactional

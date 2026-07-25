@@ -42,14 +42,16 @@ public class ScheduledTaskController {
             String cronExpression,
             String prompt,
             Long chatId,
-            String projectPath) {}
+            String projectPath,
+            Long onSuccessTaskId) {}
 
     public record UpdateTaskRequest(
             String name,
             String description,
             String cronExpression,
             String prompt,
-            String projectPath) {}
+            String projectPath,
+            Long onSuccessTaskId) {}
 
     @GetMapping
     public ResponseEntity<List<ScheduledTask>> listTasks(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -78,6 +80,7 @@ public class ScheduledTaskController {
                 req.prompt(),
                 req.chatId(),
                 req.projectPath(),
+                req.onSuccessTaskId(),
                 principal.userId());
         return ResponseEntity.ok(created);
     }
@@ -89,7 +92,14 @@ public class ScheduledTaskController {
             @AuthenticationPrincipal AuthPrincipal principal) {
         if (principal == null) return ResponseEntity.status(401).build();
         ScheduledTask updated = taskService.updateTask(
-                id, req.name(), req.description(), req.cronExpression(), req.prompt(), req.projectPath(), principal.userId());
+                id,
+                req.name(),
+                req.description(),
+                req.cronExpression(),
+                req.prompt(),
+                req.projectPath(),
+                req.onSuccessTaskId(),
+                principal.userId());
         return ResponseEntity.ok(updated);
     }
 

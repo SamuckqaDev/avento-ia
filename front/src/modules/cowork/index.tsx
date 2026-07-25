@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { api } from '../../services/apiClient';
 import { Input, Select, TextArea, DatePicker } from '../../components/ui';
 import { 
@@ -7,9 +7,11 @@ import {
   CalendarHeader, CalendarGrid, DayCell, EventBadge,
   FrequencyGrid, FrequencyOptionButton, SubInputPanel,
   DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton, DeleteModalError,
-  KpiBar, KpiCard, EmptyStateWrapper
+  KpiBar, KpiCard, EmptyStateWrapper, ToolbarWrapper, FilterChipGroup,
+  FilterChipButton, ActionButtonGroup, SecondaryActionButton
 } from './styles';
-import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen, PencilSimple, Lightning } from '@phosphor-icons/react';
+import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen, PencilSimple, Lightning, MagnifyingGlass, DownloadSimple, UploadSimple, SquaresFour } from '@phosphor-icons/react';
+import { TemplatesModal, TaskTemplate } from './TemplatesModal';
 
 export interface ScheduledTask {
   id: number;
@@ -19,6 +21,7 @@ export interface ScheduledTask {
   prompt: string;
   chatId?: number;
   projectPath?: string;
+  onSuccessTaskId?: number | null;
   status: 'ACTIVE' | 'PAUSED';
   lastRunStatus: 'IDLE' | 'RUNNING' | 'SUCCESS' | 'FAILED';
   lastRunAt?: string;
@@ -149,6 +152,89 @@ export function CoworkView() {
     return () => clearInterval(interval);
   }, [fetchTasks]);
 
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED' | 'FAILED'>('ALL');
+
+  // Chained task & Templates state
+  const [onSuccessTaskId, setOnSuccessTaskId] = useState<number | null>(null);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      const matchesSearch = 
+        searchQuery.trim() === '' ||
+        task.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.prompt.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      let matchesStatus = true;
+      if (statusFilter === 'ACTIVE') matchesStatus = task.status === 'ACTIVE';
+      if (statusFilter === 'PAUSED') matchesStatus = task.status === 'PAUSED';
+      if (statusFilter === 'FAILED') matchesStatus = task.lastRunStatus === 'FAILED';
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [tasks, searchQuery, statusFilter]);
+
+  const handleSelectTemplate = (template: TaskTemplate) => {
+    setEditingTask(null);
+    setName(template.name);
+    setDescription(template.description);
+    setPrompt(template.prompt);
+    setProjectPath('');
+    setOnSuccessTaskId(null);
+    setFreqMode('cron');
+    setCustomCron(template.cronExpression);
+    handleCustomCronTextChange(template.cronExpression);
+    setIsModalOpen(true);
+  };
+
+  const handleExportRoutines = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `avento-cowork-routines-${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleImportRoutines = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const imported = JSON.parse(event.target?.result as string);
+          if (Array.isArray(imported)) {
+            for (const t of imported) {
+              if (t.name && t.cronExpression && t.prompt) {
+                await api.post('/api/scheduled-tasks', {
+                  name: t.name,
+                  description: t.description || '',
+                  cronExpression: t.cronExpression,
+                  prompt: t.prompt,
+                  projectPath: t.projectPath || '',
+                  onSuccessTaskId: t.onSuccessTaskId || null
+                });
+              }
+            }
+            void fetchTasks(false);
+          }
+        } catch (err) {
+          console.error("Erro ao importar arquivo JSON de rotinas", err);
+        }
+      };
+      reader.readAsText(file);
+    } catch (err) {
+      console.error("Erro ao ler arquivo de importação", err);
+    }
+  };
+
   // Editing state
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
 
@@ -158,6 +244,7 @@ export function CoworkView() {
     setDescription(task.description || '');
     setPrompt(task.prompt);
     setProjectPath(task.projectPath || '');
+    setOnSuccessTaskId(task.onSuccessTaskId || null);
     setCustomCron(task.cronExpression);
     const parts = task.cronExpression.split(' ');
     if (parts.length === 5) setCronParts(parts);
@@ -172,6 +259,7 @@ export function CoworkView() {
     setDescription('');
     setPrompt('');
     setProjectPath('');
+    setOnSuccessTaskId(null);
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -186,7 +274,8 @@ export function CoworkView() {
           description,
           cronExpression: computedCron,
           prompt,
-          projectPath
+          projectPath,
+          onSuccessTaskId
         });
       } else {
         await api.post('/api/scheduled-tasks', {
@@ -194,7 +283,8 @@ export function CoworkView() {
           description,
           cronExpression: computedCron,
           prompt,
-          projectPath
+          projectPath,
+          onSuccessTaskId
         });
       }
       handleCloseModal();
@@ -409,14 +499,65 @@ export function CoworkView() {
         </CalendarWrapper>
       ) : (
         <>
+          <ToolbarWrapper>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 260 }}>
+              <div style={{ position: 'relative', width: '100%', maxWidth: 300 }}>
+                <MagnifyingGlass size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <Input 
+                  type="text" 
+                  placeholder="Pesquisar automações..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                  style={{ paddingLeft: 34, height: 36 }}
+                />
+              </div>
+
+              <FilterChipGroup>
+                <FilterChipButton $active={statusFilter === 'ALL'} onClick={() => setStatusFilter('ALL')}>
+                  Todas ({tasks.length})
+                </FilterChipButton>
+                <FilterChipButton $active={statusFilter === 'ACTIVE'} onClick={() => setStatusFilter('ACTIVE')}>
+                  🟢 Ativas ({tasks.filter(t => t.status === 'ACTIVE').length})
+                </FilterChipButton>
+                <FilterChipButton $active={statusFilter === 'PAUSED'} onClick={() => setStatusFilter('PAUSED')}>
+                  ⏸️ Pausadas ({tasks.filter(t => t.status === 'PAUSED').length})
+                </FilterChipButton>
+                <FilterChipButton $active={statusFilter === 'FAILED'} onClick={() => setStatusFilter('FAILED')}>
+                  ❌ Com Falha ({tasks.filter(t => t.lastRunStatus === 'FAILED').length})
+                </FilterChipButton>
+              </FilterChipGroup>
+            </div>
+
+            <ActionButtonGroup>
+              <SecondaryActionButton onClick={() => setIsTemplatesModalOpen(true)}>
+                <SquaresFour size={16} /> Templates Prontos
+              </SecondaryActionButton>
+              <SecondaryActionButton onClick={handleExportRoutines} title="Baixar backup em JSON">
+                <DownloadSimple size={16} /> Exportar JSON
+              </SecondaryActionButton>
+              <SecondaryActionButton onClick={() => fileInputRef.current?.click()} title="Importar backup em JSON">
+                <UploadSimple size={16} /> Importar JSON
+              </SecondaryActionButton>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleImportRoutines} 
+                accept=".json" 
+                style={{ display: 'none' }} 
+              />
+            </ActionButtonGroup>
+          </ToolbarWrapper>
+
           {isLoading && tasks.length === 0 ? (
             <p style={{ color: 'var(--text-muted)' }}>Carregando automações agendadas...</p>
-          ) : tasks.length === 0 ? (
+          ) : filteredTasks.length === 0 ? (
             <EmptyStateWrapper>
               <Clock size={48} />
-              <h3>Nenhuma tarefa agendada na agenda</h3>
+              <h3>{searchQuery || statusFilter !== 'ALL' ? 'Nenhuma automação encontrada' : 'Nenhuma tarefa agendada na agenda'}</h3>
               <p>
-                Crie rotinas diárias como backups de projetos (ex: 03:57 AM), checagem de saúde do sistema ou limpezas automáticas.
+                {searchQuery || statusFilter !== 'ALL' 
+                  ? 'Tente ajustar os termos de pesquisa ou remover os filtros aplicados.'
+                  : 'Crie rotinas diárias como backups de projetos (ex: 03:57 AM), checagem de saúde do sistema ou limpezas automáticas.'}
               </p>
               <CreateButton onClick={() => setIsModalOpen(true)}>
                 <Plus size={18} /> Criar Primeira Atividade
@@ -424,7 +565,7 @@ export function CoworkView() {
             </EmptyStateWrapper>
           ) : (
             <Grid>
-              {tasks.map(task => (
+              {filteredTasks.map(task => (
                 <Card key={task.id} $status={task.status}>
                   <div className="card-header">
                     <h3>{task.name}</h3>
@@ -861,6 +1002,23 @@ export function CoworkView() {
                 </div>
               </div>
 
+              <div className="form-group">
+                <label>Próxima Atividade Encadeada (Opcional)</label>
+                <Select 
+                  value={onSuccessTaskId || ''} 
+                  onChange={e => setOnSuccessTaskId(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">Nenhuma (Execução isolada)</option>
+                  {tasks
+                    .filter(t => !editingTask || t.id !== editingTask.id)
+                    .map(t => (
+                      <option key={t.id} value={t.id}>
+                        ⚡ Disparar: {t.name} (ID: {t.id})
+                      </option>
+                    ))}
+                </Select>
+              </div>
+
               <div className="modal-footer">
                 <button 
                   type="button" 
@@ -1029,6 +1187,12 @@ export function CoworkView() {
           </DeleteModal>
         </DeleteModalBackdrop>
       )}
+
+      <TemplatesModal
+        isOpen={isTemplatesModalOpen}
+        onClose={() => setIsTemplatesModalOpen(false)}
+        onSelectTemplate={handleSelectTemplate}
+      />
     </Container>
   );
 }

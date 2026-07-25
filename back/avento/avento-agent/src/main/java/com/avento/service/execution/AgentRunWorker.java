@@ -58,6 +58,7 @@ public class AgentRunWorker {
     private final com.avento.repository.ScheduledTaskRepository scheduledTaskRepository;
     private final com.avento.repository.ScheduledTaskRunRepository runRepository;
     private final com.avento.service.AgentTimelineService timelineService;
+    private final com.avento.service.execution.CronTaskScheduler cronTaskScheduler;
     private final String consumerName = "agent-" + UUID.randomUUID().toString().substring(0, 8);
     private final AtomicBoolean queueFailureLogged = new AtomicBoolean();
 
@@ -74,7 +75,8 @@ public class AgentRunWorker {
             com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry,
             com.avento.repository.ScheduledTaskRepository scheduledTaskRepository,
             com.avento.repository.ScheduledTaskRunRepository runRepository,
-            com.avento.service.AgentTimelineService timelineService) {
+            com.avento.service.AgentTimelineService timelineService,
+            com.avento.service.execution.CronTaskScheduler cronTaskScheduler) {
         this.jobRepository = jobRepository;
         this.submissionService = submissionService;
         this.cancellationRegistry = cancellationRegistry;
@@ -88,6 +90,7 @@ public class AgentRunWorker {
         this.scheduledTaskRepository = scheduledTaskRepository;
         this.runRepository = runRepository;
         this.timelineService = timelineService;
+        this.cronTaskScheduler = cronTaskScheduler;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -281,6 +284,19 @@ public class AgentRunWorker {
                             t.setLastRunOutput(outputToSave);
                             t.setLastRunDiagnosis("Execução autônoma concluída com sucesso às " + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")));
                             scheduledTaskRepository.save(t);
+
+                            // Workflows Encadeados (Disparo de Tarefa Dependente)
+                            if (t.getOnSuccessTaskId() != null && t.getOnSuccessTaskId() > 0) {
+                                scheduledTaskRepository.findById(t.getOnSuccessTaskId()).ifPresent(nextTask -> {
+                                    logger.info("Disparando tarefa encadeada dependente ID {} ({}) pós-sucesso da tarefa {}",
+                                            nextTask.getId(), nextTask.getName(), t.getId());
+                                    try {
+                                        cronTaskScheduler.executeScheduledTask(nextTask);
+                                    } catch (Exception ex) {
+                                        logger.warn("Erro ao disparar tarefa encadeada {}: {}", nextTask.getId(), ex.getMessage());
+                                    }
+                                });
+                            }
                         });
 
                         List<com.avento.model.ScheduledTaskRun> runs = runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(targetTaskId);

@@ -7,8 +7,8 @@ import {
   CalendarHeader, CalendarGrid, DayCell, EventBadge,
   FrequencyGrid, FrequencyOptionButton, SubInputPanel,
   DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton, DeleteModalError,
-  KpiBar, KpiCard, EmptyStateWrapper, ToolbarWrapper, FilterChipGroup,
-  FilterChipButton, ActionButtonGroup, SecondaryActionButton, SecondaryBadgeButton, PrimaryBadgeButton
+  KpiBar, KpiCard, EmptyStateWrapper, ToolbarWrapper,
+  ActionButtonGroup, SecondaryActionButton, SecondaryBadgeButton, PrimaryBadgeButton
 } from './styles';
 import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen, PencilSimple, Lightning, MagnifyingGlass, DownloadSimple, UploadSimple, SquaresFour } from '@phosphor-icons/react';
 import { TemplatesModal, TaskTemplate } from './TemplatesModal';
@@ -154,7 +154,7 @@ export function CoworkView() {
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED' | 'FAILED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED' | 'SUCCESS'>('ALL');
 
   // Chained task & Templates state
   const [onSuccessTaskId, setOnSuccessTaskId] = useState<number | null>(null);
@@ -172,7 +172,7 @@ export function CoworkView() {
       let matchesStatus = true;
       if (statusFilter === 'ACTIVE') matchesStatus = task.status === 'ACTIVE';
       if (statusFilter === 'PAUSED') matchesStatus = task.status === 'PAUSED';
-      if (statusFilter === 'FAILED') matchesStatus = task.lastRunStatus === 'FAILED';
+      if (statusFilter === 'SUCCESS') matchesStatus = task.lastRunStatus === 'SUCCESS';
 
       return matchesSearch && matchesStatus;
     });
@@ -406,28 +406,48 @@ export function CoworkView() {
       </Header>
 
       <KpiBar>
-        <KpiCard $variant="primary">
+        <KpiCard 
+          $variant="primary" 
+          $active={statusFilter === 'ALL'} 
+          onClick={() => setStatusFilter('ALL')}
+          title="Exibir todas as automações"
+        >
           <div className="kpi-icon"><Robot size={18} /></div>
           <div className="kpi-info">
             <span>Total de Atividades</span>
             <strong>{tasks.length}</strong>
           </div>
         </KpiCard>
-        <KpiCard $variant="success">
+        <KpiCard 
+          $variant="success" 
+          $active={statusFilter === 'ACTIVE'} 
+          onClick={() => setStatusFilter('ACTIVE')}
+          title="Filtrar automações ativas"
+        >
           <div className="kpi-icon"><Play size={18} /></div>
           <div className="kpi-info">
             <span>Ativas</span>
             <strong>{tasks.filter(t => t.status === 'ACTIVE').length}</strong>
           </div>
         </KpiCard>
-        <KpiCard $variant="warning">
+        <KpiCard 
+          $variant="warning" 
+          $active={statusFilter === 'PAUSED'} 
+          onClick={() => setStatusFilter('PAUSED')}
+          title="Filtrar automações pausadas"
+        >
           <div className="kpi-icon"><Pause size={18} /></div>
           <div className="kpi-info">
             <span>Pausadas</span>
             <strong>{tasks.filter(t => t.status === 'PAUSED').length}</strong>
           </div>
         </KpiCard>
-        <KpiCard $variant="primary">
+        <KpiCard 
+          $variant="primary" 
+          $active={statusFilter === 'SUCCESS'} 
+          onClick={() => setStatusFilter('SUCCESS')}
+          title="Filtrar automações executadas com sucesso"
+        >
           <div className="kpi-icon"><CheckCircle size={18} /></div>
           <div className="kpi-info">
             <span>Com Sucesso</span>
@@ -500,32 +520,15 @@ export function CoworkView() {
       ) : (
         <>
           <ToolbarWrapper>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 260 }}>
-              <div style={{ position: 'relative', width: '100%', maxWidth: 300 }}>
-                <MagnifyingGlass size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <Input 
-                  type="text" 
-                  placeholder="Pesquisar automações..." 
-                  value={searchQuery} 
-                  onChange={e => setSearchQuery(e.target.value)} 
-                  style={{ paddingLeft: 34, height: 36 }}
-                />
-              </div>
-
-              <FilterChipGroup>
-                <FilterChipButton $active={statusFilter === 'ALL'} onClick={() => setStatusFilter('ALL')}>
-                  <SquaresFour size={14} /> Todas ({tasks.length})
-                </FilterChipButton>
-                <FilterChipButton $active={statusFilter === 'ACTIVE'} onClick={() => setStatusFilter('ACTIVE')}>
-                  <Play size={14} style={{ color: '#10B981' }} /> Ativas ({tasks.filter(t => t.status === 'ACTIVE').length})
-                </FilterChipButton>
-                <FilterChipButton $active={statusFilter === 'PAUSED'} onClick={() => setStatusFilter('PAUSED')}>
-                  <Pause size={14} style={{ color: '#F59E0B' }} /> Pausadas ({tasks.filter(t => t.status === 'PAUSED').length})
-                </FilterChipButton>
-                <FilterChipButton $active={statusFilter === 'FAILED'} onClick={() => setStatusFilter('FAILED')}>
-                  <XCircle size={14} style={{ color: '#EF4444' }} /> Com Falha ({tasks.filter(t => t.lastRunStatus === 'FAILED').length})
-                </FilterChipButton>
-              </FilterChipGroup>
+            <div style={{ position: 'relative', width: '100%', maxWidth: 320 }}>
+              <MagnifyingGlass size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <Input 
+                type="text" 
+                placeholder="Pesquisar automações..." 
+                value={searchQuery} 
+                onChange={e => setSearchQuery(e.target.value)} 
+                style={{ paddingLeft: 34, height: 38 }}
+              />
             </div>
 
             <ActionButtonGroup>

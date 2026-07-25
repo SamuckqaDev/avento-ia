@@ -76,14 +76,25 @@ export const KpiBar = styled.div`
   }
 `;
 
-export const KpiCard = styled.div<{ $variant?: 'primary' | 'success' | 'warning' | 'accent' }>`
-  background: color-mix(in srgb, ${({ theme }) => theme.colors.surface} 85%, ${({ theme }) => theme.colors.bg});
-  border: 1px solid ${({ theme }) => theme.colors.border};
+export const KpiCard = styled.div<{ $variant?: 'primary' | 'success' | 'warning' | 'accent'; $active?: boolean }>`
+  background: ${({ $active, theme }) =>
+    $active
+      ? `color-mix(in srgb, ${theme.colors.surface} 80%, ${theme.colors.primary})`
+      : `color-mix(in srgb, ${theme.colors.surface} 85%, ${theme.colors.bg})`};
+  border: 1px solid ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.border)};
+  box-shadow: ${({ $active, theme }) => ($active ? `0 0 0 2px color-mix(in srgb, ${theme.colors.primary} 35%, transparent)` : 'none')};
   border-radius: 10px;
   padding: 10px 14px;
   display: flex;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+    transform: translateY(-1px);
+  }
 
   .kpi-icon {
     width: 36px;

@@ -2915,7 +2915,6 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
               skills={skills}
               agentMode={agentMode}
               onToggleAgentMode={() => setAgentMode(value => !value)}
-              onOpenImageConfig={() => setIsHeaderMenuOpen(true)}
             />
           </>
         )}

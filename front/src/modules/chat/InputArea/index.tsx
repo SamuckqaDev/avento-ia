@@ -22,7 +22,7 @@ import {
   SkillSuggestionItem,
   SkillSuggestionsHint,
 } from './styles';
-import { FileText, Microphone, Paperclip, SpinnerGap, StopCircle, PaperPlaneRight, ChatCircleDots, ImageSquare, X, Robot, SlidersHorizontal } from '@phosphor-icons/react';
+import { FileText, Microphone, Paperclip, SpinnerGap, StopCircle, PaperPlaneRight, ChatCircleDots, ImageSquare, X, Robot } from '@phosphor-icons/react';
 import type { DocumentAttachment, ImageAttachment } from '../MessageBubble';
 import type { QueuedMessage } from '../../../pages/Home';
 import type { Skill } from '../../../hooks/useSkills';
@@ -53,7 +53,6 @@ interface InputAreaProps {
   onRemoveDocumentAttachment: (id: string) => void;
   messageQueue: QueuedMessage[];
   onRemoveFromQueue: (id: string) => void;
-  onOpenImageConfig?: () => void;
   skills: Skill[];
   agentMode: boolean;
   onToggleAgentMode: () => void;
@@ -85,7 +84,6 @@ export function InputArea({
   skills,
   agentMode,
   onToggleAgentMode,
-  onOpenImageConfig
 }: InputAreaProps) {
 
   const [history, setHistory] = useState<string[]>([]);
@@ -258,16 +256,6 @@ export function InputArea({
               }}
             />
           </AttachButton>
-          {onOpenImageConfig && (
-            <AttachButton
-              as="button"
-              type="button"
-              onClick={onOpenImageConfig}
-              title="Configurações de Geração de Imagem & Estilos (ComfyUI / SDXL)"
-            >
-              <SlidersHorizontal size={20} />
-            </AttachButton>
-          )}
           <AttachButton as="label" $disabled={isAttachingDocuments} title="Anexar PDF, documento, planilha, apresentação ou arquivo de texto">
             {isAttachingDocuments ? <SpinnerGap size={22} className="spinning" /> : <Paperclip size={22} />}
             <HiddenFileInput

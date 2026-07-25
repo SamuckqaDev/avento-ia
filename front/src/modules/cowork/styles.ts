@@ -17,9 +17,9 @@ export const Container = styled.div`
   width: 100%;
   background: ${({ theme }) => theme.colors.bg};
   color: ${({ theme }) => theme.colors.text};
-  padding: 16px 24px;
+  padding: 20px 28px;
   overflow-y: auto;
-  gap: 12px;
+  gap: 16px;
   transition: background 0.2s ease, color 0.2s ease;
 `;
 
@@ -28,17 +28,17 @@ export const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  padding-bottom: 10px;
+  padding-bottom: 14px;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
 
   .title-group {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
 
     h1 {
-      font-size: 1.35rem;
+      font-size: 1.45rem;
       font-weight: 700;
       color: ${({ theme }) => theme.colors.text};
       display: flex;
@@ -51,7 +51,7 @@ export const Header = styled.div`
     }
 
     p {
-      font-size: 0.82rem;
+      font-size: 0.85rem;
       color: ${({ theme }) => theme.colors.textMuted};
     }
   }
@@ -68,8 +68,8 @@ export const KpiBar = styled.div`
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   width: 100%;
-  margin-top: 2px;
-  margin-bottom: 2px;
+  margin-top: 4px;
+  margin-bottom: 4px;
 
   @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
@@ -140,7 +140,7 @@ export const KpiCard = styled.div<{ $variant?: 'primary' | 'success' | 'warning'
 
 export const EmptyStateWrapper = styled.div`
   text-align: center;
-  padding: 36px 20px;
+  padding: 44px 20px;
   background: ${({ theme }) => theme.colors.surface};
   border-radius: 12px;
   border: 1px dashed ${({ theme }) => theme.colors.border};

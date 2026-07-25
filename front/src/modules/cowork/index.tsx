@@ -8,7 +8,8 @@ import {
   FrequencyGrid, FrequencyOptionButton, SubInputPanel,
   DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton, DeleteModalError,
   KpiBar, KpiCard, EmptyStateWrapper, ToolbarWrapper,
-  ActionButtonGroup, SecondaryActionButton, SecondaryBadgeButton, PrimaryBadgeButton
+  ActionButtonGroup, SecondaryActionButton, SecondaryBadgeButton, PrimaryBadgeButton,
+  ToggleRow, Switch
 } from './styles';
 import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen, PencilSimple, Lightning, MagnifyingGlass, DownloadSimple, UploadSimple, SquaresFour } from '@phosphor-icons/react';
 import { TemplatesModal, TaskTemplate } from './TemplatesModal';
@@ -157,6 +158,7 @@ export function CoworkView() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED' | 'SUCCESS'>('ALL');
 
   // Chained task & Templates state
+  const [enableChainedTask, setEnableChainedTask] = useState<boolean>(false);
   const [onSuccessTaskId, setOnSuccessTaskId] = useState<number | null>(null);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -184,6 +186,7 @@ export function CoworkView() {
     setDescription(template.description);
     setPrompt(template.prompt);
     setProjectPath('');
+    setEnableChainedTask(false);
     setOnSuccessTaskId(null);
     setFreqMode('cron');
     setCustomCron(template.cronExpression);
@@ -244,6 +247,7 @@ export function CoworkView() {
     setDescription(task.description || '');
     setPrompt(task.prompt);
     setProjectPath(task.projectPath || '');
+    setEnableChainedTask(!!task.onSuccessTaskId);
     setOnSuccessTaskId(task.onSuccessTaskId || null);
     setCustomCron(task.cronExpression);
     const parts = task.cronExpression.split(' ');
@@ -259,12 +263,15 @@ export function CoworkView() {
     setDescription('');
     setPrompt('');
     setProjectPath('');
+    setEnableChainedTask(false);
     setOnSuccessTaskId(null);
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !prompt.trim()) return;
+
+    const targetChainedId = enableChainedTask ? onSuccessTaskId : null;
 
     try {
       setIsSubmitting(true);
@@ -275,7 +282,7 @@ export function CoworkView() {
           cronExpression: computedCron,
           prompt,
           projectPath,
-          onSuccessTaskId
+          onSuccessTaskId: targetChainedId
         });
       } else {
         await api.post('/api/scheduled-tasks', {
@@ -284,7 +291,7 @@ export function CoworkView() {
           cronExpression: computedCron,
           prompt,
           projectPath,
-          onSuccessTaskId
+          onSuccessTaskId: targetChainedId
         });
       }
       handleCloseModal();
@@ -971,22 +978,43 @@ export function CoworkView() {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label>Próxima Atividade Encadeada (Opcional)</label>
-                <Select 
-                  value={onSuccessTaskId || ''} 
-                  onChange={e => setOnSuccessTaskId(e.target.value ? Number(e.target.value) : null)}
-                >
-                  <option value="">Nenhuma (Execução isolada)</option>
-                  {tasks
-                    .filter(t => !editingTask || t.id !== editingTask.id)
-                    .map(t => (
-                      <option key={t.id} value={t.id}>
-                        ⚡ Disparar: {t.name} (ID: {t.id})
-                      </option>
-                    ))}
-                </Select>
-              </div>
+              <ToggleRow>
+                <div className="toggle-label">
+                  <Lightning size={16} /> Encadear Atividade em Sequência (Após Sucesso)
+                </div>
+                <Switch $checked={enableChainedTask}>
+                  <input 
+                    type="checkbox" 
+                    checked={enableChainedTask} 
+                    onChange={e => {
+                      setEnableChainedTask(e.target.checked);
+                      if (!e.target.checked) setOnSuccessTaskId(null);
+                    }} 
+                  />
+                  <span className="slider" />
+                </Switch>
+              </ToggleRow>
+
+              {enableChainedTask && (
+                <SubInputPanel style={{ marginTop: 0 }}>
+                  <div className="field-box">
+                    <label>Selecione a Atividade Consecutiva:</label>
+                    <Select 
+                      value={onSuccessTaskId || ''} 
+                      onChange={e => setOnSuccessTaskId(e.target.value ? Number(e.target.value) : null)}
+                    >
+                      <option value="">Selecione a próxima tarefa...</option>
+                      {tasks
+                        .filter(t => !editingTask || t.id !== editingTask.id)
+                        .map(t => (
+                          <option key={t.id} value={t.id}>
+                            ⚡ Disparar: {t.name} (ID: {t.id})
+                          </option>
+                        ))}
+                    </Select>
+                  </div>
+                </SubInputPanel>
+              )}
 
               <div className="modal-footer">
                 <button 

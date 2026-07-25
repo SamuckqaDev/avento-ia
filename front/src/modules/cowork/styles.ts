@@ -914,3 +914,62 @@ export const PrimaryBadgeButton = styled.button`
     opacity: 0.9;
   }
 `;
+
+export const ToggleRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+
+  .toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+
+    svg {
+      color: ${({ theme }) => theme.colors.accent};
+    }
+  }
+`;
+
+export const Switch = styled.label<{ $checked?: boolean }>`
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  cursor: pointer;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: ${({ $checked, theme }) =>
+      $checked ? theme.colors.primary : theme.colors.border};
+    transition: 0.25s ease;
+    border-radius: 22px;
+
+    &:before {
+      position: absolute;
+      content: '';
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #ffffff;
+      transition: 0.25s ease;
+      border-radius: 50%;
+      transform: ${({ $checked }) => ($checked ? 'translateX(16px)' : 'translateX(0)')};
+    }
+  }
+`;

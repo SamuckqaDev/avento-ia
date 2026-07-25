@@ -24,6 +24,8 @@ export interface ScheduledTask {
   createdAt: string;
 }
 
+type FrequencyMode = 'daily' | 'interval' | 'specific_date' | 'cron';
+
 export function CoworkView() {
   const [activeTab, setActiveTab] = useState<'calendar' | 'automations'>('calendar');
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
@@ -36,10 +38,39 @@ export function CoworkView() {
   // Form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [cronExpression, setCronExpression] = useState('57 3 * * *');
   const [prompt, setPrompt] = useState('');
   const [projectPath, setProjectPath] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Friendly Date/Time Picker State
+  const [freqMode, setFreqMode] = useState<FrequencyMode>('daily');
+  const [selectedTime, setSelectedTime] = useState('03:57'); // HH:mm
+  const [intervalHours, setIntervalHours] = useState('1'); // 1h, 2h, 6h, etc
+  const [specificDate, setSpecificDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
+  });
+  const [customCron, setCustomCron] = useState('57 3 * * *');
+
+  // Compute Cron automatically from DatePicker & TimePicker selections
+  const computedCron = useMemo(() => {
+    if (freqMode === 'daily') {
+      const [h, m] = selectedTime.split(':').map(n => parseInt(n, 10) || 0);
+      return `${m} ${h} * * *`;
+    }
+    if (freqMode === 'interval') {
+      const h = Math.max(1, Math.min(24, parseInt(intervalHours, 10) || 1));
+      return h === 1 ? '0 * * * *' : `0 */${h} * * *`;
+    }
+    if (freqMode === 'specific_date') {
+      if (!specificDate) return '57 3 * * *';
+      const [, month, d] = specificDate.split('-').map(n => parseInt(n, 10));
+      const [h, m] = selectedTime.split(':').map(n => parseInt(n, 10) || 0);
+      return `${m} ${h} ${d} ${month} *`;
+    }
+    return customCron;
+  }, [freqMode, selectedTime, intervalHours, specificDate, customCron]);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -68,7 +99,7 @@ export function CoworkView() {
       await api.post('/api/scheduled-tasks', {
         name,
         description,
-        cronExpression,
+        cronExpression: computedCron,
         prompt,
         projectPath
       });
@@ -124,26 +155,23 @@ export function CoworkView() {
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
     
-    const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
+    const startingDayOfWeek = firstDayOfMonth.getDay();
     const totalDays = lastDayOfMonth.getDate();
     
     const today = new Date();
     const days: { date: Date; dayNum: number; isCurrentMonth: boolean; isToday: boolean }[] = [];
 
-    // Previous month padding
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
       const prevDate = new Date(year, month, -i);
       days.push({ date: prevDate, dayNum: prevDate.getDate(), isCurrentMonth: false, isToday: false });
     }
 
-    // Current month days
     for (let day = 1; day <= totalDays; day++) {
       const date = new Date(year, month, day);
       const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
       days.push({ date, dayNum: day, isCurrentMonth: true, isToday });
     }
 
-    // Next month padding to fill grid (multiple of 7)
     const remaining = (7 - (days.length % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
       const nextDate = new Date(year, month + 1, i);
@@ -152,14 +180,6 @@ export function CoworkView() {
 
     return days;
   }, [currentDate]);
-
-  const handlePrevMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-  };
 
   return (
     <Container>
@@ -198,13 +218,13 @@ export function CoworkView() {
           <CalendarHeader>
             <h2 style={{ textTransform: 'capitalize' }}>{monthYearLabel}</h2>
             <div className="nav-controls">
-              <button type="button" onClick={handlePrevMonth} title="Mês anterior">
+              <button type="button" onClick={() => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))} title="Mês anterior">
                 <CaretLeft size={16} /> Anterior
               </button>
               <button type="button" onClick={() => setCurrentDate(new Date())} title="Ir para Hoje">
                 Hoje
               </button>
-              <button type="button" onClick={handleNextMonth} title="Próximo mês">
+              <button type="button" onClick={() => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))} title="Próximo mês">
                 Próximo <CaretRight size={16} />
               </button>
             </div>
@@ -216,7 +236,6 @@ export function CoworkView() {
             ))}
 
             {calendarDays.map((cell, idx) => {
-              // Find tasks or events scheduled for this day
               const dayTasks = tasks.filter(task => {
                 if (!task.nextRunAt) return false;
                 const nextDate = new Date(task.nextRunAt);
@@ -239,7 +258,7 @@ export function CoworkView() {
                       <EventBadge 
                         key={t.id} 
                         className={t.lastRunStatus === 'FAILED' ? 'warning' : 'automation'}
-                        title={`${t.name} (${t.cronExpression})`}
+                        title={`${t.name} (Próxima: ${new Date(t.nextRunAt!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})`}
                       >
                         {t.lastRunStatus === 'FAILED' ? '⚠️ ' : '🤖 '}{t.name}
                       </EventBadge>
@@ -262,7 +281,7 @@ export function CoworkView() {
                 Crie rotinas diárias como backups de projetos (ex: 03:57 AM), checagem de saúde do sistema ou limpezas automáticas.
               </p>
               <CreateButton onClick={() => setIsModalOpen(true)}>
-                <Plus size={18} /> Criar Primeira Automação
+                <Plus size={18} /> Criar Primeira Atividade
               </CreateButton>
             </div>
           ) : (
@@ -337,15 +356,90 @@ export function CoworkView() {
                 />
               </div>
 
+              {/* Intuitive Date & Time Selection Picker */}
               <div className="form-group">
-                <label>Expressão Cron ou Frequência *</label>
-                <input 
-                  type="text" 
-                  placeholder="Ex: 57 3 * * * (Todos os dias às 03:57 AM)" 
-                  value={cronExpression} 
-                  onChange={e => setCronExpression(e.target.value)} 
-                  required 
-                />
+                <label>Frequência / Agendamento *</label>
+                <select 
+                  value={freqMode} 
+                  onChange={e => setFreqMode(e.target.value as FrequencyMode)}
+                  style={{ marginBottom: 8 }}
+                >
+                  <option value="daily">🔄 Diariamente no mesmo horário</option>
+                  <option value="interval">⏱ Repetir a cada N horas</option>
+                  <option value="specific_date">📅 Em uma data e hora específica</option>
+                  <option value="cron">⚙️ Expressão Cron Manual (Avançado)</option>
+                </select>
+
+                {freqMode === 'daily' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <label style={{ fontSize: '0.85rem' }}>Horário:</label>
+                    <input 
+                      type="time" 
+                      value={selectedTime} 
+                      onChange={e => setSelectedTime(e.target.value)} 
+                      required 
+                    />
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      (Converte para Cron: <code>{computedCron}</code>)
+                    </span>
+                  </div>
+                )}
+
+                {freqMode === 'interval' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <label style={{ fontSize: '0.85rem' }}>Repetir a cada:</label>
+                    <select value={intervalHours} onChange={e => setIntervalHours(e.target.value)} style={{ width: 120 }}>
+                      <option value="1">1 Hora</option>
+                      <option value="2">2 Horas</option>
+                      <option value="4">4 Horas</option>
+                      <option value="6">6 Horas</option>
+                      <option value="12">12 Horas</option>
+                    </select>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      (Converte para Cron: <code>{computedCron}</code>)
+                    </span>
+                  </div>
+                )}
+
+                {freqMode === 'specific_date' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '0.8rem' }}>Data:</label>
+                        <input 
+                          type="date" 
+                          value={specificDate} 
+                          onChange={e => setSpecificDate(e.target.value)} 
+                          required 
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '0.8rem' }}>Horário:</label>
+                        <input 
+                          type="time" 
+                          value={selectedTime} 
+                          onChange={e => setSelectedTime(e.target.value)} 
+                          required 
+                        />
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      (Converte para Cron: <code>{computedCron}</code>)
+                    </span>
+                  </div>
+                )}
+
+                {freqMode === 'cron' && (
+                  <div>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: 57 3 * * *" 
+                      value={customCron} 
+                      onChange={e => setCustomCron(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="form-group">

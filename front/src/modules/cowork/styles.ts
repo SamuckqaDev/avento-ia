@@ -34,6 +34,10 @@ export const Header = styled.div`
       display: flex;
       align-items: center;
       gap: 10px;
+
+      svg {
+        color: ${({ theme }) => theme.colors.primary};
+      }
     }
 
     p {
@@ -62,7 +66,7 @@ export const KpiBar = styled.div`
   }
 `;
 
-export const KpiCard = styled.div`
+export const KpiCard = styled.div<{ $variant?: 'primary' | 'success' | 'warning' | 'accent' }>`
   background: color-mix(in srgb, ${({ theme }) => theme.colors.surface} 85%, ${({ theme }) => theme.colors.bg});
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 10px;
@@ -78,8 +82,20 @@ export const KpiCard = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 15%, transparent);
-    color: ${({ theme }) => theme.colors.primary};
+    background: ${({ $variant, theme }) => 
+      $variant === 'success' ? 'rgba(16, 185, 129, 0.15)' :
+      $variant === 'warning' ? 'rgba(245, 158, 11, 0.15)' :
+      $variant === 'accent' ? `color-mix(in srgb, ${theme.colors.accent} 15%, transparent)` :
+      `color-mix(in srgb, ${theme.colors.primary} 15%, transparent)`};
+    color: ${({ $variant, theme }) => 
+      $variant === 'success' ? '#10B981' :
+      $variant === 'warning' ? theme.colors.warning :
+      $variant === 'accent' ? theme.colors.accent :
+      theme.colors.primary};
+
+    svg {
+      color: currentColor;
+    }
   }
 
   .kpi-info {
@@ -98,6 +114,37 @@ export const KpiCard = styled.div`
       font-weight: 700;
       color: ${({ theme }) => theme.colors.text};
     }
+  }
+`;
+
+export const EmptyStateWrapper = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+  background: ${({ theme }) => theme.colors.surface};
+  border-radius: 12px;
+  border: 1px dashed ${({ theme }) => theme.colors.border};
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    color: ${({ theme }) => theme.colors.primary};
+    margin-bottom: 16px;
+    opacity: 0.9;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+    color: ${({ theme }) => theme.colors.text};
+  }
+
+  p {
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-size: 0.9rem;
+    max-width: 460px;
+    margin: 0 auto 20px;
   }
 `;
 

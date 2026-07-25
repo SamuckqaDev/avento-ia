@@ -7,7 +7,7 @@ import {
   CalendarHeader, CalendarGrid, DayCell, EventBadge,
   FrequencyGrid, FrequencyOptionButton, SubInputPanel,
   DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton, DeleteModalError,
-  KpiBar, KpiCard
+  KpiBar, KpiCard, EmptyStateWrapper
 } from './styles';
 import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen, PencilSimple, Lightning } from '@phosphor-icons/react';
 
@@ -285,7 +285,7 @@ export function CoworkView() {
     <Container>
       <Header>
         <div className="title-group">
-          <h1><CalendarIcon size={26} style={{ color: 'var(--primary)' }} /> Avento Cowork & Agenda</h1>
+          <h1><CalendarIcon size={26} /> Avento Cowork & Agenda</h1>
           <p>Super Agente de IA: Calendário de atividades, lembretes e automações autônomas com diagnóstico de auto-recuperação.</p>
         </div>
 
@@ -314,29 +314,29 @@ export function CoworkView() {
       </Header>
 
       <KpiBar>
-        <KpiCard>
+        <KpiCard $variant="primary">
           <div className="kpi-icon"><Robot size={18} /></div>
           <div className="kpi-info">
             <span>Total de Atividades</span>
             <strong>{tasks.length}</strong>
           </div>
         </KpiCard>
-        <KpiCard>
-          <div className="kpi-icon" style={{ color: '#10B981', background: 'rgba(16, 185, 129, 0.15)' }}><Play size={18} /></div>
+        <KpiCard $variant="success">
+          <div className="kpi-icon"><Play size={18} /></div>
           <div className="kpi-info">
             <span>Ativas</span>
             <strong>{tasks.filter(t => t.status === 'ACTIVE').length}</strong>
           </div>
         </KpiCard>
-        <KpiCard>
-          <div className="kpi-icon" style={{ color: '#F59E0B', background: 'rgba(245, 158, 11, 0.15)' }}><Pause size={18} /></div>
+        <KpiCard $variant="warning">
+          <div className="kpi-icon"><Pause size={18} /></div>
           <div className="kpi-info">
             <span>Pausadas</span>
             <strong>{tasks.filter(t => t.status === 'PAUSED').length}</strong>
           </div>
         </KpiCard>
-        <KpiCard>
-          <div className="kpi-icon" style={{ color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 15%, transparent)' }}><CheckCircle size={18} /></div>
+        <KpiCard $variant="primary">
+          <div className="kpi-icon"><CheckCircle size={18} /></div>
           <div className="kpi-info">
             <span>Com Sucesso</span>
             <strong>{tasks.filter(t => t.lastRunStatus === 'SUCCESS').length}</strong>
@@ -410,16 +410,16 @@ export function CoworkView() {
           {isLoading && tasks.length === 0 ? (
             <p style={{ color: 'var(--text-muted)' }}>Carregando automações agendadas...</p>
           ) : tasks.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--surface)', borderRadius: 12, border: '1px dashed var(--border)' }}>
-              <Clock size={48} style={{ color: 'var(--primary)', marginBottom: 16, opacity: 0.9 }} />
-              <h3 style={{ fontSize: '1.1rem', marginBottom: 8 }}>Nenhuma tarefa agendada na agenda</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: 460, margin: '0 auto 20px' }}>
+            <EmptyStateWrapper>
+              <Clock size={48} />
+              <h3>Nenhuma tarefa agendada na agenda</h3>
+              <p>
                 Crie rotinas diárias como backups de projetos (ex: 03:57 AM), checagem de saúde do sistema ou limpezas automáticas.
               </p>
               <CreateButton onClick={() => setIsModalOpen(true)}>
                 <Plus size={18} /> Criar Primeira Atividade
               </CreateButton>
-            </div>
+            </EmptyStateWrapper>
           ) : (
             <Grid>
               {tasks.map(task => (

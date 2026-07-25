@@ -260,7 +260,12 @@ export function CoworkView() {
                         className={t.lastRunStatus === 'FAILED' ? 'warning' : 'automation'}
                         title={`${t.name} (Próxima: ${new Date(t.nextRunAt!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})`}
                       >
-                        {t.lastRunStatus === 'FAILED' ? '⚠️ ' : '🤖 '}{t.name}
+                        {t.lastRunStatus === 'FAILED' ? (
+                          <Warning size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                        ) : (
+                          <Robot size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                        )}
+                        {t.name}
                       </EventBadge>
                     ))}
                   </div>
@@ -364,10 +369,10 @@ export function CoworkView() {
                   onChange={e => setFreqMode(e.target.value as FrequencyMode)}
                   style={{ marginBottom: 8 }}
                 >
-                  <option value="daily">🔄 Diariamente no mesmo horário</option>
-                  <option value="interval">⏱ Repetir a cada N horas</option>
-                  <option value="specific_date">📅 Em uma data e hora específica</option>
-                  <option value="cron">⚙️ Expressão Cron Manual (Avançado)</option>
+                  <option value="daily">Diariamente no mesmo horário</option>
+                  <option value="interval">Repetir a cada N horas</option>
+                  <option value="specific_date">Em uma data e hora específica</option>
+                  <option value="cron">Expressão Cron Manual (Avançado)</option>
                 </select>
 
                 {freqMode === 'daily' && (

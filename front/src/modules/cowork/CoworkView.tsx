@@ -647,23 +647,32 @@ export function CoworkView() {
                   />
                   <label
                     style={{
+                      width: 42,
+                      height: 42,
+                      flex: '0 0 auto',
                       background: 'var(--surface)',
                       border: '1px solid var(--border)',
                       color: 'var(--text)',
-                      padding: '10px 14px',
                       borderRadius: 8,
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 6,
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease'
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease',
                     }}
                     title="Selecionar pasta no seu computador"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--primary)';
+                      e.currentTarget.style.color = 'var(--primary)';
+                      e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 12%, var(--surface))';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                      e.currentTarget.style.color = 'var(--text)';
+                      e.currentTarget.style.background = 'var(--surface)';
+                    }}
                   >
-                    <FolderOpen size={18} color="var(--primary)" /> Selecionar Pasta
+                    <FolderOpen size={22} />
                     <input
                       type="file"
                       // @ts-ignore
@@ -690,25 +699,36 @@ export function CoworkView() {
                       }}
                     />
                   </label>
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={() => setProjectPath('/Users/sr.tomimatu/projetcs/avento-ia')}
                     style={{
+                      width: 42,
+                      height: 42,
+                      flex: '0 0 auto',
                       background: 'var(--surface)',
                       border: '1px solid var(--border)',
-                      borderRadius: 6,
-                      padding: '3px 8px',
-                      fontSize: '0.73rem',
-                      color: 'var(--text-muted)',
+                      color: 'var(--text)',
+                      borderRadius: 8,
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 4
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease',
+                    }}
+                    title="Usar pasta atual do projeto (Avento-IA)"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--primary)';
+                      e.currentTarget.style.color = 'var(--primary)';
+                      e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 12%, var(--surface))';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                      e.currentTarget.style.color = 'var(--text)';
+                      e.currentTarget.style.background = 'var(--surface)';
                     }}
                   >
-                    <Folder size={14} /> 📍 Usar Pasta Atual (Avento-IA)
+                    <Folder size={22} />
                   </button>
                 </div>
               </div>

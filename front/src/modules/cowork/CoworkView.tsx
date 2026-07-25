@@ -81,7 +81,24 @@ export function CoworkView() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
   });
-  const [customCron, setCustomCron] = useState('57 3 * * *');
+  const [customCron, setCustomCron] = useState('* * * * *');
+  const [cronParts, setCronParts] = useState<string[]>(['*', '*', '*', '*', '*']);
+
+  const handleCronPartChange = (index: number, val: string) => {
+    const cleanVal = val.trim();
+    const updated = [...cronParts];
+    updated[index] = cleanVal || '*';
+    setCronParts(updated);
+    setCustomCron(updated.join(' '));
+  };
+
+  const handleCustomCronTextChange = (val: string) => {
+    setCustomCron(val);
+    const parts = val.trim().split(/\s+/);
+    if (parts.length === 5) {
+      setCronParts(parts);
+    }
+  };
 
   // Compute Cron automatically from DatePicker & TimePicker selections
   const computedCron = useMemo(() => {
@@ -580,28 +597,56 @@ export function CoworkView() {
 
                 {freqMode === 'cron' && (
                   <SubInputPanel>
-                    <div className="field-box">
-                      <label>Expressão Cron Personalizada (5 partes):</label>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: 8, color: 'var(--text)' }}>
+                        Campos Estruturados do Cron (5 Posições Padrão):
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                        {[
+                          { title: '1. Minuto', sub: '0-59 ou *' },
+                          { title: '2. Hora', sub: '0-23 ou *' },
+                          { title: '3. Dia Mês', sub: '1-31 ou *' },
+                          { title: '4. Mês', sub: '1-12 ou *' },
+                          { title: '5. Dia Sem.', sub: '0-6 ou *' }
+                        ].map((part, idx) => (
+                          <div key={part.title} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text)' }}>{part.title}</span>
+                            <input
+                              type="text"
+                              value={cronParts[idx] || '*'}
+                              placeholder="*"
+                              onChange={e => handleCronPartChange(idx, e.target.value)}
+                              style={{
+                                textAlign: 'center',
+                                fontFamily: 'monospace',
+                                fontWeight: 700,
+                                fontSize: '0.95rem',
+                                padding: '8px 4px',
+                                background: 'var(--surface)',
+                                border: '1px solid var(--border)',
+                                borderRadius: 6
+                              }}
+                            />
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'center' }}>{part.sub}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="field-box" style={{ marginTop: 8 }}>
+                      <label>Expressão Cron Resultante (Montada com Espaços):</label>
                       <input 
                         type="text" 
                         placeholder="Ex: * * * * *" 
                         value={customCron} 
-                        onChange={e => setCustomCron(e.target.value)} 
-                        style={{ fontFamily: 'monospace', fontSize: '0.95rem', letterSpacing: '1px', fontWeight: 600 }}
+                        onChange={e => handleCustomCronTextChange(e.target.value)} 
+                        style={{ fontFamily: 'monospace', fontSize: '1rem', letterSpacing: '2px', fontWeight: 700, textAlign: 'center', color: 'var(--primary)' }}
                         required 
                       />
                     </div>
-                    
-                    <div style={{ display: 'flex', gap: 6, fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap', marginTop: 2 }}>
-                      <span style={{ background: 'var(--surface)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>1. Minuto (0-59)</span>
-                      <span style={{ background: 'var(--surface)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>2. Hora (0-23)</span>
-                      <span style={{ background: 'var(--surface)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>3. Dia do Mês (1-31)</span>
-                      <span style={{ background: 'var(--surface)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>4. Mês (1-12)</span>
-                      <span style={{ background: 'var(--surface)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>5. Dia da Semana (0-6)</span>
-                    </div>
 
-                    <div style={{ marginTop: 4 }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Atalhos de Expressões Comuns:</label>
+                    <div style={{ marginTop: 10 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Atalhos Rápidos de Expressões Comuns:</label>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {[
                           { label: '⚡ A cada 1 minuto', cron: '* * * * *' },
@@ -614,9 +659,9 @@ export function CoworkView() {
                           <button
                             key={preset.cron}
                             type="button"
-                            onClick={() => setCustomCron(preset.cron)}
+                            onClick={() => handleCustomCronTextChange(preset.cron)}
                             style={{
-                              background: customCron === preset.cron ? 'var(--accent)' : 'var(--surface)',
+                              background: customCron === preset.cron ? 'var(--primary)' : 'var(--surface)',
                               color: customCron === preset.cron ? '#fff' : 'var(--text)',
                               border: '1px solid var(--border)',
                               borderRadius: 6,

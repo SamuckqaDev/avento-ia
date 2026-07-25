@@ -129,21 +129,23 @@ export function CoworkView() {
     return customCron;
   }, [freqMode, selectedTime, intervalHours, specificDate, customCron]);
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (isInitialLoad = false) => {
     try {
-      setIsLoading(true);
+      if (isInitialLoad) setIsLoading(true);
       const { data } = await api.get<ScheduledTask[]>('/api/scheduled-tasks');
       setTasks(data);
     } catch (e) {
       console.error('Erro ao carregar tarefas agendadas', e);
     } finally {
-      setIsLoading(false);
+      if (isInitialLoad) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void fetchTasks();
-    const interval = setInterval(fetchTasks, 15000);
+    void fetchTasks(true);
+    const interval = setInterval(() => {
+      void fetchTasks(false);
+    }, 15000);
     return () => clearInterval(interval);
   }, [fetchTasks]);
 
@@ -366,7 +368,7 @@ export function CoworkView() {
               <div key={day} className="weekday">{day}</div>
             ))}
 
-            {calendarDays.map((cell, idx) => {
+            {calendarDays.map(cell => {
               const dayTasks = tasks.filter(task => {
                 if (!task.nextRunAt) return false;
                 const nextDate = new Date(task.nextRunAt);
@@ -379,7 +381,7 @@ export function CoworkView() {
 
               return (
                 <DayCell 
-                  key={idx} 
+                  key={cell.date.toISOString()} 
                   $isToday={cell.isToday} 
                   $isCurrentMonth={cell.isCurrentMonth}
                 >

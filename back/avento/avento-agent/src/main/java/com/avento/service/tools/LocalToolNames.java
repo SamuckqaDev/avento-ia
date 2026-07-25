@@ -50,7 +50,9 @@ public final class LocalToolNames {
             "search_capabilities",
             "activate_tools",
             // Semantic/keyword retrieval over the connected workspace source files.
-            "codebase_vector_search");
+            "codebase_vector_search",
+            // Agendamento autônomo de tarefas repetitivas e rotinas na agenda do Cowork
+            "schedule_task");
 
     private LocalToolNames() {}
 }

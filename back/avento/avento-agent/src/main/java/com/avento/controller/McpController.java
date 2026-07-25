@@ -138,6 +138,9 @@ public class McpController implements ToolProvider {
     private ImageGenerationJobService imageGenerationJobService;
 
     @Autowired(required = false)
+    private com.avento.service.execution.ScheduledTaskService scheduledTaskService;
+
+    @Autowired(required = false)
     private GeneratedMediaAssetService generatedMediaAssetService;
 
     @Autowired(required = false)
@@ -645,6 +648,15 @@ public class McpController implements ToolProvider {
                 List.of("path", "command")));
         allTools.add(tool("terminal_list", "Lista processos longos iniciados pelo Avento.", Map.of(), List.of()));
         allTools.add(tool(
+                "schedule_task",
+                "Agenda uma nova atividade autônoma ou lembrete para a IA rodar na agenda do Cowork (Cron ou horário específico).",
+                Map.of(
+                        "name", stringProperty("Nome amigável da tarefa ou lembrete (ex: Backup Diário das 03:57 AM)."),
+                        "cronExpression", stringProperty("Expressão Cron no formato de 5 partes (ex: '57 3 * * *' para todos os dias às 03:57)."),
+                        "prompt", stringProperty("Instrução completa e detalhada que a IA executará de forma autônoma."),
+                        "description", stringProperty("Descrição adicional opcional.")),
+                List.of("name", "cronExpression", "prompt")));
+        allTools.add(tool(
                 "terminal_logs",
                 "Retorna logs recentes de um processo iniciado pelo Avento.",
                 Map.of(
@@ -845,8 +857,37 @@ public class McpController implements ToolProvider {
             case "search_capabilities" -> executeSearchCapabilities(payload);
             case "activate_tools" -> executeActivateTools(payload);
             case "codebase_vector_search" -> executeCodebaseVectorSearch(payload);
+            case "schedule_task" -> executeScheduleTask(payload);
             default -> mapper.createObjectNode().put("error", "Unknown local tool: " + name);
         };
+    }
+
+    private JsonNode executeScheduleTask(Map<String, Object> payload) throws IOException {
+        String name = requiredString(payload, "name");
+        String cron = payload.get("cronExpression") != null ? payload.get("cronExpression").toString() : "57 3 * * *";
+        String prompt = requiredString(payload, "prompt");
+        String description = payload.get("description") != null ? payload.get("description").toString() : "";
+        String projectPath = payload.get("projectPath") != null ? payload.get("projectPath").toString() : "";
+
+        if (scheduledTaskService == null) {
+            ObjectNode err = mapper.createObjectNode();
+            err.put("error", "Serviço de agendamento indisponível no servidor.");
+            return toolResult(err);
+        }
+
+        Long chatId = toolExecutionContext.current().chatId();
+        UUID userId = toolExecutionContext.current().userId();
+
+        var task = scheduledTaskService.createTask(name, description, cron, prompt, chatId, projectPath, userId);
+
+        ObjectNode response = mapper.createObjectNode();
+        response.put("status", "SUCCESS");
+        response.put("taskId", task.getId());
+        response.put("name", task.getName());
+        response.put("cronExpression", task.getCronExpression());
+        response.put("nextRunAt", task.getNextRunAt() != null ? task.getNextRunAt().toString() : "");
+        response.put("message", "Atividade '" + name + "' agendada com sucesso na sua agenda do Cowork (" + cron + ").");
+        return toolResult(response);
     }
 
     // --- Progressive tool discovery -------------------------------------------------------------

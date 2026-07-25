@@ -390,7 +390,7 @@ export const FrequencyGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 `;
 
 export const FrequencyOptionButton = styled.button<{ $active?: boolean }>`
@@ -415,6 +415,57 @@ export const FrequencyOptionButton = styled.button<{ $active?: boolean }>`
   svg {
     flex-shrink: 0;
     color: ${({ $active, theme }) => ($active ? theme.colors.accent : theme.colors.textMuted)};
+  }
+`;
+
+export const SubInputPanel = styled.div`
+  margin-top: 6px;
+  padding: 14px 16px;
+  background: color-mix(in srgb, ${({ theme }) => theme.colors.bg} 70%, ${({ theme }) => theme.colors.surface});
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+
+    .field-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-width: 140px;
+
+      label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: ${({ theme }) => theme.colors.text};
+      }
+
+      input, select {
+        width: 100%;
+        height: 42px;
+        box-sizing: border-box;
+      }
+    }
+  }
+
+  .cron-hint {
+    font-size: 0.78rem;
+    color: ${({ theme }) => theme.colors.textMuted};
+
+    code {
+      background: color-mix(in srgb, ${({ theme }) => theme.colors.surface} 80%, ${({ theme }) => theme.colors.bg});
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: ${({ theme }) => theme.colors.accent};
+    }
   }
 `;
 

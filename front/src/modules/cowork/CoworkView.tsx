@@ -4,7 +4,7 @@ import {
   Container, Header, CreateButton, Grid, Card, 
   ModalBackdrop, Modal, TabNavigation, CalendarWrapper,
   CalendarHeader, CalendarGrid, DayCell, EventBadge,
-  FrequencyGrid, FrequencyOptionButton
+  FrequencyGrid, FrequencyOptionButton, SubInputPanel
 } from './styles';
 import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear } from '@phosphor-icons/react';
 
@@ -397,50 +397,10 @@ export function CoworkView() {
                 </FrequencyGrid>
 
                 {freqMode === 'daily' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <label style={{ fontSize: '0.85rem' }}>Horário:</label>
-                    <input 
-                      type="time" 
-                      value={selectedTime} 
-                      onChange={e => setSelectedTime(e.target.value)} 
-                      required 
-                    />
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      (Converte para Cron: <code>{computedCron}</code>)
-                    </span>
-                  </div>
-                )}
-
-                {freqMode === 'interval' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <label style={{ fontSize: '0.85rem' }}>Repetir a cada:</label>
-                    <select value={intervalHours} onChange={e => setIntervalHours(e.target.value)} style={{ width: 120 }}>
-                      <option value="1">1 Hora</option>
-                      <option value="2">2 Horas</option>
-                      <option value="4">4 Horas</option>
-                      <option value="6">6 Horas</option>
-                      <option value="12">12 Horas</option>
-                    </select>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      (Converte para Cron: <code>{computedCron}</code>)
-                    </span>
-                  </div>
-                )}
-
-                {freqMode === 'specific_date' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: '0.8rem' }}>Data:</label>
-                        <input 
-                          type="date" 
-                          value={specificDate} 
-                          onChange={e => setSpecificDate(e.target.value)} 
-                          required 
-                        />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: '0.8rem' }}>Horário:</label>
+                  <SubInputPanel>
+                    <div className="input-row">
+                      <div className="field-box">
+                        <label>Horário da Execução:</label>
                         <input 
                           type="time" 
                           value={selectedTime} 
@@ -449,22 +409,73 @@ export function CoworkView() {
                         />
                       </div>
                     </div>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      (Converte para Cron: <code>{computedCron}</code>)
-                    </span>
-                  </div>
+                    <div className="cron-hint">
+                      Converte para expressão Cron: <code>{computedCron}</code>
+                    </div>
+                  </SubInputPanel>
+                )}
+
+                {freqMode === 'interval' && (
+                  <SubInputPanel>
+                    <div className="input-row">
+                      <div className="field-box">
+                        <label>Repetir a cada:</label>
+                        <select value={intervalHours} onChange={e => setIntervalHours(e.target.value)}>
+                          <option value="1">1 Hora</option>
+                          <option value="2">2 Horas</option>
+                          <option value="4">4 Horas</option>
+                          <option value="6">6 Horas</option>
+                          <option value="12">12 Horas</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="cron-hint">
+                      Converte para expressão Cron: <code>{computedCron}</code>
+                    </div>
+                  </SubInputPanel>
+                )}
+
+                {freqMode === 'specific_date' && (
+                  <SubInputPanel>
+                    <div className="input-row">
+                      <div className="field-box">
+                        <label>Data de Execução:</label>
+                        <input 
+                          type="date" 
+                          value={specificDate} 
+                          onChange={e => setSpecificDate(e.target.value)} 
+                          required 
+                        />
+                      </div>
+                      <div className="field-box">
+                        <label>Horário de Execução:</label>
+                        <input 
+                          type="time" 
+                          value={selectedTime} 
+                          onChange={e => setSelectedTime(e.target.value)} 
+                          required 
+                        />
+                      </div>
+                    </div>
+                    <div className="cron-hint">
+                      Converte para expressão Cron: <code>{computedCron}</code>
+                    </div>
+                  </SubInputPanel>
                 )}
 
                 {freqMode === 'cron' && (
-                  <div>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: 57 3 * * *" 
-                      value={customCron} 
-                      onChange={e => setCustomCron(e.target.value)} 
-                      required 
-                    />
-                  </div>
+                  <SubInputPanel>
+                    <div className="field-box">
+                      <label>Expressão Cron:</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ex: 57 3 * * *" 
+                        value={customCron} 
+                        onChange={e => setCustomCron(e.target.value)} 
+                        required 
+                      />
+                    </div>
+                  </SubInputPanel>
                 )}
               </div>
 

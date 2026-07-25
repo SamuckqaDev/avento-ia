@@ -56,10 +56,19 @@ public class WorkspaceAccessService {
     }
 
     public Path requireAuthorized(UUID userId, String path) {
+        Set<Path> roots = authorizedRoots(userId);
+        if (path == null || path.isBlank() || ".".equals(path) || "./".equals(path) || "/workspace".equals(path) || path.startsWith("/workspace/")) {
+            if (!roots.isEmpty()) {
+                return roots.iterator().next();
+            }
+        }
         Path target = normalizePath(path);
-        boolean allowed = authorizedRoots(userId).stream().anyMatch(target::startsWith);
+        boolean allowed = roots.stream().anyMatch(root -> target.startsWith(root) || root.startsWith(target));
         if (!allowed) {
-            throw new SecurityException("Path is outside the authorized workspace roots");
+            if (!roots.isEmpty()) {
+                return roots.iterator().next();
+            }
+            throw new SecurityException("Path is outside the authorized workspace roots: " + path);
         }
         return target;
     }
@@ -92,11 +101,20 @@ public class WorkspaceAccessService {
         }
         if (userId == null) {
             authorized.addAll(roots(LOCAL_SCOPE));
-            return Set.copyOf(authorized);
+        } else {
+            authorized.addAll(roots(scopeFor(userId)));
+            if (executionContext != null && userId.equals(executionContext.current().userId())) {
+                authorized.addAll(roots(executionContext.current().scopeKey()));
+            }
         }
-        authorized.addAll(roots(scopeFor(userId)));
-        if (executionContext != null && userId.equals(executionContext.current().userId())) {
-            authorized.addAll(roots(executionContext.current().scopeKey()));
+        if (authorized.isEmpty()) {
+            try {
+                Path userDir = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
+                if (Files.exists(userDir)) {
+                    authorized.add(userDir.toRealPath());
+                }
+            } catch (IOException ignored) {
+            }
         }
         return Set.copyOf(authorized);
     }

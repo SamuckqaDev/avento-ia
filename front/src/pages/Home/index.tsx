@@ -4,7 +4,7 @@ import { MessageBubble, Message, type DocumentAttachment, type ImageAttachment }
 import { InputArea } from '../../modules/chat/InputArea';
 import { useChatStream, ChunkData } from '../../hooks/useChatStream';
 import type { AgentActivityEvent, ChatStreamContext, ImageGenerationOptions, MessageContext } from '../../hooks/useChatStream';
-import { CoworkView } from '../../modules/cowork/CoworkView';
+import { CoworkView } from '../../modules/cowork';
 import { useAudioServices } from '../../hooks/useAudioServices';
 import { useChatHistory } from '../../hooks/useChatHistory';
 import { useNotifications } from '../../hooks/useNotifications';

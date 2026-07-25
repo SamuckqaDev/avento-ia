@@ -284,40 +284,9 @@ export function CoworkView() {
   return (
     <Container>
       <Header>
-        <div className="title-group" style={{ flex: 1 }}>
+        <div className="title-group">
           <h1><CalendarIcon size={26} color="var(--primary)" /> Avento Cowork & Agenda</h1>
           <p>Super Agente de IA: Calendário de atividades, lembretes e automações autônomas com diagnóstico de auto-recuperação.</p>
-
-          <KpiBar>
-            <KpiCard>
-              <div className="kpi-icon"><Robot size={18} /></div>
-              <div className="kpi-info">
-                <span>Total de Atividades</span>
-                <strong>{tasks.length}</strong>
-              </div>
-            </KpiCard>
-            <KpiCard>
-              <div className="kpi-icon" style={{ color: '#10B981', background: 'rgba(16, 185, 129, 0.15)' }}><Play size={18} /></div>
-              <div className="kpi-info">
-                <span>Ativas</span>
-                <strong>{tasks.filter(t => t.status === 'ACTIVE').length}</strong>
-              </div>
-            </KpiCard>
-            <KpiCard>
-              <div className="kpi-icon" style={{ color: '#F59E0B', background: 'rgba(245, 158, 11, 0.15)' }}><Pause size={18} /></div>
-              <div className="kpi-info">
-                <span>Pausadas</span>
-                <strong>{tasks.filter(t => t.status === 'PAUSED').length}</strong>
-              </div>
-            </KpiCard>
-            <KpiCard>
-              <div className="kpi-icon" style={{ color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 15%, transparent)' }}><CheckCircle size={18} /></div>
-              <div className="kpi-info">
-                <span>Com Sucesso</span>
-                <strong>{tasks.filter(t => t.lastRunStatus === 'SUCCESS').length}</strong>
-              </div>
-            </KpiCard>
-          </KpiBar>
         </div>
 
         <div className="header-actions">
@@ -343,6 +312,37 @@ export function CoworkView() {
           </CreateButton>
         </div>
       </Header>
+
+      <KpiBar>
+        <KpiCard>
+          <div className="kpi-icon"><Robot size={18} /></div>
+          <div className="kpi-info">
+            <span>Total de Atividades</span>
+            <strong>{tasks.length}</strong>
+          </div>
+        </KpiCard>
+        <KpiCard>
+          <div className="kpi-icon" style={{ color: '#10B981', background: 'rgba(16, 185, 129, 0.15)' }}><Play size={18} /></div>
+          <div className="kpi-info">
+            <span>Ativas</span>
+            <strong>{tasks.filter(t => t.status === 'ACTIVE').length}</strong>
+          </div>
+        </KpiCard>
+        <KpiCard>
+          <div className="kpi-icon" style={{ color: '#F59E0B', background: 'rgba(245, 158, 11, 0.15)' }}><Pause size={18} /></div>
+          <div className="kpi-info">
+            <span>Pausadas</span>
+            <strong>{tasks.filter(t => t.status === 'PAUSED').length}</strong>
+          </div>
+        </KpiCard>
+        <KpiCard>
+          <div className="kpi-icon" style={{ color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 15%, transparent)' }}><CheckCircle size={18} /></div>
+          <div className="kpi-info">
+            <span>Com Sucesso</span>
+            <strong>{tasks.filter(t => t.lastRunStatus === 'SUCCESS').length}</strong>
+          </div>
+        </KpiCard>
+      </KpiBar>
 
       {activeTab === 'calendar' ? (
         <CalendarWrapper>

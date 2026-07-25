@@ -51,10 +51,15 @@ export const Header = styled.div`
 
 export const KpiBar = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
   width: 100%;
-  margin-top: 10px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 `;
 
 export const KpiCard = styled.div`

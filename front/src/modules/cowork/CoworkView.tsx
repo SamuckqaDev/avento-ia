@@ -6,7 +6,7 @@ import {
   CalendarHeader, CalendarGrid, DayCell, EventBadge,
   FrequencyGrid, FrequencyOptionButton, SubInputPanel
 } from './styles';
-import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye } from '@phosphor-icons/react';
+import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen } from '@phosphor-icons/react';
 
 export interface ScheduledTask {
   id: number;
@@ -636,13 +636,81 @@ export function CoworkView() {
               </div>
 
               <div className="form-group">
-                <label>Caminho do Projeto (Opcional)</label>
-                <input 
-                  type="text" 
-                  placeholder="Ex: /Users/sr.tomimatu/projetcs/avento-ia" 
-                  value={projectPath} 
-                  onChange={e => setProjectPath(e.target.value)} 
-                />
+                <label>Caminho do Projeto / Pasta de Trabalho (Opcional)</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: /Users/sr.tomimatu/projetcs/avento-ia" 
+                    value={projectPath} 
+                    onChange={e => setProjectPath(e.target.value)} 
+                    style={{ flex: 1 }}
+                  />
+                  <label
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text)',
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title="Selecionar pasta no seu computador"
+                  >
+                    <FolderOpen size={18} color="var(--primary)" /> Selecionar Pasta
+                    <input
+                      type="file"
+                      // @ts-ignore
+                      webkitdirectory=""
+                      directory=""
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        if (files && files.length > 0) {
+                          const firstFile = files[0];
+                          const relPath = firstFile.webkitRelativePath || firstFile.name;
+                          const folderName = relPath.split('/')[0];
+                          // @ts-ignore
+                          if (firstFile.path) {
+                            // @ts-ignore
+                            const fullPath: string = firstFile.path;
+                            const idx = fullPath.indexOf(relPath);
+                            const folderPath = idx !== -1 ? fullPath.substring(0, idx + folderName.length) : fullPath;
+                            setProjectPath(folderPath);
+                          } else {
+                            setProjectPath(`/Users/sr.tomimatu/projetcs/${folderName}`);
+                          }
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setProjectPath('/Users/sr.tomimatu/projetcs/avento-ia')}
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 6,
+                      padding: '3px 8px',
+                      fontSize: '0.73rem',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <Folder size={14} /> 📍 Usar Pasta Atual (Avento-IA)
+                  </button>
+                </div>
               </div>
 
               <div className="modal-footer">

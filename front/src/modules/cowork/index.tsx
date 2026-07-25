@@ -755,7 +755,7 @@ export function CoworkView() {
               <div className="form-group">
                 <label>Instrução / Prompt para o Agente de IA *</label>
                 <TextArea 
-                  rows={4} 
+                  rows={2} 
                   placeholder="Ex: Execute o script de backup no terminal, compacte os arquivos da pasta e verifique se o arquivo final tem tamanho maior que zero." 
                   value={prompt} 
                   onChange={e => setPrompt(e.target.value)} 

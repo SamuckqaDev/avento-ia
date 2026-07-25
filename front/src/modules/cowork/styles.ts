@@ -533,21 +533,21 @@ export const Card = styled.div<{ $status?: string }>`
 export const FrequencyGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 2px;
 `;
 
 export const FrequencyOptionButton = styled.button<{ $active?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
   border: 1px solid ${({ $active, theme }) => ($active ? theme.colors.accent : theme.colors.border)};
   background: ${({ $active, theme }) =>
     $active ? `color-mix(in srgb, ${theme.colors.accent} 12%, ${theme.colors.surface})` : theme.colors.bg};
   color: ${({ $active, theme }) => ($active ? theme.colors.accent : theme.colors.text)};
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -563,44 +563,44 @@ export const FrequencyOptionButton = styled.button<{ $active?: boolean }>`
 `;
 
 export const SubInputPanel = styled.div`
-  margin-top: 4px;
-  padding: 10px 12px;
+  margin-top: 2px;
+  padding: 8px 10px;
   background: color-mix(in srgb, ${({ theme }) => theme.colors.bg} 70%, ${({ theme }) => theme.colors.surface});
   border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 
   .input-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
 
     .field-box {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
       flex: 1;
-      min-width: 130px;
+      min-width: 120px;
 
       label {
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         font-weight: 600;
         color: ${({ theme }) => theme.colors.text};
       }
 
       input, select {
         width: 100%;
-        height: 38px;
+        height: 36px;
         box-sizing: border-box;
       }
     }
   }
 
   .cron-hint {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     color: ${({ theme }) => theme.colors.textMuted};
 
     code {
@@ -631,15 +631,13 @@ export const ModalBackdrop = styled.div`
 export const Modal = styled.div`
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 16px;
+  border-radius: 14px;
   width: 90%;
-  max-width: 520px;
-  max-height: 88vh;
-  overflow-y: auto;
-  padding: 18px 20px;
+  max-width: 500px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   box-shadow: ${({ theme }) => theme.shadows.lg};
   color: ${({ theme }) => theme.colors.text};
   animation: ${slideUp} 0.22s cubic-bezier(0.16, 1, 0.3, 1);
@@ -650,7 +648,7 @@ export const Modal = styled.div`
     align-items: center;
 
     h2 {
-      font-size: 1.25rem;
+      font-size: 1.1rem;
       font-weight: 700;
     }
 
@@ -666,13 +664,14 @@ export const Modal = styled.div`
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 
     label {
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: ${({ theme }) => theme.colors.text};
     }
+  }
 
     input, textarea, select {
       background: ${({ theme }) => theme.colors.bg};

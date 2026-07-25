@@ -6,9 +6,10 @@ import {
   ModalBackdrop, Modal, TabNavigation, CalendarWrapper,
   CalendarHeader, CalendarGrid, DayCell, EventBadge,
   FrequencyGrid, FrequencyOptionButton, SubInputPanel,
-  DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton, DeleteModalError
+  DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton, DeleteModalError,
+  KpiBar, KpiCard
 } from './styles';
-import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen } from '@phosphor-icons/react';
+import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen, PencilSimple, Lightning } from '@phosphor-icons/react';
 
 export interface ScheduledTask {
   id: number;
@@ -146,26 +147,58 @@ export function CoworkView() {
     return () => clearInterval(interval);
   }, [fetchTasks]);
 
+  // Editing state
+  const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
+
+  const handleOpenEditTask = (task: ScheduledTask) => {
+    setEditingTask(task);
+    setName(task.name);
+    setDescription(task.description || '');
+    setPrompt(task.prompt);
+    setProjectPath(task.projectPath || '');
+    setCustomCron(task.cronExpression);
+    const parts = task.cronExpression.split(' ');
+    if (parts.length === 5) setCronParts(parts);
+    setFreqMode('cron');
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingTask(null);
+    setName('');
+    setDescription('');
+    setPrompt('');
+    setProjectPath('');
+  };
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !prompt.trim()) return;
 
     try {
       setIsSubmitting(true);
-      await api.post('/api/scheduled-tasks', {
-        name,
-        description,
-        cronExpression: computedCron,
-        prompt,
-        projectPath
-      });
-      setIsModalOpen(false);
-      setName('');
-      setDescription('');
-      setPrompt('');
+      if (editingTask) {
+        await api.put(`/api/scheduled-tasks/${editingTask.id}`, {
+          name,
+          description,
+          cronExpression: computedCron,
+          prompt,
+          projectPath
+        });
+      } else {
+        await api.post('/api/scheduled-tasks', {
+          name,
+          description,
+          cronExpression: computedCron,
+          prompt,
+          projectPath
+        });
+      }
+      handleCloseModal();
       void fetchTasks();
     } catch (e) {
-      console.error('Erro ao criar tarefa agendada', e);
+      console.error('Erro ao salvar tarefa agendada', e);
     } finally {
       setIsSubmitting(false);
     }
@@ -251,9 +284,40 @@ export function CoworkView() {
   return (
     <Container>
       <Header>
-        <div className="title-group">
+        <div className="title-group" style={{ flex: 1 }}>
           <h1><CalendarIcon size={26} color="var(--primary)" /> Avento Cowork & Agenda</h1>
           <p>Super Agente de IA: Calendário de atividades, lembretes e automações autônomas com diagnóstico de auto-recuperação.</p>
+
+          <KpiBar>
+            <KpiCard>
+              <div className="kpi-icon"><Robot size={18} /></div>
+              <div className="kpi-info">
+                <span>Total de Atividades</span>
+                <strong>{tasks.length}</strong>
+              </div>
+            </KpiCard>
+            <KpiCard>
+              <div className="kpi-icon" style={{ color: '#10B981', background: 'rgba(16, 185, 129, 0.15)' }}><Play size={18} /></div>
+              <div className="kpi-info">
+                <span>Ativas</span>
+                <strong>{tasks.filter(t => t.status === 'ACTIVE').length}</strong>
+              </div>
+            </KpiCard>
+            <KpiCard>
+              <div className="kpi-icon" style={{ color: '#F59E0B', background: 'rgba(245, 158, 11, 0.15)' }}><Pause size={18} /></div>
+              <div className="kpi-info">
+                <span>Pausadas</span>
+                <strong>{tasks.filter(t => t.status === 'PAUSED').length}</strong>
+              </div>
+            </KpiCard>
+            <KpiCard>
+              <div className="kpi-icon" style={{ color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 15%, transparent)' }}><CheckCircle size={18} /></div>
+              <div className="kpi-info">
+                <span>Com Sucesso</span>
+                <strong>{tasks.filter(t => t.lastRunStatus === 'SUCCESS').length}</strong>
+              </div>
+            </KpiCard>
+          </KpiBar>
         </div>
 
         <div className="header-actions">
@@ -274,8 +338,8 @@ export function CoworkView() {
             </button>
           </TabNavigation>
 
-          <CreateButton onClick={() => setIsModalOpen(true)}>
-            <Plus size={18} /> Nova Atividade / Automação
+          <CreateButton onClick={() => { setEditingTask(null); setIsModalOpen(true); }}>
+            <Plus size={18} /> Nova Atividade
           </CreateButton>
         </div>
       </Header>
@@ -454,8 +518,11 @@ export function CoworkView() {
                     </div>
 
                     <div className="actions">
-                      <button type="button" className="run-now" onClick={() => handleRunNow(task.id)} title="Rodar Agora">
-                        <Play size={14} /> Rodar Agora
+                      <button type="button" className="run-now" onClick={() => handleRunNow(task.id)} title="Executar Agora">
+                        <Lightning size={14} /> Rodar Agora
+                      </button>
+                      <button type="button" onClick={() => handleOpenEditTask(task)} title="Editar Atividade">
+                        <PencilSimple size={14} />
                       </button>
                       <button type="button" onClick={() => handleToggleTask(task.id)} title={task.status === 'ACTIVE' ? 'Pausar' : 'Ativar'}>
                         {task.status === 'ACTIVE' ? <Pause size={14} /> : <Play size={14} />}
@@ -473,11 +540,11 @@ export function CoworkView() {
       )}
 
       {isModalOpen && (
-        <ModalBackdrop onClick={() => setIsModalOpen(false)}>
+        <ModalBackdrop onClick={handleCloseModal}>
           <Modal onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Agendar Nova Atividade / Automação</h2>
-              <button type="button" onClick={() => setIsModalOpen(false)}><X size={20} /></button>
+              <h2>{editingTask ? 'Editar Atividade / Automação' : 'Agendar Nova Atividade / Automação'}</h2>
+              <button type="button" onClick={handleCloseModal}><X size={20} /></button>
             </div>
 
             <form onSubmit={handleCreateTask} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

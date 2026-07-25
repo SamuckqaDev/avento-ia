@@ -49,6 +49,53 @@ export const Header = styled.div`
   }
 `;
 
+export const KpiBar = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+`;
+
+export const KpiCard = styled.div`
+  background: color-mix(in srgb, ${({ theme }) => theme.colors.surface} 85%, ${({ theme }) => theme.colors.bg});
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .kpi-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 15%, transparent);
+    color: ${({ theme }) => theme.colors.primary};
+  }
+
+  .kpi-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    span {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: ${({ theme }) => theme.colors.textMuted};
+    }
+
+    strong {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: ${({ theme }) => theme.colors.text};
+    }
+  }
+`;
+
 export const TabNavigation = styled.div`
   display: flex;
   gap: 8px;

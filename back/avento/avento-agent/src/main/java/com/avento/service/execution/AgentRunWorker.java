@@ -187,7 +187,10 @@ public class AgentRunWorker {
             List<String> workspaceRoots = stringList(request.path("workspaceRoots"));
             ImageGenerationOptions imageOptions = ImageGenerationOptions.from(request.path("imageOptions"));
             // Restricts this run's toolset to the agent's allow-list, if the plan sent one.
-            toolPolicyRegistry.allow(job.getRunId(), java.util.Set.copyOf(stringList(request.path("allowedTools"))));
+            List<String> allowedTools = stringList(request.path("allowedTools"));
+            if (!allowedTools.isEmpty()) {
+                toolPolicyRegistry.allow(job.getRunId(), java.util.Set.copyOf(allowedTools));
+            }
 
             CountDownLatch completed = new CountDownLatch(1);
             AtomicReference<Throwable> error = new AtomicReference<>();

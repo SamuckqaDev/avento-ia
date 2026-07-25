@@ -71,7 +71,7 @@ public class CronTaskScheduler {
             payload.put("prompt", "MODO AUTÔNOMO AGENDADO (Avento Cowork):\n"
                     + "Tarefa: " + task.getName() + "\n"
                     + "Instrução: " + task.getPrompt() + "\n"
-                    + "Em caso de falha em qualquer comando, analise o erro, gere um relatório de causa raiz e proponha a solução.");
+                    + "Instruções de execução: Execute os comandos de terminal/bash necessários (ex: `run_command` com `git`, `curl`, etc.) no diretório do projeto e mostre o resultado textual bruto retornado.");
             payload.put("agentMode", true);
             if (task.getProjectPath() != null && !task.getProjectPath().isBlank()) {
                 payload.put("projectPath", task.getProjectPath());

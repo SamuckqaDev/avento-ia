@@ -5,19 +5,22 @@ export const Container = styled.div`
   flex-direction: column;
   height: 100%;
   width: 100%;
-  background: var(--bg-primary, #0f1412);
-  color: var(--text-primary, #f0f4f2);
+  background: ${({ theme }) => theme.colors.bg};
+  color: ${({ theme }) => theme.colors.text};
   padding: 24px 32px;
   overflow-y: auto;
   gap: 24px;
+  transition: background 0.2s ease, color 0.2s ease;
 `;
 
 export const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   padding-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
 
   .title-group {
     display: flex;
@@ -27,7 +30,7 @@ export const Header = styled.div`
     h1 {
       font-size: 1.5rem;
       font-weight: 700;
-      color: var(--text-primary, #ffffff);
+      color: ${({ theme }) => theme.colors.text};
       display: flex;
       align-items: center;
       gap: 10px;
@@ -35,7 +38,48 @@ export const Header = styled.div`
 
     p {
       font-size: 0.875rem;
-      color: var(--text-secondary, #8e9b95);
+      color: ${({ theme }) => theme.colors.textMuted};
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+`;
+
+export const TabNavigation = styled.div`
+  display: flex;
+  gap: 8px;
+  background: color-mix(in srgb, ${({ theme }) => theme.colors.surface} 80%, ${({ theme }) => theme.colors.bg});
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+
+  button {
+    background: transparent;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.textMuted};
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+
+    &.active {
+      background: ${({ theme }) => theme.colors.surface};
+      color: ${({ theme }) => theme.colors.accent};
+      box-shadow: ${({ theme }) => theme.shadows.sm};
+      border: 1px solid ${({ theme }) => theme.colors.border};
+    }
+
+    &:hover:not(.active) {
+      color: ${({ theme }) => theme.colors.text};
     }
   }
 `;
@@ -44,7 +88,7 @@ export const CreateButton = styled.button`
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: ${({ theme }) => theme.colors.primary};
   color: #ffffff;
   border: none;
   padding: 10px 18px;
@@ -53,11 +97,131 @@ export const CreateButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 12px color-mix(in srgb, ${({ theme }) => theme.colors.primary} 30%, transparent);
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+    opacity: 0.95;
+  }
+`;
+
+// Calendar Components
+export const CalendarWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 12px;
+  padding: 20px;
+`;
+
+export const CalendarHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: ${({ theme }) => theme.colors.text};
+  }
+
+  .nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    button {
+      background: color-mix(in srgb, ${({ theme }) => theme.colors.bg} 80%, ${({ theme }) => theme.colors.surface});
+      border: 1px solid ${({ theme }) => theme.colors.border};
+      color: ${({ theme }) => theme.colors.text};
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85rem;
+
+      &:hover {
+        border-color: ${({ theme }) => theme.colors.accent};
+      }
+    }
+  }
+`;
+
+export const CalendarGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+
+  .weekday {
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: ${({ theme }) => theme.colors.textMuted};
+    padding-bottom: 8px;
+    text-transform: uppercase;
+  }
+`;
+
+export const DayCell = styled.div<{ $isToday?: boolean; $isCurrentMonth?: boolean }>`
+  min-height: 90px;
+  background: ${({ $isToday, theme }) => 
+    $isToday ? `color-mix(in srgb, ${theme.colors.accent} 10%, ${theme.colors.bg})` : theme.colors.bg};
+  border: 1px solid ${({ $isToday, theme }) => 
+    $isToday ? theme.colors.accent : theme.colors.border};
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: ${({ $isCurrentMonth }) => ($isCurrentMonth ? 1 : 0.4)};
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.accent};
+  }
+
+  .day-number {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: ${({ $isToday, theme }) => ($isToday ? theme.colors.accent : theme.colors.text)};
+  }
+
+  .events-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    max-height: 60px;
+  }
+`;
+
+export const EventBadge = styled.div<{ $status?: string }>`
+  font-size: 0.68rem;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 15%, ${({ theme }) => theme.colors.surface});
+  color: ${({ theme }) => theme.colors.accent};
+  border: 1px solid color-mix(in srgb, ${({ theme }) => theme.colors.accent} 30%, transparent);
+
+  &.automation {
+    background: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 15%, ${({ theme }) => theme.colors.surface});
+    color: ${({ theme }) => theme.colors.primary};
+    border-color: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 30%, transparent);
+  }
+
+  &.warning {
+    background: color-mix(in srgb, ${({ theme }) => theme.colors.warning} 15%, ${({ theme }) => theme.colors.surface});
+    color: ${({ theme }) => theme.colors.warning};
+    border-color: color-mix(in srgb, ${({ theme }) => theme.colors.warning} 30%, transparent);
   }
 `;
 
@@ -68,19 +232,19 @@ export const Grid = styled.div`
 `;
 
 export const Card = styled.div<{ $status?: string }>`
-  background: var(--bg-card, rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 12px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  backdrop-filter: blur(10px);
+  box-shadow: ${({ theme }) => theme.shadows.sm};
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: rgba(16, 185, 129, 0.3);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    border-color: ${({ theme }) => theme.colors.accent};
+    box-shadow: ${({ theme }) => theme.shadows.md};
   }
 
   .card-header {
@@ -89,28 +253,28 @@ export const Card = styled.div<{ $status?: string }>`
     align-items: flex-start;
 
     h3 {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 600;
-      color: var(--text-primary, #ffffff);
+      color: ${({ theme }) => theme.colors.text};
     }
 
     .badge {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       padding: 4px 10px;
       border-radius: 20px;
       font-weight: 600;
       text-transform: uppercase;
 
       &.active {
-        background: rgba(16, 185, 129, 0.15);
-        color: #34d399;
-        border: 1px solid rgba(52, 211, 153, 0.3);
+        background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 15%, transparent);
+        color: ${({ theme }) => theme.colors.accent};
+        border: 1px solid color-mix(in srgb, ${({ theme }) => theme.colors.accent} 30%, transparent);
       }
 
       &.paused {
-        background: rgba(245, 158, 11, 0.15);
-        color: #fbbf24;
-        border: 1px solid rgba(251, 191, 36, 0.3);
+        background: color-mix(in srgb, ${({ theme }) => theme.colors.warning} 15%, transparent);
+        color: ${({ theme }) => theme.colors.warning};
+        border: 1px solid color-mix(in srgb, ${({ theme }) => theme.colors.warning} 30%, transparent);
       }
     }
   }
@@ -120,27 +284,28 @@ export const Card = styled.div<{ $status?: string }>`
     flex-direction: column;
     gap: 8px;
     font-size: 0.85rem;
-    color: var(--text-secondary, #9ca3af);
+    color: ${({ theme }) => theme.colors.textMuted};
 
     .cron-pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: rgba(255, 255, 255, 0.05);
+      background: color-mix(in srgb, ${({ theme }) => theme.colors.bg} 80%, ${({ theme }) => theme.colors.surface});
+      border: 1px solid ${({ theme }) => theme.colors.border};
       padding: 4px 8px;
       border-radius: 6px;
       font-family: monospace;
       font-size: 0.8rem;
       width: fit-content;
-      color: #a7f3d0;
+      color: ${({ theme }) => theme.colors.text};
     }
 
     .prompt-snippet {
-      background: rgba(0, 0, 0, 0.2);
+      background: color-mix(in srgb, ${({ theme }) => theme.colors.bg} 60%, ${({ theme }) => theme.colors.surface});
       padding: 10px;
       border-radius: 6px;
       font-size: 0.8rem;
-      color: #d1d5db;
+      color: ${({ theme }) => theme.colors.text};
       max-height: 80px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -148,18 +313,17 @@ export const Card = styled.div<{ $status?: string }>`
   }
 
   .diagnosis-box {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: color-mix(in srgb, #ef4444 12%, ${({ theme }) => theme.colors.surface});
+    border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
     border-radius: 8px;
     padding: 10px;
     font-size: 0.8rem;
-    color: #fca5a5;
+    color: #ef4444;
     display: flex;
     flex-direction: column;
     gap: 4px;
 
     strong {
-      color: #ef4444;
       display: flex;
       align-items: center;
       gap: 4px;
@@ -170,13 +334,13 @@ export const Card = styled.div<{ $status?: string }>`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
     padding-top: 12px;
     margin-top: auto;
 
     .next-run {
       font-size: 0.75rem;
-      color: var(--text-secondary, #6b7280);
+      color: ${({ theme }) => theme.colors.textMuted};
     }
 
     .actions {
@@ -185,8 +349,8 @@ export const Card = styled.div<{ $status?: string }>`
 
       button {
         background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #d1d5db;
+        border: 1px solid ${({ theme }) => theme.colors.border};
+        color: ${({ theme }) => theme.colors.text};
         padding: 6px 12px;
         border-radius: 6px;
         font-size: 0.75rem;
@@ -197,22 +361,22 @@ export const Card = styled.div<{ $status?: string }>`
         transition: all 0.2s;
 
         &:hover {
-          background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(255, 255, 255, 0.2);
+          background: color-mix(in srgb, ${({ theme }) => theme.colors.bg} 80%, ${({ theme }) => theme.colors.surface});
+          border-color: ${({ theme }) => theme.colors.accent};
         }
 
         &.run-now {
-          background: rgba(59, 130, 246, 0.15);
-          color: #60a5fa;
-          border-color: rgba(96, 165, 250, 0.3);
+          background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 15%, transparent);
+          color: ${({ theme }) => theme.colors.accent};
+          border-color: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 30%, transparent);
 
           &:hover {
-            background: rgba(59, 130, 246, 0.25);
+            background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 25%, transparent);
           }
         }
 
         &.delete {
-          color: #f87171;
+          color: #ef4444;
           &:hover {
             background: rgba(239, 68, 68, 0.15);
           }
@@ -228,7 +392,7 @@ export const ModalBackdrop = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
@@ -237,8 +401,8 @@ export const ModalBackdrop = styled.div`
 `;
 
 export const Modal = styled.div`
-  background: var(--bg-card, #161c19);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 16px;
   width: 90%;
   max-width: 540px;
@@ -246,7 +410,8 @@ export const Modal = styled.div`
   display: flex;
   flex-direction: column;
   gap: 20px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: ${({ theme }) => theme.shadows.lg};
+  color: ${({ theme }) => theme.colors.text};
 
   .modal-header {
     display: flex;
@@ -261,9 +426,9 @@ export const Modal = styled.div`
     button {
       background: transparent;
       border: none;
-      color: #9ca3af;
+      color: ${({ theme }) => theme.colors.textMuted};
       cursor: pointer;
-      &:hover { color: #ffffff; }
+      &:hover { color: ${({ theme }) => theme.colors.text}; }
     }
   }
 
@@ -275,20 +440,20 @@ export const Modal = styled.div`
     label {
       font-size: 0.85rem;
       font-weight: 600;
-      color: #d1d5db;
+      color: ${({ theme }) => theme.colors.text};
     }
 
     input, textarea, select {
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: ${({ theme }) => theme.colors.bg};
+      border: 1px solid ${({ theme }) => theme.colors.border};
       border-radius: 8px;
       padding: 10px 14px;
-      color: #ffffff;
+      color: ${({ theme }) => theme.colors.text};
       font-size: 0.875rem;
 
       &:focus {
         outline: none;
-        border-color: #10b981;
+        border-color: ${({ theme }) => theme.colors.accent};
       }
     }
   }

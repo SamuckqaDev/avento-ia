@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../services/apiClient';
 import { 
   Container, Header, CreateButton, Grid, Card, 
-  ModalBackdrop, Modal 
+  ModalBackdrop, Modal, TabNavigation, CalendarWrapper,
+  CalendarHeader, CalendarGrid, DayCell, EventBadge
 } from './styles';
-import { Plus, Clock, Play, Pause, Trash, Warning, Calendar, X } from '@phosphor-icons/react';
+import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot } from '@phosphor-icons/react';
 
 export interface ScheduledTask {
   id: number;
@@ -24,9 +25,13 @@ export interface ScheduledTask {
 }
 
 export function CoworkView() {
+  const [activeTab, setActiveTab] = useState<'calendar' | 'automations'>('calendar');
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
+  // Calendar date state
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   // Form state
   const [name, setName] = useState('');
@@ -107,92 +112,222 @@ export function CoworkView() {
     }
   };
 
+  // Calendar logic
+  const monthYearLabel = useMemo(() => {
+    return currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  }, [currentDate]);
+
+  const calendarDays = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    
+    const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
+    const totalDays = lastDayOfMonth.getDate();
+    
+    const today = new Date();
+    const days: { date: Date; dayNum: number; isCurrentMonth: boolean; isToday: boolean }[] = [];
+
+    // Previous month padding
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+      const prevDate = new Date(year, month, -i);
+      days.push({ date: prevDate, dayNum: prevDate.getDate(), isCurrentMonth: false, isToday: false });
+    }
+
+    // Current month days
+    for (let day = 1; day <= totalDays; day++) {
+      const date = new Date(year, month, day);
+      const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+      days.push({ date, dayNum: day, isCurrentMonth: true, isToday });
+    }
+
+    // Next month padding to fill grid (multiple of 7)
+    const remaining = (7 - (days.length % 7)) % 7;
+    for (let i = 1; i <= remaining; i++) {
+      const nextDate = new Date(year, month + 1, i);
+      days.push({ date: nextDate, dayNum: i, isCurrentMonth: false, isToday: false });
+    }
+
+    return days;
+  }, [currentDate]);
+
+  const handlePrevMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
   return (
     <Container>
       <Header>
         <div className="title-group">
-          <h1><Calendar size={26} color="#10b981" /> Avento Cowork (Agenda & Automações)</h1>
-          <p>Gerencie rotinas repetitivas que o Avento executa autonomamente com diagnósticos de auto-recuperação.</p>
+          <h1><CalendarIcon size={26} color="var(--primary)" /> Avento Cowork & Agenda</h1>
+          <p>Super Agente de IA: Calendário de atividades, lembretes e automações autônomas com diagnóstico de auto-recuperação.</p>
         </div>
-        <CreateButton onClick={() => setIsModalOpen(true)}>
-          <Plus size={18} /> Nova Automação Agendada
-        </CreateButton>
-      </Header>
 
-      {isLoading && tasks.length === 0 ? (
-        <p style={{ color: '#8e9b95' }}>Carregando agenda de automações...</p>
-      ) : tasks.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px dashed rgba(255,255,255,0.1)' }}>
-          <Clock size={48} color="#10b981" style={{ marginBottom: 16, opacity: 0.8 }} />
-          <h3 style={{ fontSize: '1.1rem', marginBottom: 8 }}>Nenhuma tarefa agendada ainda</h3>
-          <p style={{ color: '#8e9b95', fontSize: '0.9rem', maxWidth: 460, margin: '0 auto 20px' }}>
-            Crie rotinas diárias como backups de projetos, checagem de saúde do sistema ou limpezas automáticas.
-          </p>
+        <div className="header-actions">
+          <TabNavigation>
+            <button 
+              type="button" 
+              className={activeTab === 'calendar' ? 'active' : ''} 
+              onClick={() => setActiveTab('calendar')}
+            >
+              <CalendarIcon size={16} /> Calendário & Agenda
+            </button>
+            <button 
+              type="button" 
+              className={activeTab === 'automations' ? 'active' : ''} 
+              onClick={() => setActiveTab('automations')}
+            >
+              <Robot size={16} /> Automações ({tasks.length})
+            </button>
+          </TabNavigation>
+
           <CreateButton onClick={() => setIsModalOpen(true)}>
-            <Plus size={18} /> Criar Primeira Automação
+            <Plus size={18} /> Nova Atividade / Automação
           </CreateButton>
         </div>
+      </Header>
+
+      {activeTab === 'calendar' ? (
+        <CalendarWrapper>
+          <CalendarHeader>
+            <h2 style={{ textTransform: 'capitalize' }}>{monthYearLabel}</h2>
+            <div className="nav-controls">
+              <button type="button" onClick={handlePrevMonth} title="Mês anterior">
+                <CaretLeft size={16} /> Anterior
+              </button>
+              <button type="button" onClick={() => setCurrentDate(new Date())} title="Ir para Hoje">
+                Hoje
+              </button>
+              <button type="button" onClick={handleNextMonth} title="Próximo mês">
+                Próximo <CaretRight size={16} />
+              </button>
+            </div>
+          </CalendarHeader>
+
+          <CalendarGrid>
+            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+              <div key={day} className="weekday">{day}</div>
+            ))}
+
+            {calendarDays.map((cell, idx) => {
+              // Find tasks or events scheduled for this day
+              const dayTasks = tasks.filter(task => {
+                if (!task.nextRunAt) return false;
+                const nextDate = new Date(task.nextRunAt);
+                return (
+                  nextDate.getFullYear() === cell.date.getFullYear() &&
+                  nextDate.getMonth() === cell.date.getMonth() &&
+                  nextDate.getDate() === cell.date.getDate()
+                );
+              });
+
+              return (
+                <DayCell 
+                  key={idx} 
+                  $isToday={cell.isToday} 
+                  $isCurrentMonth={cell.isCurrentMonth}
+                >
+                  <div className="day-number">{cell.dayNum}</div>
+                  <div className="events-list">
+                    {dayTasks.map(t => (
+                      <EventBadge 
+                        key={t.id} 
+                        className={t.lastRunStatus === 'FAILED' ? 'warning' : 'automation'}
+                        title={`${t.name} (${t.cronExpression})`}
+                      >
+                        {t.lastRunStatus === 'FAILED' ? '⚠️ ' : '🤖 '}{t.name}
+                      </EventBadge>
+                    ))}
+                  </div>
+                </DayCell>
+              );
+            })}
+          </CalendarGrid>
+        </CalendarWrapper>
       ) : (
-        <Grid>
-          {tasks.map(task => (
-            <Card key={task.id} $status={task.status}>
-              <div className="card-header">
-                <h3>{task.name}</h3>
-                <span className={`badge ${task.status.toLowerCase()}`}>
-                  {task.status === 'ACTIVE' ? 'Ativa' : 'Pausada'}
-                </span>
-              </div>
+        <>
+          {isLoading && tasks.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)' }}>Carregando automações agendadas...</p>
+          ) : tasks.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--surface)', borderRadius: 12, border: '1px dashed var(--border)' }}>
+              <Clock size={48} color="var(--accent)" style={{ marginBottom: 16, opacity: 0.8 }} />
+              <h3 style={{ fontSize: '1.1rem', marginBottom: 8 }}>Nenhuma tarefa agendada na agenda</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: 460, margin: '0 auto 20px' }}>
+                Crie rotinas diárias como backups de projetos (ex: 03:57 AM), checagem de saúde do sistema ou limpezas automáticas.
+              </p>
+              <CreateButton onClick={() => setIsModalOpen(true)}>
+                <Plus size={18} /> Criar Primeira Automação
+              </CreateButton>
+            </div>
+          ) : (
+            <Grid>
+              {tasks.map(task => (
+                <Card key={task.id} $status={task.status}>
+                  <div className="card-header">
+                    <h3>{task.name}</h3>
+                    <span className={`badge ${task.status.toLowerCase()}`}>
+                      {task.status === 'ACTIVE' ? 'Ativa' : 'Pausada'}
+                    </span>
+                  </div>
 
-              <div className="card-body">
-                <span className="cron-pill">
-                  <Clock size={14} /> Cron: {task.cronExpression}
-                </span>
-                {task.description && <p>{task.description}</p>}
-                <div className="prompt-snippet" title={task.prompt}>
-                  <strong>Instrução:</strong> {task.prompt}
-                </div>
-              </div>
+                  <div className="card-body">
+                    <span className="cron-pill">
+                      <Clock size={14} /> Cron: {task.cronExpression}
+                    </span>
+                    {task.description && <p>{task.description}</p>}
+                    <div className="prompt-snippet" title={task.prompt}>
+                      <strong>Instrução de IA:</strong> {task.prompt}
+                    </div>
+                  </div>
 
-              {task.lastRunDiagnosis && (
-                <div className="diagnosis-box">
-                  <strong><Warning size={14} /> Diagnóstico de Auto-Recuperação:</strong>
-                  <span>{task.lastRunDiagnosis}</span>
-                </div>
-              )}
+                  {task.lastRunDiagnosis && (
+                    <div className="diagnosis-box">
+                      <strong><Warning size={14} /> Diagnóstico de Auto-Recuperação:</strong>
+                      <span>{task.lastRunDiagnosis}</span>
+                    </div>
+                  )}
 
-              <div className="card-footer">
-                <div className="next-run">
-                  Próxima rodada: {task.nextRunAt ? new Date(task.nextRunAt).toLocaleString('pt-BR') : 'Agendada'}
-                </div>
+                  <div className="card-footer">
+                    <div className="next-run">
+                      Próxima rodada: {task.nextRunAt ? new Date(task.nextRunAt).toLocaleString('pt-BR') : 'Agendada'}
+                    </div>
 
-                <div className="actions">
-                  <button type="button" className="run-now" onClick={() => handleRunNow(task.id)} title="Rodar Agora">
-                    <Play size={14} /> Rodar Agora
-                  </button>
-                  <button type="button" onClick={() => handleToggleTask(task.id)} title={task.status === 'ACTIVE' ? 'Pausar' : 'Ativar'}>
-                    {task.status === 'ACTIVE' ? <Pause size={14} /> : <Play size={14} />}
-                  </button>
-                  <button type="button" className="delete" onClick={() => handleDeleteTask(task.id)} title="Excluir">
-                    <Trash size={14} />
-                  </button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </Grid>
+                    <div className="actions">
+                      <button type="button" className="run-now" onClick={() => handleRunNow(task.id)} title="Rodar Agora">
+                        <Play size={14} /> Rodar Agora
+                      </button>
+                      <button type="button" onClick={() => handleToggleTask(task.id)} title={task.status === 'ACTIVE' ? 'Pausar' : 'Ativar'}>
+                        {task.status === 'ACTIVE' ? <Pause size={14} /> : <Play size={14} />}
+                      </button>
+                      <button type="button" className="delete" onClick={() => handleDeleteTask(task.id)} title="Excluir">
+                        <Trash size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </Grid>
+          )}
+        </>
       )}
 
       {isModalOpen && (
         <ModalBackdrop onClick={() => setIsModalOpen(false)}>
           <Modal onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Agendar Nova Tarefa Autônoma</h2>
+              <h2>Agendar Nova Atividade / Automação</h2>
               <button type="button" onClick={() => setIsModalOpen(false)}><X size={20} /></button>
             </div>
 
             <form onSubmit={handleCreateTask} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div className="form-group">
-                <label>Nome da Tarefa *</label>
+                <label>Nome da Atividade *</label>
                 <input 
                   type="text" 
                   placeholder="Ex: Backup Diário das 03:57 AM" 
@@ -203,7 +338,7 @@ export function CoworkView() {
               </div>
 
               <div className="form-group">
-                <label>Expressão Cron (ou Horário) *</label>
+                <label>Expressão Cron ou Frequência *</label>
                 <input 
                   type="text" 
                   placeholder="Ex: 57 3 * * * (Todos os dias às 03:57 AM)" 
@@ -214,7 +349,7 @@ export function CoworkView() {
               </div>
 
               <div className="form-group">
-                <label>Instrução / Prompt para a IA *</label>
+                <label>Instrução / Prompt para o Agente de IA *</label>
                 <textarea 
                   rows={4} 
                   placeholder="Ex: Execute o script de backup no terminal, compacte os arquivos da pasta e verifique se o arquivo final tem tamanho maior que zero." 
@@ -238,12 +373,12 @@ export function CoworkView() {
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
-                  style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 16px', borderRadius: 8, cursor: 'pointer' }}
+                  style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text)', padding: '10px 16px', borderRadius: 8, cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <CreateButton type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Agendando...' : 'Salvar e Ativar Tarefa'}
+                  {isSubmitting ? 'Agendando...' : 'Salvar e Ativar Atividade'}
                 </CreateButton>
               </div>
             </form>

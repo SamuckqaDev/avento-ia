@@ -185,6 +185,12 @@ public class AgentRunWorker {
             }
             ArrayNode messages = contextCache.resolve(job.getUserId(), job.getChatId(), requestMessages);
             List<String> workspaceRoots = stringList(request.path("workspaceRoots"));
+            if (workspaceRoots.isEmpty() && request.hasNonNull("projectPath") && !request.path("projectPath").asText().isBlank()) {
+                workspaceRoots = List.of(request.path("projectPath").asText());
+            }
+            if (workspaceRoots.isEmpty()) {
+                workspaceRoots = List.of(System.getProperty("user.dir"));
+            }
             ImageGenerationOptions imageOptions = ImageGenerationOptions.from(request.path("imageOptions"));
             // Restricts this run's toolset to the agent's allow-list, if the plan sent one.
             List<String> allowedTools = stringList(request.path("allowedTools"));

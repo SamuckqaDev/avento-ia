@@ -4,6 +4,7 @@ import com.avento.model.ScheduledTask;
 import com.avento.repository.ScheduledTaskRepository;
 import com.avento.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -73,9 +74,14 @@ public class CronTaskScheduler {
                     + "Instrução: " + task.getPrompt() + "\n"
                     + "Instruções de execução: Execute os comandos de terminal/bash necessários (ex: `run_command` com `git`, `curl`, etc.) no diretório do projeto e mostre o resultado textual bruto retornado.");
             payload.put("agentMode", true);
+            ArrayNode roots = objectMapper.createArrayNode();
             if (task.getProjectPath() != null && !task.getProjectPath().isBlank()) {
                 payload.put("projectPath", task.getProjectPath());
+                roots.add(task.getProjectPath());
+            } else {
+                roots.add(System.getProperty("user.dir"));
             }
+            payload.set("workspaceRoots", roots);
 
             Long targetChatId = task.getChatId() != null ? task.getChatId() : 0L;
             submissionService.submit(task.getUserId(), targetChatId, payload);

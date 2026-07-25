@@ -132,19 +132,35 @@ The official files are [`avento-logo.svg`](front/src/assets/avento-logo.svg) and
 ## Architecture
 
 ```mermaid
-flowchart LR
-    UI["React + Vite"] -->|"Axios + HttpOnly cookie"| API["Spring Boot"]
-    API --> PG["PostgreSQL + Outbox"]
-    PG --> REDIS["Redis Streams"]
-    REDIS --> WORKER["Agent Worker"]
-    WORKER --> ORCH["Orchestrator"]
-    REDIS -->|"authenticated SSE"| UI
-    ORCH --> LLM["Ollama"]
-    ORCH --> LOCAL["Local tools"]
-    ORCH --> MCP["MCP servers"]
-    API --> REDIS
-    API --> MEDIA["ComfyUI<br/>images + videos"]
-    API --> VOICE["Whisper.cpp + Piper"]
+flowchart TD
+    UI["React 19 + Vite Frontend"] -->|"Axios + HttpOnly Cookie"| APP["avento-app (Spring Boot Executable)"]
+
+    subgraph BACKEND["Multi-Module Maven Backend"]
+        APP --> AGENT["avento-agent (Orquestração & Prompts)"]
+        APP --> AUTH["avento-auth (JWT & Permissões)"]
+        APP --> EXEC["avento-execution (Workers & Redis Outbox)"]
+        APP --> MCP_MOD["avento-mcp (Stdi/SSE Clients)"]
+        APP --> RAG_MOD["avento-rag (MarkItDown & Embeddings)"]
+        APP --> MEDIA_MOD["avento-media (ComfyUI Images & Videos)"]
+        APP --> VOICE_MOD["avento-voice (Whisper.cpp & Piper)"]
+        APP --> WORKSPACE["avento-workspace (FileSystem & Backups)"]
+    end
+
+    EXEC --> PG["PostgreSQL (Dados Duráveis & Outbox)"]
+    PG --> REDIS["Redis Stack (Streams & VectorStore)"]
+    REDIS --> WORKER["Agent Worker Thread"]
+    WORKER --> ORCH["AgentOrchestrator"]
+    REDIS -->|"Authenticated SSE"| UI
+
+    subgraph PROVIDERS["Gerenciador de Provedores de IA Híbrido"]
+        OLLAMA["Ollama Local (127.0.0.1:11434)"]
+        LAN_SERVER["Servidor de IA na Rede Local (AMD AI Max / NVIDIA DGX)"]
+        CLOUD_API["Provedor Cloud Pessoal (Google Gemini / OpenAI)"]
+    end
+
+    ORCH --> PROVIDERS
+    ORCH --> LOCAL_TOOLS["Ferramentas Locais (Terminal / FS)"]
+    ORCH --> MCP_SRV["Servidores MCP (Filesystem, Git, Postgres, etc.)"]
 ```
 
 The frontend never receives the authentication token. The backend concentrates session, workspace authorization, persistence, model calls, and tool execution. Actions with an effect on the computer pass through the Permission Engine before reaching the local or MCP provider. Memories, settings, media, approvals, rollback manifests, MCP clients, processes, and timeline are scoped by the authenticated user and chat. Pending approvals and file-change manifests are persisted in PostgreSQL, so a backend restart does not transfer ownership or silently lose the action awaiting confirmation.

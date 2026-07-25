@@ -12,47 +12,46 @@ modelos locais, executa ferramentas, controla permissoes e integra os servicos d
 
 ```mermaid
 flowchart TB
-    USER["Usuario no navegador"]
+    USER["Usuário no navegador"]
 
-    subgraph FRONT["Frontend - React, TypeScript e Vite"]
+    subgraph FRONT["Frontend - React 19, TypeScript e Vite"]
         HOME["Home e componentes do chat"]
         REST["Axios - APIs REST e cookie HttpOnly"]
-        STREAM["Fetch - stream de eventos do agente"]
+        STREAM["Fetch - stream SSE de eventos do agente"]
         AUDIO["Web Audio, MediaRecorder e WebSocket"]
         UIPREVIEW["Visualizador HTML isolado"]
     end
 
-    subgraph BACK["Backend - Spring Boot"]
-        SECURITY["Spring Security e autenticacao por cookie"]
-        API["Controllers REST, stream e WebSocket"]
-        ORCH["AgentOrchestrator e AgentService"]
-        JOBS["AgentRunJob, Outbox e Agent Worker"]
-        EVENTS["RunEventPublisher e SSE"]
-        INTENT["IntentRouter, skills e instrucoes"]
-        PERMISSION["Permission Engine"]
-        TOOLS["ToolExecutionGateway"]
-        MEDIA["Jobs assincronos de imagem e video"]
-        VOICE["VoiceController e transcricao"]
-        DOCS["DocumentReaderService"]
+    subgraph BACK["Backend - Parent POM Multi-Módulo Maven"]
+        AUTH_MOD["avento-auth - Spring Security & JWT"]
+        AGENT_MOD["avento-agent - AgentOrchestrator, AgentService & PlanBuilder"]
+        EXEC_MOD["avento-execution - AgentRunWorker, Outbox & Streams"]
+        MCP_MOD["avento-mcp - McpClientManager & Server Catalog"]
+        RAG_MOD["avento-rag - Ingestão, Embeddings & VectorStore"]
+        MEDIA_MOD["avento-media - Jobs de imagem e vídeo ComfyUI"]
+        VOICE_MOD["avento-voice - Whisper.cpp & Piper TTS"]
+        WORKSPACE_MOD["avento-workspace - FileSystem & Backups"]
+        APP_MOD["avento-app - Executável Spring Boot Principal"]
     end
 
-    subgraph LOCAL_AI["Modelos e runtimes locais"]
-        OLLAMA["Ollama - chat, visao e embeddings"]
-        COMFY["ComfyUI - imagem e video"]
-        WHISPER["FFmpeg e Whisper.cpp - fala para texto"]
-        PIPER["Piper - texto para voz"]
-        MARKITDOWN["MarkItDown - documentos"]
+    subgraph AI_PROVIDERS["Gerenciador de Provedores de IA Híbrido"]
+        OLLAMA["Ollama Host Local (127.0.0.1:11434)"]
+        LAN_AI["Servidor de IA Dedicado na LAN (AMD AI Max / NVIDIA DGX)"]
+        CLOUD_AI["Provedor Cloud Pessoal (Google Gemini / OpenAI)"]
+        COMFY["ComfyUI - Imagem e vídeo"]
+        WHISPER["FFmpeg e Whisper.cpp - Fala para texto"]
+        PIPER["Piper - Texto para voz"]
+        MARKITDOWN["MarkItDown - Conversão de documentos"]
     end
 
-    subgraph DATA["Dados locais"]
-        POSTGRES["PostgreSQL - dados duraveis"]
-        REDIS["Redis Stack - filas, eventos, contexto, vetores e cache"]
-        FILES["Arquivos gerados e backups"]
+    subgraph DATA["Persistência & Dados Locais"]
+        POSTGRES["PostgreSQL - Dados duráveis, planos e auditoria"]
+        REDIS["Redis Stack - Streams, Outbox, Contexto & VectorStore"]
+        FILES["Arquivos de mídia e backups no workspace"]
     end
 
-    subgraph MCP["Servidores MCP separados"]
-        MCPCLIENT["McpClientManager - cliente MCP Java"]
-        MCPSERVERS["Filesystem, Git, DBHub, navegador, macOS e outros"]
+    subgraph MCP["Servidores MCP Isolados"]
+        MCPSERVERS["Filesystem, Git, DBHub, Navegador, macOS e outros"]
     end
 
     USER --> HOME

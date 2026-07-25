@@ -57,6 +57,7 @@ public class AgentRunWorker {
     private final com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry;
     private final com.avento.repository.ScheduledTaskRepository scheduledTaskRepository;
     private final com.avento.repository.ScheduledTaskRunRepository runRepository;
+    private final com.avento.service.AgentTimelineService timelineService;
     private final String consumerName = "agent-" + UUID.randomUUID().toString().substring(0, 8);
     private final AtomicBoolean queueFailureLogged = new AtomicBoolean();
 
@@ -72,7 +73,8 @@ public class AgentRunWorker {
             RedisExecutionProperties properties,
             com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry,
             com.avento.repository.ScheduledTaskRepository scheduledTaskRepository,
-            com.avento.repository.ScheduledTaskRunRepository runRepository) {
+            com.avento.repository.ScheduledTaskRunRepository runRepository,
+            com.avento.service.AgentTimelineService timelineService) {
         this.jobRepository = jobRepository;
         this.submissionService = submissionService;
         this.cancellationRegistry = cancellationRegistry;
@@ -85,6 +87,7 @@ public class AgentRunWorker {
         this.toolPolicyRegistry = toolPolicyRegistry;
         this.scheduledTaskRepository = scheduledTaskRepository;
         this.runRepository = runRepository;
+        this.timelineService = timelineService;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -235,23 +238,34 @@ public class AgentRunWorker {
             } else {
                 submissionService.markCompleted(current);
                 try {
-                    String finalOutput = "";
+                    StringBuilder sb = new StringBuilder();
+                    List<com.avento.model.AgentTimelineEvent> events = timelineService.eventsForRun(job.getRunId());
+                    if (events != null && !events.isEmpty()) {
+                        for (com.avento.model.AgentTimelineEvent e : events) {
+                            if (e.getDetail() != null && !e.getDetail().isBlank()) {
+                                sb.append("[").append(e.getEventType()).append("] ");
+                                if (e.getToolName() != null) sb.append(e.getToolName()).append(": ");
+                                sb.append(e.getDetail()).append("\n");
+                            } else if (e.getPayload() != null && !e.getPayload().isBlank()) {
+                                sb.append("[").append(e.getEventType()).append("] ").append(e.getPayload()).append("\n");
+                            }
+                        }
+                    }
+
                     ArrayNode finalMessages = contextCache.resolve(job.getUserId(), job.getChatId(), mapper.createArrayNode());
                     if (finalMessages != null && !finalMessages.isEmpty()) {
                         for (int i = finalMessages.size() - 1; i >= 0; i--) {
                             JsonNode msg = finalMessages.get(i);
                             if ("assistant".equalsIgnoreCase(msg.path("role").asText()) && msg.hasNonNull("content") && !msg.path("content").asText().isBlank()) {
-                                finalOutput = msg.path("content").asText();
+                                if (sb.length() > 0) sb.append("\n--- Resposta / Análise do Agente ---\n");
+                                sb.append(msg.path("content").asText());
                                 break;
                             }
                         }
                     }
-                    if (finalOutput.isBlank()) {
-                        finalOutput = "Execução concluída com sucesso pelo motor autônomo do Avento.";
-                    }
 
+                    String outputToSave = sb.length() > 0 ? sb.toString() : "Execução autônoma concluída com sucesso pelo motor de IA do Avento.";
                     Long targetTaskId = request.path("taskId").asLong(0L);
-                    String outputToSave = finalOutput;
 
                     if (targetTaskId > 0) {
                         scheduledTaskRepository.findById(targetTaskId).ifPresent(t -> {

@@ -67,6 +67,7 @@ public class CronTaskScheduler {
 
         try {
             ObjectNode payload = objectMapper.createObjectNode();
+            payload.put("taskId", task.getId());
             payload.put("prompt", "MODO AUTÔNOMO AGENDADO (Avento Cowork):\n"
                     + "Tarefa: " + task.getName() + "\n"
                     + "Instrução: " + task.getPrompt() + "\n"

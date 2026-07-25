@@ -89,6 +89,14 @@ export function CoworkView() {
       return `${m} ${h} * * *`;
     }
     if (freqMode === 'interval') {
+      if (intervalHours === '1min') return '* * * * *';
+      if (intervalHours === '5min') return '*/5 * * * *';
+      if (intervalHours === '15min') return '*/15 * * * *';
+      if (intervalHours === '30min') return '*/30 * * * *';
+      if (intervalHours === '1h') return '0 * * * *';
+      if (intervalHours === '2h') return '0 */2 * * *';
+      if (intervalHours === '6h') return '0 */6 * * *';
+      if (intervalHours === '12h') return '0 */12 * * *';
       const h = Math.max(1, Math.min(24, parseInt(intervalHours, 10) || 1));
       return h === 1 ? '0 * * * *' : `0 */${h} * * *`;
     }
@@ -513,11 +521,14 @@ export function CoworkView() {
                       <div className="field-box">
                         <label>Repetir a cada:</label>
                         <select value={intervalHours} onChange={e => setIntervalHours(e.target.value)}>
-                          <option value="1">1 Hora</option>
-                          <option value="2">2 Horas</option>
-                          <option value="4">4 Horas</option>
-                          <option value="6">6 Horas</option>
-                          <option value="12">12 Horas</option>
+                          <option value="1min">⚡ A cada 1 Minuto (* * * * *)</option>
+                          <option value="5min">⏱️ A cada 5 Minutos (*/5 * * * *)</option>
+                          <option value="15min">⏱️ A cada 15 Minutos (*/15 * * * *)</option>
+                          <option value="30min">⏱️ A cada 30 Minutos (*/30 * * * *)</option>
+                          <option value="1h">🕐 A cada 1 Hora (0 * * * *)</option>
+                          <option value="2h">🕑 A cada 2 Horas (0 */2 * * *)</option>
+                          <option value="6h">🕕 A cada 6 Horas (0 */6 * * *)</option>
+                          <option value="12h">🕛 A cada 12 Horas (0 */12 * * *)</option>
                         </select>
                       </div>
                     </div>
@@ -561,7 +572,7 @@ export function CoworkView() {
                       <label>Expressão Cron Personalizada (5 partes):</label>
                       <input 
                         type="text" 
-                        placeholder="Ex: 57 3 * * *" 
+                        placeholder="Ex: * * * * *" 
                         value={customCron} 
                         onChange={e => setCustomCron(e.target.value)} 
                         style={{ fontFamily: 'monospace', fontSize: '0.95rem', letterSpacing: '1px', fontWeight: 600 }}
@@ -581,9 +592,11 @@ export function CoworkView() {
                       <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Atalhos de Expressões Comuns:</label>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {[
+                          { label: '⚡ A cada 1 minuto', cron: '* * * * *' },
+                          { label: '⏱️ A cada 5 min', cron: '*/5 * * * *' },
+                          { label: '⏱️ A cada 15 min', cron: '*/15 * * * *' },
                           { label: '03:57 AM Diário', cron: '57 3 * * *' },
                           { label: '09:00 AM Seg-Sex', cron: '0 9 * * 1-5' },
-                          { label: 'A cada 15 min', cron: '*/15 * * * *' },
                           { label: '1º dia do Mês', cron: '0 0 1 * *' },
                         ].map(preset => (
                           <button

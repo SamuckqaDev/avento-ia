@@ -598,20 +598,20 @@ export function CoworkView() {
 
                 {freqMode === 'cron' && (
                   <SubInputPanel>
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: 8, color: 'var(--text)' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 700, display: 'block', marginBottom: 6, color: 'var(--text)' }}>
                         Campos Estruturados do Cron (5 Posições Padrão):
                       </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
                         {[
-                          { title: '1. Minuto', sub: '0-59 ou *' },
-                          { title: '2. Hora', sub: '0-23 ou *' },
-                          { title: '3. Dia Mês', sub: '1-31 ou *' },
-                          { title: '4. Mês', sub: '1-12 ou *' },
-                          { title: '5. Dia Sem.', sub: '0-6 ou *' }
+                          { title: 'Minuto', sub: '0-59' },
+                          { title: 'Hora', sub: '0-23' },
+                          { title: 'Dia Mês', sub: '1-31' },
+                          { title: 'Mês', sub: '1-12' },
+                          { title: 'Dia Sem.', sub: '0-6' }
                         ].map((part, idx) => (
-                          <div key={part.title} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text)' }}>{part.title}</span>
+                          <div key={part.title} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text)', textAlign: 'center' }}>{part.title}</span>
                             <Input
                               type="text"
                               value={cronParts[idx] || '*'}
@@ -621,41 +621,42 @@ export function CoworkView() {
                                 textAlign: 'center',
                                 fontFamily: 'monospace',
                                 fontWeight: 700,
-                                fontSize: '0.95rem',
-                                padding: '8px 4px',
+                                fontSize: '0.88rem',
+                                padding: '4px',
+                                height: 34,
                                 background: 'var(--surface)',
                                 border: '1px solid var(--border)',
                                 borderRadius: 6
                               }}
                             />
-                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'center' }}>{part.sub}</span>
+                            <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textAlign: 'center' }}>{part.sub}</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="field-box" style={{ marginTop: 8 }}>
-                      <label>Expressão Cron Resultante (Montada com Espaços):</label>
+                    <div className="field-box" style={{ marginTop: 2 }}>
+                      <label style={{ fontSize: '0.75rem' }}>Expressão Cron Resultante:</label>
                       <Input 
                         type="text" 
                         placeholder="Ex: * * * * *" 
                         value={customCron} 
                         onChange={e => handleCustomCronTextChange(e.target.value)} 
-                        style={{ fontFamily: 'monospace', fontSize: '1rem', letterSpacing: '2px', fontWeight: 700, textAlign: 'center', color: 'var(--primary)' }}
+                        style={{ fontFamily: 'monospace', fontSize: '0.9rem', letterSpacing: '2px', fontWeight: 700, textAlign: 'center', color: 'var(--primary)', height: 34 }}
                         required 
                       />
                     </div>
 
-                    <div style={{ marginTop: 10 }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Atalhos Rápidos de Expressões Comuns:</label>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <div style={{ marginTop: 4 }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Atalhos Rápidos:</label>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {[
-                          { label: '⚡ A cada 1 minuto', cron: '* * * * *' },
-                          { label: '⏱️ A cada 5 min', cron: '*/5 * * * *' },
-                          { label: '⏱️ A cada 15 min', cron: '*/15 * * * *' },
-                          { label: '03:57 AM Diário', cron: '57 3 * * *' },
-                          { label: '09:00 AM Seg-Sex', cron: '0 9 * * 1-5' },
-                          { label: '1º dia do Mês', cron: '0 0 1 * *' },
+                          { label: '⚡ 1 min', cron: '* * * * *' },
+                          { label: '⏱️ 5 min', cron: '*/5 * * * *' },
+                          { label: '⏱️ 15 min', cron: '*/15 * * * *' },
+                          { label: '03:57 AM', cron: '57 3 * * *' },
+                          { label: 'Seg-Sex', cron: '0 9 * * 1-5' },
+                          { label: '1º dia Mês', cron: '0 0 1 * *' },
                         ].map(preset => (
                           <button
                             key={preset.cron}
@@ -665,15 +666,15 @@ export function CoworkView() {
                               background: customCron === preset.cron ? 'var(--primary)' : 'var(--surface)',
                               color: customCron === preset.cron ? '#fff' : 'var(--text)',
                               border: '1px solid var(--border)',
-                              borderRadius: 6,
-                              padding: '4px 10px',
-                              fontSize: '0.75rem',
+                              borderRadius: 4,
+                              padding: '2px 6px',
+                              fontSize: '0.7rem',
                               cursor: 'pointer',
                               fontWeight: 600,
                               transition: 'all 0.15s ease'
                             }}
                           >
-                            {preset.label} (<code>{preset.cron}</code>)
+                            {preset.label}
                           </button>
                         ))}
                       </div>

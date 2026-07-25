@@ -441,44 +441,44 @@ export const FrequencyOptionButton = styled.button<{ $active?: boolean }>`
 `;
 
 export const SubInputPanel = styled.div`
-  margin-top: 6px;
-  padding: 14px 16px;
+  margin-top: 4px;
+  padding: 10px 12px;
   background: color-mix(in srgb, ${({ theme }) => theme.colors.bg} 70%, ${({ theme }) => theme.colors.surface});
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 
   .input-row {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
 
     .field-box {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
       flex: 1;
-      min-width: 140px;
+      min-width: 130px;
 
       label {
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 600;
         color: ${({ theme }) => theme.colors.text};
       }
 
       input, select {
         width: 100%;
-        height: 42px;
+        height: 38px;
         box-sizing: border-box;
       }
     }
   }
 
   .cron-hint {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: ${({ theme }) => theme.colors.textMuted};
 
     code {
@@ -510,11 +510,13 @@ export const Modal = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 16px;
   width: 90%;
-  max-width: 540px;
-  padding: 24px;
+  max-width: 520px;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   box-shadow: ${({ theme }) => theme.shadows.lg};
   color: ${({ theme }) => theme.colors.text};
 

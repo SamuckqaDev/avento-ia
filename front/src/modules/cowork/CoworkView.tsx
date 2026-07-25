@@ -4,7 +4,8 @@ import {
   Container, Header, CreateButton, Grid, Card, 
   ModalBackdrop, Modal, TabNavigation, CalendarWrapper,
   CalendarHeader, CalendarGrid, DayCell, EventBadge,
-  FrequencyGrid, FrequencyOptionButton, SubInputPanel
+  FrequencyGrid, FrequencyOptionButton, SubInputPanel,
+  DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton, DeleteModalError
 } from './styles';
 import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen } from '@phosphor-icons/react';
 
@@ -170,13 +171,24 @@ export function CoworkView() {
     }
   };
 
-  const handleDeleteTask = async (id: number) => {
-    if (!confirm('Deseja realmente excluir esta tarefa da agenda?')) return;
+  // Delete modal state
+  const [taskToDelete, setTaskToDelete] = useState<ScheduledTask | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const confirmDeleteTask = async () => {
+    if (!taskToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
     try {
-      await api.delete(`/api/scheduled-tasks/${id}`);
-      void fetchTasks();
-    } catch (e) {
+      await api.delete(`/api/scheduled-tasks/${taskToDelete.id}`);
+      await fetchTasks();
+      setTaskToDelete(null);
+    } catch (e: any) {
       console.error('Erro ao excluir tarefa agendada', e);
+      setDeleteError(e?.response?.data?.message || 'Erro ao tentar excluir a atividade.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -430,7 +442,7 @@ export function CoworkView() {
                       <button type="button" onClick={() => handleToggleTask(task.id)} title={task.status === 'ACTIVE' ? 'Pausar' : 'Ativar'}>
                         {task.status === 'ACTIVE' ? <Pause size={14} /> : <Play size={14} />}
                       </button>
-                      <button type="button" className="delete" onClick={() => handleDeleteTask(task.id)} title="Excluir">
+                      <button type="button" className="delete" onClick={() => setTaskToDelete(task)} title="Excluir">
                         <Trash size={14} />
                       </button>
                     </div>
@@ -870,6 +882,36 @@ export function CoworkView() {
             </div>
           </Modal>
         </ModalBackdrop>
+      )}
+
+      {taskToDelete && (
+        <DeleteModalBackdrop role="presentation" onClick={() => {
+          if (!isDeleting) {
+            setDeleteError(null);
+            setTaskToDelete(null);
+          }
+        }}>
+          <DeleteModal role="dialog" aria-modal="true" aria-labelledby="delete-task-title" onClick={event => event.stopPropagation()}>
+            <button type="button" className="modal-close" onClick={() => {
+              setDeleteError(null);
+              setTaskToDelete(null);
+            }} disabled={isDeleting} title="Cancelar">
+              <X size={18} />
+            </button>
+            <h2 id="delete-task-title">Apagar atividade agendada?</h2>
+            <p>Isso apagará permanentemente a atividade “{taskToDelete.name}” e todo o seu histórico de execuções.</p>
+            {deleteError && <DeleteModalError role="alert">{deleteError}</DeleteModalError>}
+            <DeleteModalActions>
+              <DeleteModalButton type="button" onClick={() => {
+                setDeleteError(null);
+                setTaskToDelete(null);
+              }} disabled={isDeleting}>Cancelar</DeleteModalButton>
+              <DeleteModalButton $danger type="button" onClick={confirmDeleteTask} disabled={isDeleting}>
+                {isDeleting ? 'Apagando...' : 'Apagar definitivamente'}
+              </DeleteModalButton>
+            </DeleteModalActions>
+          </DeleteModal>
+        </DeleteModalBackdrop>
       )}
     </Container>
   );

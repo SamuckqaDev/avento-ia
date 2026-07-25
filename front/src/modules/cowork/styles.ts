@@ -570,3 +570,101 @@ export const Modal = styled.div`
     padding-top: 10px;
   }
 `;
+
+export const DeleteModalBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(3px);
+`;
+
+export const DeleteModal = styled.div`
+  position: relative;
+  width: min(420px, 100%);
+  padding: 24px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 12px;
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+
+  h2 {
+    margin: 0 32px 8px 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0;
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: 8px;
+    background: transparent;
+    color: ${({ theme }) => theme.colors.textMuted};
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.text};
+      background: color-mix(in srgb, ${({ theme }) => theme.colors.textMuted} 15%, transparent);
+    }
+  }
+`;
+
+export const DeleteModalActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+
+  @media (max-width: 460px) {
+    flex-direction: column-reverse;
+  }
+`;
+
+export const DeleteModalError = styled.p`
+  margin-top: 14px !important;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #dc2626 42%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, #dc2626 9%, ${({ theme }) => theme.colors.surface});
+  color: #dc2626 !important;
+`;
+
+export const DeleteModalButton = styled.button<{ $danger?: boolean }>`
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid ${({ $danger, theme }) => $danger ? '#dc2626' : theme.colors.border};
+  border-radius: 8px;
+  background: ${({ $danger, theme }) => $danger ? '#dc2626' : theme.colors.surface};
+  color: ${({ $danger, theme }) => $danger ? '#ffffff' : theme.colors.text};
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+
+  &:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+`;

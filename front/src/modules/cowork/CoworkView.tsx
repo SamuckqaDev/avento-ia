@@ -466,14 +466,54 @@ export function CoworkView() {
                 {freqMode === 'cron' && (
                   <SubInputPanel>
                     <div className="field-box">
-                      <label>Expressão Cron:</label>
+                      <label>Expressão Cron Personalizada (5 partes):</label>
                       <input 
                         type="text" 
                         placeholder="Ex: 57 3 * * *" 
                         value={customCron} 
                         onChange={e => setCustomCron(e.target.value)} 
+                        style={{ fontFamily: 'monospace', fontSize: '0.95rem', letterSpacing: '1px', fontWeight: 600 }}
                         required 
                       />
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: 6, fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap', marginTop: 2 }}>
+                      <span style={{ background: 'var(--surface)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>1. Minuto (0-59)</span>
+                      <span style={{ background: 'var(--surface)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>2. Hora (0-23)</span>
+                      <span style={{ background: 'var(--surface)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>3. Dia do Mês (1-31)</span>
+                      <span style={{ background: 'var(--surface)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>4. Mês (1-12)</span>
+                      <span style={{ background: 'var(--surface)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>5. Dia da Semana (0-6)</span>
+                    </div>
+
+                    <div style={{ marginTop: 4 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Atalhos de Expressões Comuns:</label>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {[
+                          { label: '03:57 AM Diário', cron: '57 3 * * *' },
+                          { label: '09:00 AM Seg-Sex', cron: '0 9 * * 1-5' },
+                          { label: 'A cada 15 min', cron: '*/15 * * * *' },
+                          { label: '1º dia do Mês', cron: '0 0 1 * *' },
+                        ].map(preset => (
+                          <button
+                            key={preset.cron}
+                            type="button"
+                            onClick={() => setCustomCron(preset.cron)}
+                            style={{
+                              background: customCron === preset.cron ? 'var(--accent)' : 'var(--surface)',
+                              color: customCron === preset.cron ? '#fff' : 'var(--text)',
+                              border: '1px solid var(--border)',
+                              borderRadius: 6,
+                              padding: '4px 10px',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {preset.label} (<code>{preset.cron}</code>)
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </SubInputPanel>
                 )}

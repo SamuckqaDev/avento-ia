@@ -1,4 +1,14 @@
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
+
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+const slideUp = keyframes`
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+`;
 
 export const Container = styled.div`
   display: flex;
@@ -615,6 +625,7 @@ export const ModalBackdrop = styled.div`
   justify-content: center;
   align-items: center;
   z-index: 9999;
+  animation: ${fadeIn} 0.18s ease-out;
 `;
 
 export const Modal = styled.div`
@@ -631,6 +642,7 @@ export const Modal = styled.div`
   gap: 12px;
   box-shadow: ${({ theme }) => theme.shadows.lg};
   color: ${({ theme }) => theme.colors.text};
+  animation: ${slideUp} 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 
   .modal-header {
     display: flex;

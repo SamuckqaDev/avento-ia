@@ -4,6 +4,7 @@ import { MessageBubble, Message, type DocumentAttachment, type ImageAttachment }
 import { InputArea } from '../../modules/chat/InputArea';
 import { useChatStream, ChunkData } from '../../hooks/useChatStream';
 import type { AgentActivityEvent, ChatStreamContext, ImageGenerationOptions, MessageContext } from '../../hooks/useChatStream';
+import { CoworkView } from '../../modules/cowork/CoworkView';
 import { useAudioServices } from '../../hooks/useAudioServices';
 import { useChatHistory } from '../../hooks/useChatHistory';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -771,6 +772,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const [isMcpToolsManagerOpen, setIsMcpToolsManagerOpen] = useState<boolean>(false);
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState<boolean>(false);
   const { skills, createSkill, deleteSkill } = useSkills();
+  const [activeTab, setActiveTab] = useState<'chat' | 'cowork'>('chat');
   const [activeDiff, setActiveDiff] = useState<{path: string, messageIndex: number} | null>(null);
   const [projectAnalysis, setProjectAnalysis] = useState<ProjectAnalysis | null>(null);
   const [isAnalyzingProject, setIsAnalyzingProject] = useState<boolean>(false);
@@ -2474,6 +2476,8 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
         toggleTheme={toggleTheme}
         isVoiceEnabled={isVoiceEnabled}
         handleToggleVoice={handleToggleVoice}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
       />
       {isMobileOpen && <MobileOverlay onClick={() => setMobileOpen(false)} />}
       
@@ -2832,70 +2836,76 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
           </HeaderRight>
         </Topbar>
         
-        <ChatContainer ref={chatContainerRef} onScroll={handleChatScroll}>
-          {messages.length <= 1 ? (
-            <WelcomeState>
-              <h2>Como posso ajudar?</h2>
-              <button 
-                className="project-select-btn"
-                onClick={async () => {
-                  const path = await browseFolder();
-                  if (path) loadProjectTree(path);
-                }}
-              >
-                <Folder size={20} weight="fill" />
-                Adicionar Pasta ao Projeto
-              </button>
-            </WelcomeState>
-          ) : (
-            <>
-              {messages.map((msg, i) => (
-                msg.role !== 'system' && (
-                  <MessageBubble 
-                    key={i} 
-                    message={msg} 
-                    messageIndex={i}
-                    isStreaming={isGenerating && i === messages.length - 1 && msg.role === 'assistant'}
-                    approvalLoadingId={approvalLoadingId}
-                    onApproveApproval={handleApproveAction}
-                    onRejectApproval={handleRejectAction}
-                    onOpenDiff={handleOpenDiff}
-                  />
-                )
-              ))}
-              <div ref={chatEndRef} />
-            </>
-          )}
-        </ChatContainer>
+        {activeTab === 'cowork' ? (
+          <CoworkView />
+        ) : (
+          <>
+            <ChatContainer ref={chatContainerRef} onScroll={handleChatScroll}>
+              {messages.length <= 1 ? (
+                <WelcomeState>
+                  <h2>Como posso ajudar?</h2>
+                  <button 
+                    className="project-select-btn"
+                    onClick={async () => {
+                      const path = await browseFolder();
+                      if (path) loadProjectTree(path);
+                    }}
+                  >
+                    <Folder size={20} weight="fill" />
+                    Adicionar Pasta ao Projeto
+                  </button>
+                </WelcomeState>
+              ) : (
+                <>
+                  {messages.map((msg, i) => (
+                    msg.role !== 'system' && (
+                      <MessageBubble 
+                        key={i} 
+                        message={msg} 
+                        messageIndex={i}
+                        isStreaming={isGenerating && i === messages.length - 1 && msg.role === 'assistant'}
+                        approvalLoadingId={approvalLoadingId}
+                        onApproveApproval={handleApproveAction}
+                        onRejectApproval={handleRejectAction}
+                        onOpenDiff={handleOpenDiff}
+                      />
+                    )
+                  ))}
+                  <div ref={chatEndRef} />
+                </>
+              )}
+            </ChatContainer>
 
-        <InputArea 
-          inputValue={inputValue}
-          setInputValue={setInputValue}
-          handleSend={() => handleSend(inputValue)}
-          onStop={() => abortGeneration(currentChatId)}
-          isGenerating={isGenerating}
-          isRecording={isRecording}
-          isRealtimeVoiceActive={isRealtimeVoiceActive}
-          isRealtimeListening={isRealtimeListening}
-          realtimeTranscript={realtimeTranscript}
-          audioLevel={audioLevel}
-          speechRecognitionSupported={speechRecognitionSupported}
-          imageAttachments={imageAttachments}
-          documentAttachments={documentAttachments}
-          isAttachingDocuments={isAttachingDocuments}
-          toggleRecording={toggleRecording}
-          toggleRealtimeVoice={toggleRealtimeVoice}
-          onAttachImages={handleAttachImages}
-          onAttachDocuments={handleAttachDocuments}
-          onRemoveImageAttachment={handleRemoveImageAttachment}
-          onRemoveDocumentAttachment={handleRemoveDocumentAttachment}
-          messageQueue={messageQueue}
-          onRemoveFromQueue={removeFromQueue}
-          skills={skills}
-          agentMode={agentMode}
-          onToggleAgentMode={() => setAgentMode(value => !value)}
-          onOpenImageConfig={() => setIsHeaderMenuOpen(true)}
-        />
+            <InputArea 
+              inputValue={inputValue}
+              setInputValue={setInputValue}
+              handleSend={() => handleSend(inputValue)}
+              onStop={() => abortGeneration(currentChatId)}
+              isGenerating={isGenerating}
+              isRecording={isRecording}
+              isRealtimeVoiceActive={isRealtimeVoiceActive}
+              isRealtimeListening={isRealtimeListening}
+              realtimeTranscript={realtimeTranscript}
+              audioLevel={audioLevel}
+              speechRecognitionSupported={speechRecognitionSupported}
+              imageAttachments={imageAttachments}
+              documentAttachments={documentAttachments}
+              isAttachingDocuments={isAttachingDocuments}
+              toggleRecording={toggleRecording}
+              toggleRealtimeVoice={toggleRealtimeVoice}
+              onAttachImages={handleAttachImages}
+              onAttachDocuments={handleAttachDocuments}
+              onRemoveImageAttachment={handleRemoveImageAttachment}
+              onRemoveDocumentAttachment={handleRemoveDocumentAttachment}
+              messageQueue={messageQueue}
+              onRemoveFromQueue={removeFromQueue}
+              skills={skills}
+              agentMode={agentMode}
+              onToggleAgentMode={() => setAgentMode(value => !value)}
+              onOpenImageConfig={() => setIsHeaderMenuOpen(true)}
+            />
+          </>
+        )}
       </MainContent>
 
       {isPlanPanelOpen && (

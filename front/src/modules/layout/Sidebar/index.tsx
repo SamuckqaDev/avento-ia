@@ -11,7 +11,7 @@ import { ChatSession } from '../../../hooks/useChatHistory';
 import { FileNode } from '../../../hooks/useFileSystem';
 import { AppNotification } from '../../../hooks/useNotifications';
 import { NotificationBell } from '../NotificationBell';
-import { Plus, Folder, FolderUser, FileText, ChatsCircle, List, CaretDown, CaretRight, Trash, X, ImageSquare, FilmSlate, Browsers, FilePdf, DownloadSimple, PencilSimple, Check, MagnifyingGlass } from '@phosphor-icons/react';
+import { Plus, Folder, FolderUser, FileText, ChatsCircle, List, CaretDown, CaretRight, Trash, X, ImageSquare, FilmSlate, Browsers, FilePdf, DownloadSimple, PencilSimple, Check, MagnifyingGlass, Clock } from '@phosphor-icons/react';
 import logoUrl from '../../../assets/avento-logo.svg';
 import { SettingsModal } from '../SettingsModal';
 import { useAuth } from '../../auth/AuthProvider';
@@ -57,6 +57,8 @@ interface SidebarProps {
   toggleTheme: () => void;
   isVoiceEnabled: boolean;
   handleToggleVoice: (enabled: boolean) => void;
+  activeTab?: 'chat' | 'cowork';
+  onSelectTab?: (tab: 'chat' | 'cowork') => void;
 }
 
 interface FileTreeNodeProps {
@@ -124,7 +126,7 @@ function SidebarComponent({
   projectPaths, removeProjectPath, homeWorkspaceRoot, clearHomeWorkspaceRoot,
   browseFolder, authorizeHomeFolder, loadProjectTree,
   fileTree, selectedFiles, toggleFileSelection, media, onOpenMedia
-  ,onDeleteChat, onRenameChat, isDarkMode, toggleTheme, isVoiceEnabled, handleToggleVoice
+  ,onDeleteChat, onRenameChat, isDarkMode, toggleTheme, isVoiceEnabled, handleToggleVoice, activeTab, onSelectTab
 }: SidebarProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
@@ -252,8 +254,21 @@ function SidebarComponent({
       
       <ScrollArea>
         <Section>
-          <ActionBtn onClick={onNewChat} title="Nova Conversa">
+          <ActionBtn onClick={() => { onSelectTab?.('chat'); onNewChat(); }} title="Nova Conversa">
             <Plus size={18} weight="bold" /> <span className="hide-on-minimized">Nova Conversa</span>
+          </ActionBtn>
+          <ActionBtn 
+            type="button"
+            onClick={() => onSelectTab?.(activeTab === 'cowork' ? 'chat' : 'cowork')} 
+            title="Avento Cowork (Agenda)"
+            style={{ 
+              marginTop: 8, 
+              background: activeTab === 'cowork' ? 'rgba(16, 185, 129, 0.2)' : undefined,
+              borderColor: activeTab === 'cowork' ? '#10b981' : undefined
+            }}
+          >
+            <Clock size={18} weight="bold" color={activeTab === 'cowork' ? '#10b981' : undefined} /> 
+            <span className="hide-on-minimized">Agenda & Cowork</span>
           </ActionBtn>
         </Section>
 

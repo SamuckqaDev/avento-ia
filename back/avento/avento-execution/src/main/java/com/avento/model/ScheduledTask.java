@@ -81,6 +81,9 @@ public class ScheduledTask {
     @Column(name = "last_run_diagnosis", columnDefinition = "TEXT")
     private String lastRunDiagnosis;
 
+    @Column(name = "last_run_output", columnDefinition = "TEXT")
+    private String lastRunOutput;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -209,6 +212,14 @@ public class ScheduledTask {
 
     public void setLastRunDiagnosis(String lastRunDiagnosis) {
         this.lastRunDiagnosis = lastRunDiagnosis;
+    }
+
+    public String getLastRunOutput() {
+        return lastRunOutput;
+    }
+
+    public void setLastRunOutput(String lastRunOutput) {
+        this.lastRunOutput = lastRunOutput;
     }
 
     public LocalDateTime getCreatedAt() {

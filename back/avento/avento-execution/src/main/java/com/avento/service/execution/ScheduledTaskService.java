@@ -112,12 +112,18 @@ public class ScheduledTaskService {
     }
 
     @Transactional
-    public void markRunCompleted(ScheduledTask task, boolean success, String error, String diagnosis) {
+    public void markRunCompleted(ScheduledTask task, boolean success, String error, String diagnosis, String output) {
         task.setLastRunStatus(success ? ScheduledTask.RunStatus.SUCCESS : ScheduledTask.RunStatus.FAILED);
         task.setLastRunError(error);
         task.setLastRunDiagnosis(diagnosis);
+        task.setLastRunOutput(output);
         task.setNextRunAt(calculateNextRun(task.getCronExpression()));
         repository.save(task);
+    }
+
+    @Transactional
+    public void markRunCompleted(ScheduledTask task, boolean success, String error, String diagnosis) {
+        markRunCompleted(task, success, error, diagnosis, null);
     }
 
     public LocalDateTime calculateNextRun(String cronExpressionStr) {

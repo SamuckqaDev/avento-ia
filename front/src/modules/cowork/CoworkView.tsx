@@ -6,7 +6,7 @@ import {
   CalendarHeader, CalendarGrid, DayCell, EventBadge,
   FrequencyGrid, FrequencyOptionButton, SubInputPanel
 } from './styles';
-import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle } from '@phosphor-icons/react';
+import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye } from '@phosphor-icons/react';
 
 export interface ScheduledTask {
   id: number;
@@ -22,6 +22,7 @@ export interface ScheduledTask {
   nextRunAt?: string;
   lastRunError?: string;
   lastRunDiagnosis?: string;
+  lastRunOutput?: string;
   createdAt: string;
 }
 
@@ -32,6 +33,7 @@ export function CoworkView() {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [selectedOutputTask, setSelectedOutputTask] = useState<ScheduledTask | null>(null);
 
   // Calendar date state
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -335,6 +337,28 @@ export function CoworkView() {
                           <span>{task.lastRunError}</span>
                         </div>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOutputTask(task)}
+                        style={{
+                          marginTop: 8,
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text)',
+                          padding: '4px 10px',
+                          borderRadius: 6,
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontWeight: 600,
+                          width: 'fit-content'
+                        }}
+                      >
+                        <Eye size={14} /> Ver Retorno Completo da IA / Terminal
+                      </button>
                     </div>
                   )}
 
@@ -573,6 +597,60 @@ export function CoworkView() {
                 </CreateButton>
               </div>
             </form>
+          </Modal>
+        </ModalBackdrop>
+      )}
+
+      {selectedOutputTask && (
+        <ModalBackdrop onClick={() => setSelectedOutputTask(null)}>
+          <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 640 }}>
+            <div className="modal-header">
+              <h2><FileText size={22} style={{ verticalAlign: 'middle', marginRight: 8, color: 'var(--primary)' }} /> Retorno da Execução - {selectedOutputTask.name}</h2>
+              <button type="button" onClick={() => setSelectedOutputTask(null)}><X size={20} /></button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg)', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)', fontSize: '0.82rem' }}>
+                <span><strong>Status:</strong> {selectedOutputTask.lastRunStatus === 'SUCCESS' ? '✅ Sucesso' : '❌ Falha'}</span>
+                <span><strong>Último Disparo:</strong> {selectedOutputTask.lastRunAt ? new Date(selectedOutputTask.lastRunAt).toLocaleString('pt-BR') : 'Sem dados'}</span>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', marginBottom: 4 }}>Instrução / Prompt Enviado:</label>
+                <div style={{ background: 'var(--bg)', padding: 12, borderRadius: 8, border: '1px solid var(--border)', fontSize: '0.82rem' }}>
+                  {selectedOutputTask.prompt}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, display: 'block', marginBottom: 4 }}>Retorno Bruto da Execução (Stdout / Resposta do Agente):</label>
+                <pre style={{
+                  background: '#0d1117',
+                  color: '#e6edf3',
+                  padding: 14,
+                  borderRadius: 8,
+                  border: '1px solid #30363d',
+                  fontSize: '0.8rem',
+                  fontFamily: 'monospace',
+                  maxHeight: 240,
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}>
+                  {selectedOutputTask.lastRunOutput || selectedOutputTask.lastRunDiagnosis || 'Execução registrada sem saída de texto adicional.'}
+                </pre>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                onClick={() => setSelectedOutputTask(null)}
+                style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
+              >
+                Fechar
+              </button>
+            </div>
           </Modal>
         </ModalBackdrop>
       )}

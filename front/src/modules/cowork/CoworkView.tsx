@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../services/apiClient';
+import { Input, Select, TextArea, DatePicker } from '../../components/ui';
 import { 
   Container, Header, CreateButton, Grid, Card, 
   ModalBackdrop, Modal, TabNavigation, CalendarWrapper,
@@ -482,7 +483,7 @@ export function CoworkView() {
             <form onSubmit={handleCreateTask} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div className="form-group">
                 <label>Nome da Atividade *</label>
-                <input 
+                <Input 
                   type="text" 
                   placeholder="Ex: Backup Diário das 03:57 AM" 
                   value={name} 
@@ -530,7 +531,7 @@ export function CoworkView() {
                     <div className="input-row">
                       <div className="field-box">
                         <label>Horário da Execução:</label>
-                        <input 
+                        <DatePicker 
                           type="time" 
                           value={selectedTime} 
                           onChange={e => setSelectedTime(e.target.value)} 
@@ -549,7 +550,7 @@ export function CoworkView() {
                     <div className="input-row">
                       <div className="field-box">
                         <label>Repetir a cada:</label>
-                        <select value={intervalHours} onChange={e => setIntervalHours(e.target.value)}>
+                        <Select value={intervalHours} onChange={e => setIntervalHours(e.target.value)}>
                           <option value="1min">⚡ A cada 1 Minuto (* * * * *)</option>
                           <option value="5min">⏱️ A cada 5 Minutos (*/5 * * * *)</option>
                           <option value="15min">⏱️ A cada 15 Minutos (*/15 * * * *)</option>
@@ -558,7 +559,7 @@ export function CoworkView() {
                           <option value="2h">🕑 A cada 2 Horas (0 */2 * * *)</option>
                           <option value="6h">🕕 A cada 6 Horas (0 */6 * * *)</option>
                           <option value="12h">🕛 A cada 12 Horas (0 */12 * * *)</option>
-                        </select>
+                        </Select>
                       </div>
                     </div>
                     <div className="cron-hint">
@@ -572,7 +573,7 @@ export function CoworkView() {
                     <div className="input-row">
                       <div className="field-box">
                         <label>Data de Execução:</label>
-                        <input 
+                        <DatePicker 
                           type="date" 
                           value={specificDate} 
                           onChange={e => setSpecificDate(e.target.value)} 
@@ -581,7 +582,7 @@ export function CoworkView() {
                       </div>
                       <div className="field-box">
                         <label>Horário de Execução:</label>
-                        <input 
+                        <DatePicker 
                           type="time" 
                           value={selectedTime} 
                           onChange={e => setSelectedTime(e.target.value)} 
@@ -611,7 +612,7 @@ export function CoworkView() {
                         ].map((part, idx) => (
                           <div key={part.title} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text)' }}>{part.title}</span>
-                            <input
+                            <Input
                               type="text"
                               value={cronParts[idx] || '*'}
                               placeholder="*"
@@ -635,7 +636,7 @@ export function CoworkView() {
 
                     <div className="field-box" style={{ marginTop: 8 }}>
                       <label>Expressão Cron Resultante (Montada com Espaços):</label>
-                      <input 
+                      <Input 
                         type="text" 
                         placeholder="Ex: * * * * *" 
                         value={customCron} 
@@ -683,7 +684,7 @@ export function CoworkView() {
 
               <div className="form-group">
                 <label>Instrução / Prompt para o Agente de IA *</label>
-                <textarea 
+                <TextArea 
                   rows={4} 
                   placeholder="Ex: Execute o script de backup no terminal, compacte os arquivos da pasta e verifique se o arquivo final tem tamanho maior que zero." 
                   value={prompt} 
@@ -695,7 +696,7 @@ export function CoworkView() {
               <div className="form-group">
                 <label>Caminho do Projeto / Pasta de Trabalho (Opcional)</label>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input 
+                  <Input 
                     type="text" 
                     placeholder="Ex: /Users/sr.tomimatu/projetcs/avento-ia" 
                     value={projectPath} 

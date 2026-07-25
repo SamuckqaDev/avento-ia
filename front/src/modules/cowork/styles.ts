@@ -260,9 +260,17 @@ export const EventBadge = styled.div<{ $status?: string }>`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 15%, ${({ theme }) => theme.colors.surface});
   color: ${({ theme }) => theme.colors.accent};
   border: 1px solid color-mix(in srgb, ${({ theme }) => theme.colors.accent} 30%, transparent);
+
+  svg {
+    color: currentColor;
+    flex-shrink: 0;
+  }
 
   &.automation {
     background: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 15%, ${({ theme }) => theme.colors.surface});
@@ -350,6 +358,11 @@ export const Card = styled.div<{ $status?: string }>`
       font-size: 0.8rem;
       width: fit-content;
       color: ${({ theme }) => theme.colors.text};
+
+      svg {
+        color: ${({ theme }) => theme.colors.primary};
+        flex-shrink: 0;
+      }
     }
 
     .prompt-snippet {

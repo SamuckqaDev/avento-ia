@@ -285,7 +285,7 @@ export function CoworkView() {
     <Container>
       <Header>
         <div className="title-group">
-          <h1><CalendarIcon size={26} color="var(--primary)" /> Avento Cowork & Agenda</h1>
+          <h1><CalendarIcon size={26} style={{ color: 'var(--primary)' }} /> Avento Cowork & Agenda</h1>
           <p>Super Agente de IA: Calendário de atividades, lembretes e automações autônomas com diagnóstico de auto-recuperação.</p>
         </div>
 

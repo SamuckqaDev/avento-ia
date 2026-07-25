@@ -386,6 +386,38 @@ export const Card = styled.div<{ $status?: string }>`
   }
 `;
 
+export const FrequencyGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+`;
+
+export const FrequencyOptionButton = styled.button<{ $active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid ${({ $active, theme }) => ($active ? theme.colors.accent : theme.colors.border)};
+  background: ${({ $active, theme }) =>
+    $active ? `color-mix(in srgb, ${theme.colors.accent} 12%, ${theme.colors.surface})` : theme.colors.bg};
+  color: ${({ $active, theme }) => ($active ? theme.colors.accent : theme.colors.text)};
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.accent};
+  }
+
+  svg {
+    flex-shrink: 0;
+    color: ${({ $active, theme }) => ($active ? theme.colors.accent : theme.colors.textMuted)};
+  }
+`;
+
 export const ModalBackdrop = styled.div`
   position: fixed;
   top: 0;

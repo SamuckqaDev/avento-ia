@@ -3,9 +3,10 @@ import { api } from '../../services/apiClient';
 import { 
   Container, Header, CreateButton, Grid, Card, 
   ModalBackdrop, Modal, TabNavigation, CalendarWrapper,
-  CalendarHeader, CalendarGrid, DayCell, EventBadge
+  CalendarHeader, CalendarGrid, DayCell, EventBadge,
+  FrequencyGrid, FrequencyOptionButton
 } from './styles';
-import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot } from '@phosphor-icons/react';
+import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear } from '@phosphor-icons/react';
 
 export interface ScheduledTask {
   id: number;
@@ -361,19 +362,39 @@ export function CoworkView() {
                 />
               </div>
 
-              {/* Intuitive Date & Time Selection Picker */}
+              {/* Custom Phosphor Icons Frequency Mode Selector */}
               <div className="form-group">
                 <label>Frequência / Agendamento *</label>
-                <select 
-                  value={freqMode} 
-                  onChange={e => setFreqMode(e.target.value as FrequencyMode)}
-                  style={{ marginBottom: 8 }}
-                >
-                  <option value="daily">Diariamente no mesmo horário</option>
-                  <option value="interval">Repetir a cada N horas</option>
-                  <option value="specific_date">Em uma data e hora específica</option>
-                  <option value="cron">Expressão Cron Manual (Avançado)</option>
-                </select>
+                <FrequencyGrid>
+                  <FrequencyOptionButton 
+                    type="button" 
+                    $active={freqMode === 'daily'} 
+                    onClick={() => setFreqMode('daily')}
+                  >
+                    <ArrowsClockwise size={18} /> Diariamente
+                  </FrequencyOptionButton>
+                  <FrequencyOptionButton 
+                    type="button" 
+                    $active={freqMode === 'interval'} 
+                    onClick={() => setFreqMode('interval')}
+                  >
+                    <Timer size={18} /> Repetir por Hora
+                  </FrequencyOptionButton>
+                  <FrequencyOptionButton 
+                    type="button" 
+                    $active={freqMode === 'specific_date'} 
+                    onClick={() => setFreqMode('specific_date')}
+                  >
+                    <CalendarIcon size={18} /> Data Específica
+                  </FrequencyOptionButton>
+                  <FrequencyOptionButton 
+                    type="button" 
+                    $active={freqMode === 'cron'} 
+                    onClick={() => setFreqMode('cron')}
+                  >
+                    <Gear size={18} /> Cron Manual
+                  </FrequencyOptionButton>
+                </FrequencyGrid>
 
                 {freqMode === 'daily' && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

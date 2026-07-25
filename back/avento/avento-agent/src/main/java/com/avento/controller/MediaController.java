@@ -39,15 +39,40 @@ public class MediaController {
                 : Paths.get(configuredMediaDirectory).toAbsolutePath().normalize();
     }
 
+    public record MediaAssetDto(
+            String id,
+            String name,
+            String filename,
+            String url,
+            String type,
+            String createdAt) {}
+
     @GetMapping
-    public ResponseEntity<List<GeneratedMediaAsset>> listMedia(
+    public ResponseEntity<List<MediaAssetDto>> listMedia(
             @RequestParam(name = "chatId", required = false) Long chatId,
             @AuthenticationPrincipal AuthPrincipal principal) {
         if (chatId == null || principal == null) {
             return ResponseEntity.ok(Collections.emptyList());
         }
         List<GeneratedMediaAsset> assets = assetService.listForChat(chatId, principal.userId());
-        return ResponseEntity.ok(assets);
+        List<MediaAssetDto> dtos = assets.stream().map(a -> {
+            String filename = a.getFilename();
+            String type = "image";
+            if (filename != null) {
+                if (filename.startsWith("avento-video-")) type = "video";
+                else if (filename.startsWith("avento-doc-")) type = "document";
+                else if (filename.startsWith("avento-mockup-")) type = "artifact";
+            }
+            return new MediaAssetDto(
+                    String.valueOf(a.getId()),
+                    filename,
+                    filename,
+                    "/api/media/" + filename,
+                    type,
+                    a.getCreatedAt() != null ? a.getCreatedAt().toString() : ""
+            );
+        }).toList();
+        return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/{filename:.+}")

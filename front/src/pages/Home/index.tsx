@@ -962,9 +962,22 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
       return;
     }
     try {
-      const { data } = await api.get<GeneratedMedia[]>('/api/media', { params: { chatId } });
+      const { data } = await api.get<any[]>('/api/media', { params: { chatId } });
       if (currentChatIdRef.current === chatId) {
-        setMedia(Array.isArray(data) ? data : []);
+        const normalized: GeneratedMedia[] = (Array.isArray(data) ? data : []).map((item: any) => {
+          const filename = item.filename || item.name || '';
+          const url = item.url || (filename ? `/api/media/${filename}` : '');
+          const name = item.name || filename || String(item.id || 'mídia');
+          const type = item.type || (filename.startsWith('avento-video-') ? 'video' : filename.startsWith('avento-doc-') ? 'document' : filename.startsWith('avento-mockup-') ? 'artifact' : 'image');
+          return {
+            id: String(item.id || crypto.randomUUID()),
+            url,
+            name,
+            type,
+            createdAt: item.createdAt || new Date().toISOString()
+          };
+        });
+        setMedia(normalized);
       }
     } catch (error) {
       console.error('Erro ao carregar mídias geradas', error);

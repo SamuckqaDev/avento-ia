@@ -1737,7 +1737,15 @@ public class McpController implements ToolProvider {
     }
 
     private JsonNode executeTerminalRun(Map<String, Object> payload) throws IOException {
-        Path workingDirectory = workspaceAccessService.requireAuthorized(requiredString(payload, "path"));
+        String pathStr = optionalString(payload, "path");
+        if (pathStr == null || pathStr.isBlank()) {
+            pathStr = optionalString(payload, "cwd");
+        }
+        if (pathStr == null || pathStr.isBlank()) {
+            Set<Path> roots = workspaceAccessService.authorizedRoots();
+            pathStr = !roots.isEmpty() ? roots.iterator().next().toString() : System.getProperty("user.dir");
+        }
+        Path workingDirectory = workspaceAccessService.requireAuthorized(pathStr);
         if (!Files.isDirectory(workingDirectory)) {
             return mapper.createObjectNode().put("error", "Command path must be a directory: " + workingDirectory);
         }

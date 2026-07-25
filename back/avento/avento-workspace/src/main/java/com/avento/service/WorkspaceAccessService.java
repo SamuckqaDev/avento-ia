@@ -72,7 +72,7 @@ public class WorkspaceAccessService {
         workspaceRoots.keySet().removeIf(scope -> scope.equals(prefix) || scope.startsWith(prefix + ":chat:"));
     }
 
-    private Set<Path> authorizedRoots() {
+    public Set<Path> authorizedRoots() {
         UUID userId =
                 executionContext == null ? null : executionContext.current().userId();
         return authorizedRoots(userId);

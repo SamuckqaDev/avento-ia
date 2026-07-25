@@ -527,7 +527,7 @@ export function CoworkView() {
                 placeholder="Pesquisar automações..." 
                 value={searchQuery} 
                 onChange={e => setSearchQuery(e.target.value)} 
-                style={{ paddingLeft: 34, height: 38 }}
+                style={{ paddingLeft: 38, height: 42 }}
               />
             </div>
 

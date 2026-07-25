@@ -207,15 +207,18 @@ export const TabNavigation = styled.div`
 export const CreateButton = styled.button`
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   background: ${({ theme }) => theme.colors.primary};
   color: #ffffff;
   border: none;
-  padding: 10px 18px;
+  height: 42px;
+  padding: 0 18px;
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
+  box-sizing: border-box;
   transition: all 0.2s ease;
   box-shadow: 0 4px 12px color-mix(in srgb, ${({ theme }) => theme.colors.primary} 30%, transparent);
 
@@ -853,18 +856,21 @@ export const SecondaryActionButton = styled.button`
   color: ${({ theme }) => theme.colors.text};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 0.8rem;
+  height: 42px;
+  padding: 0 16px;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  box-sizing: border-box;
   transition: all 0.15s ease;
 
   &:hover {
-    border-color: ${({ theme }) => theme.colors.accent};
-    color: ${({ theme }) => theme.colors.accent};
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+    background: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 8%, ${({ theme }) => theme.colors.surface});
   }
 `;
 

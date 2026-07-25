@@ -130,20 +130,25 @@ const TemplateCardBox = styled.div`
 
   button {
     background: ${({ theme }) => theme.colors.primary};
-    color: #fff;
+    color: #ffffff;
     border: none;
-    padding: 7px 12px;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
+    font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     white-space: nowrap;
+    box-sizing: border-box;
+    transition: all 0.15s ease;
 
     &:hover {
-      opacity: 0.9;
+      opacity: 0.92;
+      transform: translateY(-1px);
     }
   }
 `;

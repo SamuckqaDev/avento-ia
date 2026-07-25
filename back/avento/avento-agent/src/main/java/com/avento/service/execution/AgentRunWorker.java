@@ -168,6 +168,12 @@ public class AgentRunWorker {
             ArrayNode requestMessages = request.path("messages").isArray()
                     ? (ArrayNode) request.path("messages")
                     : mapper.createArrayNode();
+            if (request.hasNonNull("prompt") && !request.path("prompt").asText().isBlank()) {
+                ObjectNode userMsg = mapper.createObjectNode();
+                userMsg.put("role", "user");
+                userMsg.put("content", request.path("prompt").asText());
+                requestMessages.add(userMsg);
+            }
             ArrayNode messages = contextCache.resolve(job.getUserId(), job.getChatId(), requestMessages);
             List<String> workspaceRoots = stringList(request.path("workspaceRoots"));
             ImageGenerationOptions imageOptions = ImageGenerationOptions.from(request.path("imageOptions"));

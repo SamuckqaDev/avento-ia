@@ -109,17 +109,53 @@ public class IntentEmbeddingClassifier {
             }
 
             Map<String, List<String>> sections = HeuristicWordLists.loadSections(EXAMPLES_RESOURCE);
-            Map<AgentIntent, List<float[]>> embedded = new EnumMap<>(AgentIntent.class);
+            List<String> allTexts = new ArrayList<>();
+            List<Map.Entry<AgentIntent, Integer>> counts = new ArrayList<>();
+
             for (Map.Entry<String, List<String>> section : sections.entrySet()) {
                 AgentIntent intent = AgentIntent.valueOf(section.getKey());
-                List<float[]> vectors = new ArrayList<>();
-                for (String example : section.getValue()) {
-                    vectors.add(embedWithTimeout(example));
-                }
-                embedded.put(intent, vectors);
+                List<String> examples = section.getValue();
+                allTexts.addAll(examples);
+                counts.add(Map.entry(intent, examples.size()));
             }
+
+            List<float[]> allVectors = embedBatchWithTimeout(allTexts);
+            Map<AgentIntent, List<float[]>> embedded = new EnumMap<>(AgentIntent.class);
+            int cursor = 0;
+            for (var entry : counts) {
+                AgentIntent intent = entry.getKey();
+                int size = entry.getValue();
+                List<float[]> vectors = new ArrayList<>(allVectors.subList(cursor, Math.min(allVectors.size(), cursor + size)));
+                embedded.put(intent, vectors);
+                cursor += size;
+            }
+
             categoryExampleEmbeddings = Map.copyOf(embedded);
             return categoryExampleEmbeddings;
+        }
+    }
+
+    private List<float[]> embedBatchWithTimeout(List<String> texts) throws TimeoutException {
+        if (texts.isEmpty()) return List.of();
+        CompletableFuture<List<float[]>> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                return embeddingModel.embed(texts);
+            } catch (Exception e) {
+                // Fallback para chamadas individuais se o batch nao for suportado pelo provider
+                List<float[]> res = new ArrayList<>();
+                for (String t : texts) {
+                    res.add(embeddingModel.embed(t));
+                }
+                return res;
+            }
+        });
+        try {
+            return future.get(Math.max(timeoutMillis, 5000L), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting for batch embedding", exception);
+        } catch (ExecutionException exception) {
+            throw new IllegalStateException("Batch embedding call failed", exception.getCause());
         }
     }
 

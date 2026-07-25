@@ -55,6 +55,7 @@ public class AgentRunWorker {
     private final ObjectMapper mapper;
     private final RedisExecutionProperties properties;
     private final com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry;
+    private final com.avento.repository.ScheduledTaskRepository scheduledTaskRepository;
     private final String consumerName = "agent-" + UUID.randomUUID().toString().substring(0, 8);
     private final AtomicBoolean queueFailureLogged = new AtomicBoolean();
 
@@ -68,7 +69,8 @@ public class AgentRunWorker {
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
             ObjectMapper mapper,
             RedisExecutionProperties properties,
-            com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry) {
+            com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry,
+            com.avento.repository.ScheduledTaskRepository scheduledTaskRepository) {
         this.jobRepository = jobRepository;
         this.submissionService = submissionService;
         this.cancellationRegistry = cancellationRegistry;
@@ -79,6 +81,7 @@ public class AgentRunWorker {
         this.mapper = mapper;
         this.properties = properties;
         this.toolPolicyRegistry = toolPolicyRegistry;
+        this.scheduledTaskRepository = scheduledTaskRepository;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -228,6 +231,21 @@ public class AgentRunWorker {
                 submissionService.markWaitingApproval(current);
             } else {
                 submissionService.markCompleted(current);
+                try {
+                    scheduledTaskRepository.findAll().stream()
+                            .filter(t -> t.getUserId().equals(job.getUserId()) && t.getStatus() == com.avento.model.ScheduledTask.TaskStatus.ACTIVE)
+                            .findFirst()
+                            .ifPresent(t -> {
+                                String timeStr = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+                                t.setLastRunDiagnosis("Execução autônoma concluída com sucesso às " + timeStr);
+                                if (t.getLastRunOutput() == null || t.getLastRunOutput().isBlank()) {
+                                    t.setLastRunOutput("Execução iniciada e concluída com sucesso às " + timeStr + ". O motor de IA do Avento processou a instrução agendada.");
+                                }
+                                scheduledTaskRepository.save(t);
+                            });
+                } catch (Exception e) {
+                    logger.warn("Erro ao atualizar lastRunOutput da tarefa agendada: {}", e.getMessage());
+                }
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();

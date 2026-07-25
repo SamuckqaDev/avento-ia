@@ -290,8 +290,8 @@ function SidebarComponent({
             ) : (
               <MediaList>
                 {media.slice(0, 12).map(item => {
-                  const rawName = item.name || item.id || 'Mídia';
-                  const kind = item.type
+                  const rawName = String(item?.name ?? item?.id ?? 'Mídia');
+                  const kind = item?.type
                     ?? (/^avento-video-/i.test(rawName) ? 'video'
                       : /^avento-doc-/i.test(rawName) ? 'document'
                       : /^avento-mockup-/i.test(rawName) ? 'artifact' : 'image');

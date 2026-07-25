@@ -32,7 +32,7 @@ public class CronTaskScheduler {
         this.objectMapper = objectMapper;
     }
 
-    @Scheduled(fixedDelay = 30000)
+    @Scheduled(fixedDelay = 10000)
     public void processDueScheduledTasks() {
         LocalDateTime now = LocalDateTime.now();
         List<ScheduledTask> dueTasks = repository.findByStatusAndNextRunAtBefore(

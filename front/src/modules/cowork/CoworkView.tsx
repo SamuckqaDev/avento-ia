@@ -6,7 +6,7 @@ import {
   CalendarHeader, CalendarGrid, DayCell, EventBadge,
   FrequencyGrid, FrequencyOptionButton, SubInputPanel
 } from './styles';
-import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear } from '@phosphor-icons/react';
+import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle } from '@phosphor-icons/react';
 
 export interface ScheduledTask {
   id: number;
@@ -312,9 +312,29 @@ export function CoworkView() {
                   </div>
 
                   {task.lastRunDiagnosis && (
-                    <div className="diagnosis-box">
-                      <strong><Warning size={14} /> Diagnóstico de Auto-Recuperação:</strong>
+                    <div className={`diagnosis-box ${task.lastRunStatus === 'SUCCESS' ? 'success' : task.lastRunStatus === 'FAILED' ? 'failed' : 'warning'}`}>
+                      <strong>
+                        {task.lastRunStatus === 'SUCCESS' ? (
+                          <>
+                            <CheckCircle size={15} /> Status da Execução (Sucesso):
+                          </>
+                        ) : task.lastRunStatus === 'FAILED' ? (
+                          <>
+                            <XCircle size={15} /> Diagnóstico de Erro:
+                          </>
+                        ) : (
+                          <>
+                            <Warning size={15} /> Observação / Status:
+                          </>
+                        )}
+                      </strong>
                       <span>{task.lastRunDiagnosis}</span>
+                      {task.lastRunError && task.lastRunStatus === 'FAILED' && (
+                        <div className="error-details">
+                          <strong>Sugestão de Correção:</strong>
+                          <span>{task.lastRunError}</span>
+                        </div>
+                      )}
                     </div>
                   )}
 

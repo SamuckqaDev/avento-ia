@@ -313,20 +313,42 @@ export const Card = styled.div<{ $status?: string }>`
   }
 
   .diagnosis-box {
-    background: color-mix(in srgb, #ef4444 12%, ${({ theme }) => theme.colors.surface});
-    border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
     border-radius: 8px;
-    padding: 10px;
+    padding: 10px 12px;
     font-size: 0.8rem;
-    color: #ef4444;
     display: flex;
     flex-direction: column;
     gap: 4px;
 
+    &.success {
+      background: color-mix(in srgb, #10b981 12%, ${({ theme }) => theme.colors.surface});
+      border: 1px solid color-mix(in srgb, #10b981 35%, transparent);
+      color: #10b981;
+    }
+
+    &.warning {
+      background: color-mix(in srgb, #f59e0b 12%, ${({ theme }) => theme.colors.surface});
+      border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+      color: #f59e0b;
+    }
+
+    &.failed {
+      background: color-mix(in srgb, #ef4444 12%, ${({ theme }) => theme.colors.surface});
+      border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
+      color: #ef4444;
+    }
+
     strong {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    .error-details {
+      margin-top: 4px;
+      font-size: 0.75rem;
+      opacity: 0.9;
     }
   }
 

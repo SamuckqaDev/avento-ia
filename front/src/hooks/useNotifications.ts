@@ -11,7 +11,7 @@ export interface AppNotification {
 }
 
 const API_NOTIFICATIONS = '/api/notifications';
-const POLL_INTERVAL_MS = 20000;
+const POLL_INTERVAL_MS = 5000;
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);

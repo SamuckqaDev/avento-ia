@@ -306,38 +306,55 @@ export const SaveButton = styled.button`
 export const Tabs = styled.div`
   display: flex;
   gap: 8px;
-  padding: 4px;
-  background: rgba(0, 0, 0, 0.2);
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.25);
   border-radius: 10px;
   margin-bottom: 0;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  scrollbar-width: none;
+  white-space: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(102, 230, 200, 0.3) rgba(0, 0, 0, 0.2);
 
   &::-webkit-scrollbar {
-    display: none;
+    height: 5px;
+    display: block;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(102, 230, 200, 0.3);
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(102, 230, 200, 0.6);
+    }
   }
 `;
 
 export const TabButton = styled.button<{ $active?: boolean }>`
-  flex: 1 0 auto;
-  min-width: 96px;
-  background: ${({ $active }) => $active ? 'rgba(255, 255, 255, 0.1)' : 'transparent'};
-  border: none;
-  border-radius: 6px;
-  color: ${({ $active }) => $active ? '#F2FFFB' : '#9FB8B1'};
-  padding: 10px;
-  font-size: 0.95rem;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  background: ${({ $active }) => $active ? 'rgba(102, 230, 200, 0.15)' : 'transparent'};
+  border: 1px solid ${({ $active }) => $active ? 'rgba(102, 230, 200, 0.3)' : 'transparent'};
+  border-radius: 8px;
+  color: ${({ $active }) => $active ? '#66E6C8' : '#9FB8B1'};
+  padding: 8px 14px;
+  font-size: 0.88rem;
   font-weight: ${({ $active }) => $active ? '600' : '500'};
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: ${({ $active }) => $active ? '0 2px 8px rgba(0,0,0,0.2)' : 'none'};
+  user-select: none;
 
   &:hover {
     color: #F2FFFB;
-    background: ${({ $active }) => $active ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)'};
+    background: ${({ $active }) => $active ? 'rgba(102, 230, 200, 0.25)' : 'rgba(255, 255, 255, 0.06)'};
   }
 `;
 
@@ -742,3 +759,114 @@ export const AgentDefaultBadge = styled.span`
   text-transform: uppercase;
   letter-spacing: 0.03em;
 `;
+
+export const ProviderSectionTitle = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  margin-bottom: 6px;
+
+  h4 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #F2FFFB;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+`;
+
+export const BadgeShared = styled.span`
+  background: rgba(102, 230, 200, 0.15);
+  color: #66E6C8;
+  border: 1px solid rgba(102, 230, 200, 0.3);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+`;
+
+export const BadgePrivate = styled.span`
+  background: rgba(255, 120, 180, 0.15);
+  color: #FF85B8;
+  border: 1px solid rgba(255, 120, 180, 0.3);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+`;
+
+export const ProviderGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+`;
+
+export const ProviderCard = styled.div<{ $active: boolean }>`
+  background: ${props => props.$active ? 'rgba(102, 230, 200, 0.12)' : 'rgba(16, 42, 38, 0.45)'};
+  border: 1px solid ${props => props.$active ? 'rgba(102, 230, 200, 0.5)' : 'rgba(255, 255, 255, 0.1)'};
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgba(102, 230, 200, 0.4);
+    background: rgba(102, 230, 200, 0.08);
+  }
+
+  strong {
+    font-size: 0.88rem;
+    color: ${props => props.$active ? '#66E6C8' : '#F2FFFB'};
+  }
+
+  span {
+    font-size: 0.75rem;
+    color: #9FB8B1;
+  }
+`;
+
+export const TestStatusPill = styled.div<{ $success?: boolean; $error?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: ${props => props.$success ? 'rgba(102, 230, 200, 0.15)' : props.$error ? 'rgba(255, 100, 100, 0.15)' : 'rgba(255, 255, 255, 0.08)'};
+  color: ${props => props.$success ? '#66E6C8' : props.$error ? '#FF6B6B' : '#9FB8B1'};
+  border: 1px solid ${props => props.$success ? 'rgba(102, 230, 200, 0.3)' : props.$error ? 'rgba(255, 100, 100, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+`;
+
+export const TestButton = styled.button`
+  background: rgba(102, 230, 200, 0.15);
+  border: 1px solid rgba(102, 230, 200, 0.3);
+  color: #66E6C8;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(102, 230, 200, 0.25);
+    border-color: rgba(102, 230, 200, 0.5);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+

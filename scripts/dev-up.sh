@@ -27,10 +27,10 @@ COMFYUI_FLUX2_AUTO_INSTALL="${AVENTO_COMFYUI_FLUX2_AUTO_INSTALL:-1}"
 COMFYUI_VIDEO_AUTO_INSTALL="${AVENTO_COMFYUI_VIDEO_AUTO_INSTALL:-1}"
 OLLAMA_URL="${AVENTO_OLLAMA_URL:-http://127.0.0.1:11434}"
 OLLAMA_AUTOSTART="${AVENTO_OLLAMA_AUTOSTART:-1}"
-# Quantized KV cache trims context RAM (q8_0 halves it with negligible quality loss); needs flash
-# attention. Set AVENTO_OLLAMA_KV_CACHE_TYPE=f16 to disable.
+# Quantized KV cache trims context RAM (q4_0/q8_0 compresses context VRAM by 4x-6x with negligible quality loss); needs flash
+# attention. Set AVENTO_OLLAMA_KV_CACHE_TYPE=q4_0 for aggressive 4-bit KV cache compression (TurboQuant style), q8_0 for 8-bit, or f16 to disable.
 OLLAMA_FLASH_ATTENTION="${AVENTO_OLLAMA_FLASH_ATTENTION:-1}"
-OLLAMA_KV_CACHE_TYPE="${AVENTO_OLLAMA_KV_CACHE_TYPE:-q8_0}"
+OLLAMA_KV_CACHE_TYPE="${AVENTO_OLLAMA_KV_CACHE_TYPE:-q4_0}"
 NPM_CACHE_DIR="${AVENTO_NPM_CACHE_DIR:-$HOME/.avento/tools/npm-cache}"
 SPRING_PROFILE="${AVENTO_SPRING_PROFILE:-local}"
 LOG_DIR="$ROOT/tmp/dev"
@@ -213,7 +213,7 @@ stop_stale_dev_processes() {
 
   # Stop old Avento dev processes from this repo so the user has one clear
   # URL and never accidentally opens an older backend/frontend.
-  pids="$(pgrep -f "$ROOT/back/avento/target/classes.*com.avento.AventoApplication" || true)"
+  pids="$(pgrep -f "$ROOT/back/avento.*com.avento.AventoApplication" || true)"
   for pid in $pids; do
     stop_pid_if_running "$pid" "backend"
   done
@@ -562,7 +562,7 @@ else
   SPRING_BOOT_ARGS="$SPRING_BOOT_ARGS --spring.datasource.password=$AVENTO_DATASOURCE_PASSWORD"
   SPRING_BOOT_ARGS="$SPRING_BOOT_ARGS --spring.ai.ollama.base-url=$OLLAMA_URL"
   SPRING_BOOT_ARGS="$SPRING_BOOT_ARGS --avento.image.provider=${AVENTO_IMAGE_PROVIDER:-comfyui}"
-  mvn -f "$ROOT/back/avento/pom.xml" clean spring-boot:run \
+  mvn -f "$ROOT/back/avento/pom.xml" clean spring-boot:run -pl avento-app -am \
     -Dspring-boot.run.profiles="$SPRING_PROFILE" \
     -Dspring-boot.run.arguments="$SPRING_BOOT_ARGS" \
     >"$LOG_DIR/backend.log" 2>&1 &

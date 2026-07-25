@@ -117,8 +117,36 @@ export const HeaderRight = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  white-space: nowrap;
+  padding: 2px 0;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 40%, transparent) transparent;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+    display: block;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 35%, transparent);
+    border-radius: 4px;
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.accent};
+    }
+  }
+
+  button, label {
+    flex-shrink: 0;
+  }
 
   label {
     min-height: 36px;
@@ -236,12 +264,12 @@ export const HeaderCompactMenu = styled.div`
 `;
 
 export const HeaderMenuPanel = styled.div`
-  position: absolute;
-  top: 44px;
-  right: 0;
-  z-index: 30;
-  width: min(350px, calc(100vw - 24px));
-  max-height: min(70vh, 520px);
+  position: fixed;
+  top: 56px;
+  right: 14px;
+  z-index: 9999;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(75vh, 560px);
   overflow-y: auto;
   padding: 12px;
   display: flex;

@@ -14,7 +14,7 @@ import { SkillsManager } from '../../modules/chat/SkillsManager';
 import { McpToolsManager } from '../../modules/chat/McpToolsManager';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import { api, apiErrorMessage } from '../../services/apiClient';
-import { List, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare } from '@phosphor-icons/react';
+import { List, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare, ShieldCheck } from '@phosphor-icons/react';
 import { 
   AppLayout, 
   MainContent, 
@@ -736,6 +736,33 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const [lockImageSeed, setLockImageSeed] = useState(initialImagePreferences.lockSeed);
   const [imageSeed, setImageSeed] = useState(initialImagePreferences.seed || 42);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [isAutoApproveAll, setIsAutoApproveAll] = useState<boolean>(() => {
+    const saved = localStorage.getItem('avento_auto_approve_all');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const handleToggleAutoApproveAll = useCallback(async () => {
+    const next = !isAutoApproveAll;
+    setIsAutoApproveAll(next);
+    localStorage.setItem('avento_auto_approve_all', String(next));
+    try {
+      await api.put('/api/settings', { autoApproveAll: next });
+    } catch (e) {
+      console.error('Erro ao salvar modo autônomo nas configurações', e);
+    }
+  }, [isAutoApproveAll]);
+
+  useEffect(() => {
+    api.get<{ autoApproveAll?: boolean }>('/api/settings')
+      .then(({ data }) => {
+        if (typeof data.autoApproveAll === 'boolean') {
+          setIsAutoApproveAll(data.autoApproveAll);
+          localStorage.setItem('avento_auto_approve_all', String(data.autoApproveAll));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const lastMcpWarningsRef = useRef('');
 
   // Right Panel State
@@ -846,11 +873,20 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   }, [hasCurrentPlan]);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isUserScrolledUpRef = useRef<boolean>(false);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const speechBufferRef = useRef<string>('');
   const isGeneratingRef = useRef<boolean>(false);
   const messagesRef = useRef<Message[]>(messages);
   const voiceInterruptionActiveRef = useRef<boolean>(false);
+
+  const handleChatScroll = useCallback(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    isUserScrolledUpRef.current = distanceFromBottom > 120;
+  }, []);
 
   useEffect(() => {
     if (!isHeaderMenuOpen) return;
@@ -981,7 +1017,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const {
     fileTree, projectPaths, setProjectPaths, removeProjectPath, clearFileTree, selectedFiles,
     homeWorkspaceRoot, clearHomeWorkspaceRoot,
-    browseFolder, authorizeProjectPath, authorizeHomeFolder, loadProjectTree, toggleFileSelection, readSelectedFiles
+    browseFolder, authorizeProjectPath, authorizeHomeFolder, loadProjectTree, refreshProjectTree, toggleFileSelection, readSelectedFiles
   } = useFileSystem();
 
   const {
@@ -1346,7 +1382,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     }
 
     if (event.type === 'tool.completed' && event.toolName && FILESYSTEM_MUTATING_TOOLS.has(event.toolName) && projectPaths[0]) {
-      loadProjectTree(projectPaths[0]);
+      void refreshProjectTree(projectPaths[0]);
     }
 
     if (event.type === 'tool.approval.required' && event.approvalId) {
@@ -1418,6 +1454,16 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     isGeneratingRef.current = isGenerating;
   }, [isGenerating]);
 
+  useEffect(() => {
+    if (!isGenerating || !projectPaths[0]) return;
+    const interval = window.setInterval(() => {
+      if (projectPaths[0]) {
+        void refreshProjectTree(projectPaths[0]);
+      }
+    }, 3500);
+    return () => window.clearInterval(interval);
+  }, [isGenerating, projectPaths, refreshProjectTree]);
+
   // Envia a proxima mensagem da fila assim que o Avento termina de responder.
   // Mensagens mandadas enquanto ele ainda esta gerando nao sao mais
   // descartadas (handleSend as enfileira em vez de ignorar).
@@ -1455,7 +1501,9 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   }, [messages]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!isUserScrolledUpRef.current) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   const handleApproveAction = useCallback(async (approvalId: string, comment: string) => {
@@ -1791,6 +1839,8 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     const outgoingImages = options.images ?? imageAttachments;
     const outgoingDocuments = options.documents ?? documentAttachments;
     if (!text.trim() && outgoingImages.length === 0 && outgoingDocuments.length === 0) return;
+
+    isUserScrolledUpRef.current = false;
 
     if (isGenerating && !options.force) {
       setMessageQueue(prev => [
@@ -2437,6 +2487,13 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
           </HeaderLeft>
           <HeaderRight>
             {renderModelSelectors()}
+            <HeaderIconButton
+              onClick={handleToggleAutoApproveAll}
+              title={isAutoApproveAll ? "Modo Autônomo ativado (Execução direta sem confirmações)" : "Modo Seguro (Pede confirmação manual para comandos e alterações)"}
+              aria-label="Alternar modo autônomo"
+            >
+              <ShieldCheck size={22} weight={isAutoApproveAll ? "fill" : "regular"} style={{ color: isAutoApproveAll ? '#10b981' : undefined }} />
+            </HeaderIconButton>
             <HeaderIconButton onClick={() => setIsRightPanelOpen(!isRightPanelOpen)} title="Tarefas e contexto">
               <Columns size={24} weight={isRightPanelOpen ? "fill" : "regular"} />
             </HeaderIconButton>
@@ -2470,6 +2527,30 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
               </HeaderIconButton>
               {isHeaderMenuOpen && (
                 <HeaderMenuPanel role="dialog" aria-label="Configurações rápidas">
+                  <HeaderMenuSection>
+                    <h3 className="menu-heading">Execução autônoma</h3>
+                    <button
+                      type="button"
+                      className={`menu-action-btn ${isAutoApproveAll ? 'active' : ''}`}
+                      onClick={handleToggleAutoApproveAll}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        background: isAutoApproveAll ? 'color-mix(in srgb, #10b981 15%, transparent)' : 'transparent',
+                        color: isAutoApproveAll ? '#10b981' : 'inherit',
+                        border: '1px solid ' + (isAutoApproveAll ? '#10b981' : 'var(--border-color, #333)'),
+                        cursor: 'pointer',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      <ShieldCheck size={18} weight={isAutoApproveAll ? 'fill' : 'regular'} />
+                      <span>{isAutoApproveAll ? 'Modo Autônomo Ativado (Sem confirmações)' : 'Modo Seguro (Com confirmações)'}</span>
+                    </button>
+                  </HeaderMenuSection>
                   <HeaderMenuSection>
                     <h3 className="menu-heading">Modelos</h3>
                     {renderModelSelectors(true)}
@@ -2751,7 +2832,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
           </HeaderRight>
         </Topbar>
         
-        <ChatContainer>
+        <ChatContainer ref={chatContainerRef} onScroll={handleChatScroll}>
           {messages.length <= 1 ? (
             <WelcomeState>
               <h2>Como posso ajudar?</h2>
@@ -2813,6 +2894,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
           skills={skills}
           agentMode={agentMode}
           onToggleAgentMode={() => setAgentMode(value => !value)}
+          onOpenImageConfig={() => setIsHeaderMenuOpen(true)}
         />
       </MainContent>
 

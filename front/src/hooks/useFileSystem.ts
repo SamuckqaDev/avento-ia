@@ -95,6 +95,20 @@ export function useFileSystem() {
     }
   }, [authorizeProjectPath]);
 
+  const refreshProjectTree = useCallback(async (path: string): Promise<string | null> => {
+    if (!path) return null;
+    try {
+      const authorizedPath = await authorizeProjectPath(path);
+      if (!authorizedPath) return null;
+
+      const { data: tree } = await api.post<FileNode[]>(API_FS_TREE, { path: authorizedPath });
+      setFileTree(tree);
+      return authorizedPath;
+    } catch (e) {
+      return null;
+    }
+  }, [authorizeProjectPath]);
+
   const toggleFileSelection = useCallback((path: string, checked: boolean) => {
     setSelectedFiles(prev => {
       const next = new Set(prev);
@@ -180,6 +194,7 @@ export function useFileSystem() {
     authorizeProjectPath,
     authorizeHomeFolder,
     loadProjectTree,
+    refreshProjectTree,
     toggleFileSelection,
     readSelectedFiles,
     setSelectedFiles,

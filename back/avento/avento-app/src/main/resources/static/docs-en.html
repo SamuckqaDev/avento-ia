@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avento - Technical Documentation</title>
+    <link rel="icon" type="image/svg+xml" href="avento-logo.svg">
+    <style type="text/css">
+        :root {
+            --bg-color: #081c19;
+            --sidebar-bg: #102a26;
+            --text-main: #f2fffb;
+            --text-muted: #9fb8b1;
+            --accent: #d94675;
+            --border: #21433d;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Mobile Hamburger Menu */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 1000;
+            background: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Responsive Sidebar */
+        .sidebar {
+            width: 300px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-logo {
+            width: 42px;
+            height: 42px;
+            flex: 0 0 auto;
+        }
+
+        .sidebar-title {
+            min-width: 0;
+        }
+
+        .sidebar-title h2 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .sidebar-title span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin-top: 2px;
+        }
+
+        .lang-switcher {
+            padding: 12px 20px 0 20px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .lang-btn {
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .lang-btn.active {
+            background-color: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .sidebar-nav {
+            padding: 20px;
+            flex: 1;
+        }
+
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            display: block;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .sidebar-nav a:hover, .sidebar-nav a.active {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--accent);
+        }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        .content h1 {
+            color: var(--accent);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .content h2 {
+            margin-top: 40px;
+            color: #fff;
+        }
+
+        .code-block {
+            background-color: #1e293b;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+        }
+
+        .metric-card {
+            background-color: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background-color: rgba(217, 70, 117, 0.12);
+            color: #ffd7e2;
+            font-size: 0.85rem;
+            margin-right: 6px;
+        }
+
+        .brand-lockup {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 18px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(102, 230, 200, 0.12), rgba(217, 70, 117, 0.08));
+        }
+
+        .brand-mark {
+            width: 76px;
+            height: 76px;
+            flex: 0 0 auto;
+        }
+
+        .swatch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .swatch {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--sidebar-bg);
+        }
+
+        .swatch-color {
+            height: 42px;
+        }
+
+        .swatch p {
+            margin: 0;
+            padding: 10px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .card {
+            background-color: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 14px;
+        }
+
+        th, td {
+            border: 1px solid var(--border);
+            padding: 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #1e293b;
+            color: #fff;
+        }
+
+        code {
+            color: #bfdbfe;
+        }
+
+        /* Responsiveness */
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 999;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .content {
+                padding: 60px 20px 20px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="menu-toggle" id="menuToggle">☰ Menu</button>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img class="sidebar-logo" src="avento-logo.svg" alt="Avento Logo">
+            <div class="sidebar-title">
+                <h2>Avento Docs</h2>
+                <span>Local AI workbench</span>
+            </div>
+        </div>
+        <div class="lang-switcher">
+            <a href="docs.html" class="lang-btn">🇧🇷 PT</a>
+            <a href="docs-en.html" class="lang-btn active">🇺🇸 EN</a>
+        </div>
+        <div class="sidebar-nav">
+            <ul>
+                <li><a href="#intro" class="active">Overview</a></li>
+                <li><a href="#identity">Origin & Author</a></li>
+                <li><a href="#brand">Visual Identity</a></li>
+                <li><a href="#quickstart">Quick Start</a></li>
+                <li><a href="#architecture">Architecture</a></li>
+                <li><a href="#redis-execution">Redis, Jobs & Streaming</a></li>
+                <li><a href="#agent">Agent & Projects</a></li>
+                <li><a href="#hub-agent">Hub + Device Agent</a></li>
+                <li><a href="#mcp-tools">MCP Tools</a></li>
+                <li><a href="#security">Local Security</a></li>
+                <li><a href="#voice">Realtime Voice</a></li>
+                <li><a href="#ollama">Ollama & Mac Hardware</a></li>
+                <li><a href="#images">Images & Videos</a></li>
+                <li><a href="#interface-prototypes">UI Mockups</a></li>
+                <li><a href="#documents">Documents in Chat</a></li>
+                <li><a href="#endpoints">REST Endpoints</a></li>
+                <li><a href="#validation">Validation</a></li>
+                <li><a href="#roadmap">Next Steps</a></li>
+                <li style="margin-top: 40px;"><a href="index.html" style="color: #fff; background: var(--accent); text-align: center;">← Back to Chat</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="content" id="content">
+        <div class="doc-section" id="intro">
+            <h1>Avento - Technical Documentation</h1>
+            <p><span class="status-pill">Updated July 25, 2026</span><span class="status-pill">Local-first</span><span class="status-pill">Auth + Projects + Voice + Tools</span><span class="status-pill">ComfyUI Media</span></p>
+            <p>Avento is a local-first AI assistant for software projects and personal workflows. Its main objective is to serve as an active pair programming partner: inspecting user-authorized codebases, providing real-time feedback, safely running local tools, editing files, running validations, and interacting via voice.</p>
+            <p>The system runs on a Spring Boot Multi-Module Maven backend, React 19 / Vite frontend, local HttpOnly JWT auth, PostgreSQL 16 and Redis Stack via Docker/Colima, host-native Ollama, local RAG, automated backups, WebSocket voice streams, and optional Whisper.cpp/Piper TTS engines.</p>
+        </div>
+
+        <div class="doc-section" id="identity">
+            <h2>Origin & Author</h2>
+            <p>Avento is an independent personal project conceived, designed, developed, documented, and maintained by <strong>Samuel Tomimatu, software engineer and sole creator of Avento</strong>. No other person or organization should be credited as the author of the project.</p>
+            <p>Its personality is that of a direct, curious, and reliable technical collaborator: concise by default, detailed when requested, natural in the user's language, and careful to distinguish verified facts from inferences. It preserves context references, avoids hyperbolic marketing, and never announces execution without verified results.</p>
+            <p>The complete identity specification is in <code>docs/AVENTO_IDENTITY.md</code>.</p>
+        </div>
+
+        <div class="doc-section" id="brand">
+            <h2>Visual Identity</h2>
+            <div class="brand-lockup">
+                <img class="brand-mark" src="avento-logo.svg" alt="Official Avento Logo">
+                <div>
+                    <h3>Avento</h3>
+                    <p>Official identity of the local workbench. The symbol forms a geometric letter A with two slanted planes, representing forward motion. The central path represents the connection between context, tools, and execution; the pink node marks the decision point where the user approves an action.</p>
+                    <p>Deep green communicates local operation and trust, mint highlights intelligence, and pink identifies concrete actions and decision points.</p>
+                </div>
+            </div>
+            <div class="swatch-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#104E45"></div><p>Deep Green<br><code>#104E45</code></p></div>
+                <div class="swatch"><div class="swatch-color" style="background:#66E6C8"></div><p>Vibrant Mint<br><code>#66E6C8</code></p></div>
+                <div class="swatch"><div class="swatch-color" style="background:#D94675"></div><p>Action Pink<br><code>#D94675</code></p></div>
+                <div class="swatch"><div class="swatch-color" style="background:#F7FBF8"></div><p>Light Background<br><code>#F7FBF8</code></p></div>
+                <div class="swatch"><div class="swatch-color" style="background:#081C19"></div><p>Dark Background<br><code>#081C19</code></p></div>
+            </div>
+        </div>
+
+        <div class="doc-section" id="quickstart">
+            <h2>Quick Start</h2>
+            <p>Launch the complete stack with a single script:</p>
+            <div class="code-block">./scripts/dev-up.sh</div>
+            <p>This script checks dependencies, reconciles Docker containers without losing volume data, starts PostgreSQL and Redis Stack, verifies Ollama, launches ComfyUI, backend, and frontend, and runs an authenticated smoke test. Terminal displays live logs and ports.</p>
+            <div class="metric-card">
+                <strong>Default Ports</strong>
+                <p>Backend: <code>http://127.0.0.1:8000</code><br>Frontend: <code>http://127.0.0.1:5173</code><br>PostgreSQL: <code>127.0.0.1:5432</code><br>Redis Stack: <code>127.0.0.1:6379</code><br>Ollama: <code>http://127.0.0.1:11434</code></p>
+            </div>
+        </div>
+
+        <div class="doc-section" id="architecture">
+            <h2>Current Architecture</h2>
+            <div class="grid">
+                <div class="card">
+                    <strong>Frontend</strong>
+                    <p>React 19 + Vite in <code>front</code>. Chat, workspace selector, file tree, SSE streaming, and voice controls.</p>
+                </div>
+                <div class="card">
+                    <strong>Backend</strong>
+                    <p>Spring Boot in <code>back/avento</code> organized into Multi-Module Maven submodules (<code>avento-core</code>, <code>avento-auth</code>, <code>avento-workspace</code>, <code>avento-mcp</code>, <code>avento-execution</code>, <code>avento-agent</code>, <code>avento-media</code>, <code>avento-voice</code>, <code>avento-rag</code>, and <code>avento-app</code>).</p>
+                </div>
+                <div class="card">
+                    <strong>Local AI</strong>
+                    <p>Host-native Ollama. Agent uses <code>/api/chat</code> for streaming and tool calls.</p>
+                </div>
+                <div class="card">
+                    <strong>Local Infra</strong>
+                    <p>PostgreSQL 16 and Redis Stack via Docker/Colima. PostgreSQL handles durable state; Redis handles jobs, streams, vector RAG, and SSE event dispatching.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="doc-section" id="redis-execution">
+            <h2>Redis, Jobs & Streaming</h2>
+            <p>Chat requests do not block HTTP connections. Frontend submits jobs via <code>POST /api/ai/runs</code>, receives <code>runId</code>, and listens to <code>GET /api/ai/runs/{runId}/events</code> via authenticated SSE.</p>
+            <ol>
+                <li><strong>Persistence:</strong> Jobs and Outbox events are saved together in PostgreSQL.</li>
+                <li><strong>Publication:</strong> Dispatcher publishes <code>jobId</code> and <code>runId</code> to <code>avento:jobs:agent</code>.</li>
+                <li><strong>Execution:</strong> <code>AgentRunWorker</code> consumes jobs with consumer group <code>avento-agent-workers</code>.</li>
+                <li><strong>Feedback:</strong> Text, thinking, and tool events enter Redis Streams and reach UI via SSE.</li>
+                <li><strong>Acknowledgment:</strong> Worker issues <code>XACK</code> after saving final state to PostgreSQL.</li>
+            </ol>
+        </div>
+
+        <div class="doc-section" id="ollama">
+            <h2>Ollama & Mac Acceleration</h2>
+            <p>On macOS, run native Ollama on host for Metal acceleration in Apple Silicon. For agent execution and planning, <code>granite4.1:8b</code> is configured as default (3x faster tool calling and zero VRAM model-swapping latency). Models like <code>qwen3.5:9b</code>, <code>qwen3:8b</code>, and <code>qwen2.5vl:7b</code> are also supported.</p>
+            <div class="code-block">
+                ollama pull granite4.1:8b
+                ollama pull qwen3.5:9b
+                ollama pull qwen2.5vl:7b
+                ollama pull llama3.2
+                ollama pull nomic-embed-text
+            </div>
+        </div>
+
+        <div class="doc-section" id="endpoints">
+            <h2>REST Endpoints Summary</h2>
+            <p>JSON REST endpoints return envelopes with <code>status</code>, <code>code</code>, and <code>data</code>.</p>
+            <table summary="List of main API endpoints">
+                <thead>
+                    <tr><th>Endpoint</th><th>Function</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>GET /api/health</code></td><td>Backend health check.</td></tr>
+                    <tr><td><code>POST /api/auth/login</code></td><td>Authenticates user and sets HttpOnly access cookie.</td></tr>
+                    <tr><td><code>POST /api/ai/runs</code></td><td>Submits asynchronous job to PostgreSQL outbox.</td></tr>
+                    <tr><td><code>GET /api/ai/runs/{runId}/events</code></td><td>Listens to run events via SSE stream.</td></tr>
+                    <tr><td><code>POST /api/mcp/execute</code></td><td>Executes authorized MCP or local tools.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="doc-section" id="roadmap">
+            <h2>Recommended Next Steps</h2>
+            <p>Phases for evolving Avento to the Hub + Device Agent model:</p>
+            <div class="grid">
+                <div class="card">
+                    <strong>Phase 0 — Hub + Agent Protocol</strong>
+                    <p>Pairing, token auth, encrypted WebSocket channel, and device capability advertisement.</p>
+                </div>
+                <div class="card">
+                    <strong>Phase 1 — First Device Agent (macOS)</strong>
+                    <p>Extract system automation to a dedicated macOS Agent process.</p>
+                </div>
+                <div class="card">
+                    <strong>Phase 2 — Multi-Platform Agents</strong>
+                    <p>Windows, Linux, and Android Accessibility Service Agents.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        const links = document.querySelectorAll('.sidebar-nav a');
+        links.forEach(link => {
+            link.addEventListener('click', () => {
+                if(window.innerWidth <= 768) {
+                    sidebar.classList.remove('open');
+                }
+                links.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

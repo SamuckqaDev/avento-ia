@@ -82,7 +82,9 @@ export const Brand = styled.div`
   ${Container}[data-minimized='true'] & {
     justify-content: center;
     min-height: 112px;
-    padding: 12px var(--sidebar-rail-padding);
+    padding: 12px 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 `;
 
@@ -118,15 +120,15 @@ export const HeaderActions = styled.div<{ $isMinimized?: boolean }>`
   flex-shrink: 0;
 
   ${({ $isMinimized }) => $isMinimized && `
-    width: var(--sidebar-control-width);
+    width: 100%;
     margin: 0 auto;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 10px;
 
-    button {
-      width: var(--sidebar-control-width);
-      height: var(--sidebar-control-height);
+    button, div {
+      box-sizing: border-box;
     }
   `}
 `;
@@ -283,6 +285,65 @@ export const ActionBtn = styled.button`
   }
 `;
 
+export const SearchInputWrapper = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  width: 100%;
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    color: ${({ theme }) => theme.colors.textMuted};
+    pointer-events: none;
+  }
+
+  input {
+    width: 100%;
+    height: 32px;
+    padding: 0 26px 0 30px;
+    background: color-mix(in srgb, ${({ theme }) => theme.colors.surface} 85%, transparent);
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: 8px;
+    color: ${({ theme }) => theme.colors.text};
+    font-size: 0.78rem;
+    outline: none;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+
+    &::placeholder {
+      color: ${({ theme }) => theme.colors.textMuted};
+      opacity: 0.7;
+    }
+
+    &:focus {
+      border-color: ${({ theme }) => theme.colors.accent};
+      background: ${({ theme }) => theme.colors.surface};
+      box-shadow: 0 0 0 2px color-mix(in srgb, ${({ theme }) => theme.colors.accent} 20%, transparent);
+    }
+  }
+
+  .clear-search-btn {
+    position: absolute;
+    right: 6px;
+    background: transparent;
+    border: none;
+    color: ${({ theme }) => theme.colors.textMuted};
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border-radius: 50%;
+    transition: color 0.15s ease, background 0.15s ease;
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.text};
+      background: color-mix(in srgb, ${({ theme }) => theme.colors.textMuted} 20%, transparent);
+    }
+  }
+`;
+
 export const ChatList = styled.ul`
   list-style: none;
   padding: 0;
@@ -310,10 +371,10 @@ export const ChatRow = styled.li`
 
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 6px;
 
     & > span {
+      flex: 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -345,6 +406,14 @@ export const ChatRow = styled.li`
     }
 `;
 
+export const ChatActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: auto;
+`;
+
 export const ChatDeleteButton = styled.button`
   width: 26px;
   height: 26px;
@@ -367,6 +436,11 @@ export const ChatDeleteButton = styled.button`
   }
 
   &:hover {
+    background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 14%, transparent);
+    color: ${({ theme }) => theme.colors.accent};
+  }
+
+  &.danger-btn:hover {
     background: color-mix(in srgb, #ef4444 12%, transparent);
     color: #ef4444;
   }

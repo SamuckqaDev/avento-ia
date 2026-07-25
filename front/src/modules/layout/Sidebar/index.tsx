@@ -1,17 +1,17 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useMemo } from 'react';
 import { 
   Container, Brand, LogoContainer, LogoMesh, ScrollArea, Footer,
   Section, ActionBtn, ChatList, ProjectSelectorWrapper, FileTreeWrapper,
   MinimizeButton, ProjectPathList, ProjectPathItem, RemovePathButton,
   HeaderActions, MediaList, MediaItemButton, SectionToggle, SectionCount,
-  ChatRow, ChatDeleteButton, DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton,
-  DeleteModalError, AccountBtn, AccountAvatar, AccountInfo, AccountName, AccountRole
+  ChatRow, ChatActions, ChatDeleteButton, DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton,
+  DeleteModalError, AccountBtn, AccountAvatar, AccountInfo, AccountName, AccountRole, SearchInputWrapper
 } from './styles';
 import { ChatSession } from '../../../hooks/useChatHistory';
 import { FileNode } from '../../../hooks/useFileSystem';
 import { AppNotification } from '../../../hooks/useNotifications';
 import { NotificationBell } from '../NotificationBell';
-import { Plus, Folder, FolderUser, FileText, ChatsCircle, List, CaretDown, CaretRight, Trash, X, ImageSquare, FilmSlate, Browsers, FilePdf, DownloadSimple, PencilSimple, Check } from '@phosphor-icons/react';
+import { Plus, Folder, FolderUser, FileText, ChatsCircle, List, CaretDown, CaretRight, Trash, X, ImageSquare, FilmSlate, Browsers, FilePdf, DownloadSimple, PencilSimple, Check, MagnifyingGlass } from '@phosphor-icons/react';
 import logoUrl from '../../../assets/avento-logo.svg';
 import { SettingsModal } from '../SettingsModal';
 import { useAuth } from '../../auth/AuthProvider';
@@ -132,7 +132,35 @@ function SidebarComponent({
   const [chatToDelete, setChatToDelete] = useState<ChatSession | null>(null);
   const [editingChatId, setEditingChatId] = useState<number | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ chatId: number; chatTitle: string; snippet: string }[] | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string>(() => localStorage.getItem('avento_avatar_url') || '');
+
+  useEffect(() => {
+    const term = searchQuery.trim();
+    if (!term || term.length < 2) {
+      setSearchResults(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      api.get<{ chatId: number; chatTitle: string; snippet: string }[]>(`/api/chats/search?q=${encodeURIComponent(term)}`)
+        .then(({ data }) => {
+          setSearchResults(data || []);
+        })
+        .catch(() => setSearchResults([]));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const filteredChats = useMemo(() => {
+    if (!searchQuery.trim()) return chats;
+    const term = searchQuery.toLowerCase().trim();
+    if (searchResults !== null && searchResults.length > 0) {
+      const matchIds = new Set(searchResults.map(r => r.chatId));
+      return chats.filter(chat => matchIds.has(chat.id) || chat.title.toLowerCase().includes(term));
+    }
+    return chats.filter(chat => chat.title.toLowerCase().includes(term));
+  }, [chats, searchQuery, searchResults]);
 
   // localStorage não é reativo: ouvimos o evento disparado pelo SettingsModal ao trocar a foto,
   // além do evento nativo `storage` (troca em outra aba).
@@ -196,7 +224,7 @@ function SidebarComponent({
   return (
     <Container $isOpen={isMobileOpen} $isMinimized={isMinimized} data-minimized={isMinimized ? 'true' : 'false'}>
       <Brand>
-        <LogoContainer>
+        <LogoContainer className={isMinimized ? 'hide-on-minimized' : ''}>
           <LogoMesh className={isMinimized ? 'hide-on-minimized' : ''}>
             <img src={logoUrl} alt="Avento Logo" />
           </LogoMesh>
@@ -293,8 +321,32 @@ function SidebarComponent({
           <h3>
             <ChatsCircle size={16} /> Histórico
           </h3>
+          <SearchInputWrapper>
+            <MagnifyingGlass size={15} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Buscar conversas..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="clear-search-btn"
+                onClick={() => setSearchQuery('')}
+                title="Limpar busca"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </SearchInputWrapper>
           <ChatList>
-            {chats.map(chat => (
+            {filteredChats.length === 0 ? (
+              <li style={{ padding: '8px 10px', fontSize: '0.78rem', color: 'var(--text-muted, #888)' }}>
+                {searchQuery ? 'Nenhuma conversa encontrada.' : 'Nenhuma conversa ativa.'}
+              </li>
+            ) : (
+              filteredChats.map(chat => (
               <ChatRow
                 key={chat.id}
                 className={currentChatId === chat.id ? 'active' : ''}
@@ -317,45 +369,49 @@ function SidebarComponent({
                 ) : (
                   <span>{chat.title}</span>
                 )}
-                {editingChatId === chat.id ? (
-                  <ChatDeleteButton
-                    type="button"
-                    title="Salvar nome"
-                    aria-label="Salvar nome"
-                    onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); commitRename(chat.id); }}
-                  >
-                    <Check size={15} />
-                  </ChatDeleteButton>
-                ) : (
-                  <>
+                <ChatActions>
+                  {editingChatId === chat.id ? (
                     <ChatDeleteButton
                       type="button"
-                      title={`Renomear ${chat.title}`}
-                      aria-label={`Renomear ${chat.title}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setDraftTitle(chat.title);
-                        setEditingChatId(chat.id);
-                      }}
+                      title="Salvar nome"
+                      aria-label="Salvar nome"
+                      onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); commitRename(chat.id); }}
                     >
-                      <PencilSimple size={15} />
+                      <Check size={15} />
                     </ChatDeleteButton>
-                    <ChatDeleteButton
-                      type="button"
-                      title={`Apagar ${chat.title}`}
-                      aria-label={`Apagar ${chat.title}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setDeleteError(null);
-                        setChatToDelete(chat);
-                      }}
-                    >
-                      <Trash size={15} />
-                    </ChatDeleteButton>
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <ChatDeleteButton
+                        type="button"
+                        title={`Renomear ${chat.title}`}
+                        aria-label={`Renomear ${chat.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDraftTitle(chat.title);
+                          setEditingChatId(chat.id);
+                        }}
+                      >
+                        <PencilSimple size={15} />
+                      </ChatDeleteButton>
+                      <ChatDeleteButton
+                        type="button"
+                        className="danger-btn"
+                        title={`Apagar ${chat.title}`}
+                        aria-label={`Apagar ${chat.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDeleteError(null);
+                          setChatToDelete(chat);
+                        }}
+                      >
+                        <Trash size={15} />
+                      </ChatDeleteButton>
+                    </>
+                  )}
+                </ChatActions>
               </ChatRow>
-            ))}
+            ))
+          )}
           </ChatList>
         </Section>
 

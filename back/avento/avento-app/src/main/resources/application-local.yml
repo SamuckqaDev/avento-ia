@@ -1,0 +1,113 @@
+# Copy this file to application-local.yml and run with:
+# mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+server:
+  port: 8000
+  address: 127.0.0.1
+
+avento:
+  security:
+    allow-non-loopback: false
+  auth:
+    enabled: ${AVENTO_AUTH_ENABLED:true}
+    bootstrap-enabled: ${AVENTO_AUTH_BOOTSTRAP_ENABLED:true}
+    jwt-secret: ${AVENTO_AUTH_JWT_SECRET:dev-only-change-me-avento-local-auth-secret-32-bytes}
+    access-token-ttl: ${AVENTO_AUTH_ACCESS_TOKEN_TTL:20m}
+    refresh-token-ttl: ${AVENTO_AUTH_REFRESH_TOKEN_TTL:7d}
+    cookie:
+      name: ${AVENTO_AUTH_COOKIE_NAME:avento_access}
+      http-only: ${AVENTO_AUTH_COOKIE_HTTP_ONLY:true}
+      secure: ${AVENTO_AUTH_COOKIE_SECURE:false}
+      same-site: ${AVENTO_AUTH_COOKIE_SAME_SITE:Lax}
+    root:
+      enabled: ${AVENTO_AUTH_ROOT_ENABLED:true}
+      email: ${AVENTO_AUTH_ROOT_EMAIL:dev.matsutech@gmail.com}
+      password: ${AVENTO_AUTH_ROOT_PASSWORD:Root@123456+-}
+      display-name: ${AVENTO_AUTH_ROOT_DISPLAY_NAME:MatsuTech Root}
+  agent:
+    max-tool-rounds: 6
+    max-tool-calls: 16
+    # 8192, nao 16384: medido nesta maquina, o qwen3.5:9b @ 16384 levava 34-46s por pedido SIMPLES
+    # (a maquina paginava o KV cache); granite4.1:8b @ 8192 responde em ~2.8s em regime. 8192 e o teto.
+    # 16384 com KV cache quantizado (dev-up.sh) custa ~ o mesmo que 8192 sem quantizacao.
+    # Se o Ollama comecar a morrer sob pressao de memoria (ComfyUI + Postgres + Redis juntos),
+    # volte para 8192 via AVENTO_AGENT_NUM_CTX sem editar este arquivo.
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:16384}
+    num-predict: ${AVENTO_AGENT_NUM_PREDICT:4096}
+    # ESTE e o arquivo que vale no profile local (sobrescreve application.yml). Um modelo so, sem troca.
+    # Para voltar ao qwen: AVENTO_AGENT_DEFAULT_MODEL=qwen3.5:9b (e planner via AVENTO_AGENT_PLANNER_MODEL).
+    default-model: ${AVENTO_AGENT_DEFAULT_MODEL:qwen3.5:9b}
+    planner-model: ${AVENTO_AGENT_PLANNER_MODEL:qwen3.5:9b}
+    # DESLIGADO desde 24/07/2026: com todos os servidores MCP conectados isso mandava 124 schemas
+    # por rodada — modelo 8B nao escolhe ferramenta nesse mar (rodadas de 40-60s terminando sem
+    # nenhuma chamada, telemetria "Agent round toolset ... tools(124)"). O caminho agora e a
+    # selecao por intencao (teto de 12) + descoberta progressiva: search_capabilities acha a
+    # ferramenta e activate_tools a traz pra rodada. Religar so para depurar exposicao:
+    # AVENTO_AGENT_EXPOSE_ALL_TOOLS=true.
+    expose-all-tools: ${AVENTO_AGENT_EXPOSE_ALL_TOOLS:false}
+  image:
+    default-model: ${AVENTO_IMAGE_DEFAULT_MODEL:x/flux2-klein:4b}
+  mcp:
+    catalog:
+      # 'fetch' incluido no auto-connect: e o servidor MCP de web (uvx mcp-server-fetch, instalado
+      # nesta maquina) que le paginas/APIs e devolve texto — resolve cotacao, "que horas sao", etc.
+      # sem navegador. Estava fora da lista, por isso o modelo nunca recebia a ferramenta de web.
+      auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,memory,sequential-thinking,time,macos-automator,apple,playwright,chrome-devtools,puppeteer,fetch}
+    filesystem:
+      enabled: ${AVENTO_MCP_FILESYSTEM_ENABLED:true}
+    desktop-commander:
+      enabled: ${AVENTO_MCP_DESKTOP_COMMANDER_ENABLED:true}
+    macos-automator:
+      enabled: ${AVENTO_MCP_MACOS_AUTOMATOR_ENABLED:true}
+    playwright:
+      enabled: ${AVENTO_MCP_PLAYWRIGHT_ENABLED:true}
+    puppeteer:
+      enabled: ${AVENTO_MCP_PUPPETEER_ENABLED:true}
+  voice:
+    ffmpeg-path: /opt/homebrew/bin/ffmpeg
+    whisper-binary: ./back/whisper.cpp/build/bin/whisper-cli
+    whisper-model: ./back/whisper.cpp/models/ggml-small.bin
+    whisper-language: auto
+    preferred-language: pt
+    allowed-languages: pt,en,es
+    whisper-prompt: "Avento. Portugues brasileiro natural. Transcreva exatamente o que foi dito. Nao acrescente nomes de aplicativos como Finder, Terminal, Brave ou VS Code a menos que tenham sido claramente falados."
+    whisper-carry-initial-prompt: true
+    whisper-beam-size: 5
+    whisper-best-of: 5
+    piper-binary: ./piper_tts/.venv/bin/piper
+    piper-model: ./piper_tts/pt_BR-faber-medium.onnx
+    piper-model-pt: ./piper_tts/pt_BR-faber-medium.onnx
+    piper-model-en: ./piper_tts/en_US-lessac-medium.onnx
+    piper-model-es: ""
+    tts-cache-enabled: true
+    tts-cache-ttl: PT6H
+
+spring:
+  datasource:
+    url: ${AVENTO_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/avento}
+    driverClassName: org.postgresql.Driver
+    username: ${AVENTO_DATASOURCE_USERNAME:avento}
+    password: ${AVENTO_DATASOURCE_PASSWORD:avento_dev_password}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  h2:
+    console:
+      enabled: false
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      embedding:
+        model: nomic-embed-text
+        options:
+          temperature: 0.0
+    vectorstore:
+      redis:
+        index: avento_index
+        prefix: "avento:"
+        initialize-schema: true

@@ -14,6 +14,20 @@ Segue o OS no claro/escuro.
   alucina, o trade-off local vs nuvem, as camadas do Avento e como pensar/diagnosticar junto. Não é
   sobre um bug específico — é o mapa geral pra colaborar no projeto.
 
+## Casos
+
+- **[01 — Apagar um chat apagou a mídia de todos](01-exclusao-de-chat-apagou-midia-de-todos.html)** —
+  a exclusão decidia de quem era cada arquivo lendo o *texto* da conversa, não a tabela de posse.
+  Como a pasta de mídia é compartilhada e a IA escreve o caminho do arquivo nas respostas, apagar um
+  chat destruía imagens que outros chats ainda usavam. Inclui o agravante de apagar arquivo dentro
+  da transação (banco tem rollback, disco não tem).
+
+- **[02 — Dois modelos: um pensa, o outro executa](02-dois-modelos-planejador-executor.html)** —
+  o padrão planejador/executor. Por que o Avento estava travado (num_ctx no dobro, um modelo só),
+  como os dois modelos trabalham em sequência (planeja 1x com qwen → troca → executa com granite,
+  nunca em paralelo), as quatro mudanças exatas, e como a triagem de ferramentas por intenção
+  evita alucinação — incluindo o bug que deixa o PDF invisível pro modelo.
+
 ## Convenção
 
 - **Visão geral / onboarding:** numeração baixa, explicação de conceito amplo (ex.: `00-visao-geral`).

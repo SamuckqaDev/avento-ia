@@ -561,15 +561,17 @@ workflows necessarios para encontra-los ou prepara-los na maquina local.
 | `front/src/pages/Home` | Estado principal da tela, conversas, streaming e integracao dos modulos |
 | `front/src/hooks` | Chat em streaming, gravacao e reproducao de audio |
 | `front/src/modules` | Componentes de chat, layout, aprovacoes, MCP e midias |
-| `back/avento/src/main/java/com/avento/controller` | Entradas HTTP e WebSocket |
-| `back/avento/src/main/java/com/avento/service/orchestration` | Ciclo e estado das execucoes do agente |
-| `back/avento/src/main/java/com/avento/service/execution` | Outbox, worker, Redis Streams, SSE e cancelamento |
-| `back/avento/src/main/java/com/avento/service/context` | Cache reconstruivel do contexto recente |
-| `back/avento/src/main/java/com/avento/service/tools` | Capacidades, risco, gateway e validacao de resultados |
-| `back/avento/src/main/java/com/avento/service/mcp` | Catalogo, conexoes MCP e descoberta de bancos |
-| `back/avento/src/main/resources/agent` | Politicas publicas, instrucoes base, skills acionaveis e heuristicas carregadas pelo agente |
-| `~/.avento/policies` | Overrides pessoais de politica por maquina, nunca versionados |
-| `back/avento/src/main/resources/comfyui` | Workflows de imagem e video |
+| `back/avento/pom.xml` | Parent POM Multi-Módulo Maven (avento-parent) |
+| `back/avento/avento-core` | DTOs de API base, exceções e tratamento global de erros |
+| `back/avento/avento-auth` | Autenticação Spring Security, filtros JWT e Usuários |
+| `back/avento/avento-workspace` | Autorização de pastas, leitor/escritor de arquivos e backups |
+| `back/avento/avento-mcp` | Cliente síncrono SDK MCP Java Stdio e catálogo MCP |
+| `back/avento/avento-execution` | Outbox transacional, Redis Streams Worker e SSE |
+| `back/avento/avento-agent` | Orquestração do agente, modelos Ollama, heurísticas e prompts |
+| `back/avento/avento-media` | Integração ComfyUI (SDXL, vídeo WAN) e gerador de PDF |
+| `back/avento/avento-voice` | Integrador Whisper.cpp, Piper TTS e WebSockets de voz |
+| `back/avento/avento-rag` | MarkItDown, Embeddings Nomic e Redis VectorStore |
+| `back/avento/avento-app` | Módulo executável Spring Boot (AventoApplication) |
 | `scripts` | Setup, inicializacao, verificacao e smoke test |
 
 ## Limites atuais importantes

@@ -78,7 +78,10 @@ export function PlanExecutionPanel({
   const loadPlans = useCallback(async (preferredPlanId?: number) => {
     try {
       const allPlans = await planApi.listPlans();
-      const loaded = chatId ? allPlans.filter(candidate => candidate.chatId === chatId) : [];
+      const byChat = chatId
+        ? allPlans.filter(candidate => String(candidate.chatId) === String(chatId))
+        : allPlans;
+      const loaded = byChat.length > 0 ? byChat : allPlans;
       setPlans(loaded);
       setSelectedPlanId(current => {
         if (preferredPlanId && loaded.some(candidate => candidate.id === preferredPlanId)) {

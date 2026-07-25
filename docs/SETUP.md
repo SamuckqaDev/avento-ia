@@ -65,7 +65,7 @@ AVENTO_FRONTEND_URL=http://127.0.0.1:5174 \
 
 Para uma instalacao do ComfyUI em outro diretorio, use `AVENTO_COMFYUI_DIR=/caminho/ComfyUI`. Para nao inicia-lo automaticamente, use `AVENTO_COMFYUI_AUTOSTART=0`. A primeira subida instala o runtime do ComfyUI em `~/ComfyUI` por padrao e registra o processo em `tmp/dev/comfyui-setup.log`. O pipeline Realistic Vision e preparado por `./scripts/setup-comfyui-image.sh`; use `AVENTO_COMFYUI_IMAGE_AUTO_INSTALL=0` para impedir o download automatico. O FLUX.2 Klein 4B e preparado por `./scripts/setup-comfyui-flux2.sh`; no Apple Silicon, o script escolhe automaticamente o checkpoint BF16 compativel com Metal (aproximadamente 15,6 GB com encoder e VAE), enquanto outras plataformas usam FP8 (aproximadamente 11,6 GB). Use `AVENTO_COMFYUI_FLUX2_AUTO_INSTALL=0` para desabilitar esses downloads automaticos. Os modelos de video WAN 2.2 sao baixados automaticamente; use `AVENTO_COMFYUI_VIDEO_AUTO_INSTALL=0` para desabilitar ou execute `./scripts/setup-comfyui-video.sh` para instalar e retomar manualmente.
 
-O Ollama usa `http://127.0.0.1:11434` por padrão. `dev-up.sh` inicia `ollama serve` quando necessário e encerra essa instância ao receber `Ctrl+C`; uma instância que já estava rodando é preservada. Use `AVENTO_OLLAMA_AUTOSTART=0` para desativar essa subida ou `AVENTO_OLLAMA_URL` para alterar a URL entregue ao backend. Quando o `dev-up.sh` sobe o Ollama, ele liga a quantização de KV cache (`OLLAMA_KV_CACHE_TYPE=q8_0` + flash attention) para reduzir a RAM de contexto; ajuste com `AVENTO_OLLAMA_KV_CACHE_TYPE` (ex.: `f16` para desligar). Isso só vale para a instância que o `dev-up.sh` inicia — se o Ollama já estiver rodando, ele é reaproveitado como está. Os pacotes MCP executados por `npx` usam o cache isolado `~/.avento/tools/npm-cache`, evitando que um cache global corrompido impeça a conexão e mantendo runtimes pesados fora do repositório; o caminho pode ser alterado com `AVENTO_NPM_CACHE_DIR`.
+O Ollama usa `http://127.0.0.1:11434` por padrão. `dev-up.sh` inicia `ollama serve` quando necessário e encerra essa instância ao receber `Ctrl+C`; uma instância que já estava rodando é preservada. Use `AVENTO_OLLAMA_AUTOSTART=0` para desativar essa subida ou `AVENTO_OLLAMA_URL` para alterar a URL entregue ao backend. Quando o `dev-up.sh` sobe o Ollama, ele liga a quantização de KV cache (`OLLAMA_KV_CACHE_TYPE=q4_0` + flash attention) para reduzir drasticamente a RAM/VRAM de contexto (compressão de 4 bits estilo TurboQuant); ajuste com `AVENTO_OLLAMA_KV_CACHE_TYPE` (ex.: `q8_0` para 8 bits, `f16` para desligar). Isso só vale para a instância que o `dev-up.sh` inicia — se o Ollama já estiver rodando, ele é reaproveitado como está. Os pacotes MCP executados por `npx` usam o cache isolado `~/.avento/tools/npm-cache`, evitando que um cache global corrompido impeça a conexão e mantendo runtimes pesados fora do repositório; o caminho pode ser alterado com `AVENTO_NPM_CACHE_DIR`.
 
 ## PostgreSQL e Redis
 
@@ -244,7 +244,7 @@ cp back/avento/src/main/resources/application-local.example.yml back/avento/src/
 Depois rode com o profile local:
 
 ```sh
-mvn -f back/avento/pom.xml spring-boot:run -Dspring-boot.run.profiles=local
+mvn -f back/avento/pom.xml spring-boot:run -pl avento-app -am -Dspring-boot.run.profiles=local
 ```
 
 Campos mais comuns para ajustar:
@@ -382,7 +382,7 @@ O historico de chats fica ligado ao usuario autenticado pelo cookie: `GET /api/c
 Instale/compile e rode:
 
 ```sh
-mvn -f back/avento/pom.xml spring-boot:run
+mvn -f back/avento/pom.xml spring-boot:run -pl avento-app -am
 ```
 
 Endpoints principais:

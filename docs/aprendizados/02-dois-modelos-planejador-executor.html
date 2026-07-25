@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avento — Dois modelos: um pensa, o outro executa</title>
+<style>
+  :root {
+    --bg: #F4F7F3;
+    --surface: #FFFFFF;
+    --ink: #14231F;
+    --muted: #566661;
+    --accent: #147E6A;
+    --accent-soft: #E3F2ED;
+    --mint: #3BB79E;
+    --pop: #D6497A;
+    --pop-soft: #FBE7EE;
+    --border: #DCE6E0;
+    --code-bg: #EDF3EF;
+    --shadow: 0 1px 2px rgba(20,35,31,.05), 0 8px 24px rgba(20,35,31,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B1512;
+      --surface: #12201C;
+      --ink: #E9F1ED;
+      --muted: #9CB0A8;
+      --accent: #4FD1B4;
+      --accent-soft: #15302A;
+      --mint: #5CDDC1;
+      --pop: #F384AB;
+      --pop-soft: #2A1721;
+      --border: #21322C;
+      --code-bg: #16241F;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F4F7F3; --surface: #FFFFFF; --ink: #14231F; --muted: #566661;
+    --accent: #147E6A; --accent-soft: #E3F2ED; --mint: #3BB79E; --pop: #D6497A;
+    --pop-soft: #FBE7EE; --border: #DCE6E0; --code-bg: #EDF3EF;
+    --shadow: 0 1px 2px rgba(20,35,31,.05), 0 8px 24px rgba(20,35,31,.05);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B1512; --surface: #12201C; --ink: #E9F1ED; --muted: #9CB0A8;
+    --accent: #4FD1B4; --accent-soft: #15302A; --mint: #5CDDC1; --pop: #F384AB;
+    --pop-soft: #2A1721; --border: #21322C; --code-bg: #16241F;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 22px 96px; }
+
+  /* Header */
+  header.top { padding: 64px 0 40px; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    font-size: .72rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(2rem, 5.5vw, 3rem); line-height: 1.08; margin: 0 0 18px;
+    letter-spacing: -.02em; font-weight: 800; text-wrap: balance;
+  }
+  .lede { font-size: 1.12rem; color: var(--muted); margin: 0; max-width: 62ch; }
+  .lede strong { color: var(--ink); font-weight: 650; }
+
+  /* Sections */
+  section { padding-top: 52px; }
+  h2 {
+    font-size: 1.55rem; letter-spacing: -.01em; margin: 0 0 6px; font-weight: 750;
+    display: flex; align-items: baseline; gap: 12px; text-wrap: balance;
+  }
+  h2 .n {
+    font-size: .82rem; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums; background: var(--accent-soft);
+    padding: 3px 9px; border-radius: 999px; flex: 0 0 auto; transform: translateY(-2px);
+  }
+  h3 { font-size: 1.05rem; margin: 26px 0 6px; font-weight: 700; }
+  p { margin: 12px 0; }
+  .muted { color: var(--muted); }
+  a { color: var(--accent); }
+
+  strong.key { color: var(--pop); font-weight: 700; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: .88em; background: var(--code-bg); padding: 1px 6px; border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+
+  /* Analogy / plain-language callout */
+  .plain {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 18px 0;
+  }
+  .plain .lbl { font-weight: 750; color: var(--accent); }
+
+  /* "You saw this today" callout */
+  .saw {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin: 20px 0; box-shadow: var(--shadow);
+    position: relative;
+  }
+  .saw::before {
+    content: "VOCÊ VIU ISSO HOJE"; display: inline-block;
+    font-size: .64rem; letter-spacing: .14em; font-weight: 800; color: var(--pop);
+    background: var(--pop-soft); padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+  }
+  .saw p { margin: 6px 0; font-size: .96rem; }
+  .saw p:first-of-type { margin-top: 0; }
+
+  /* Diagram */
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 22px 0;
+  }
+  .step {
+    flex: 1 1 120px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .step .st { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .step .sd { font-size: .9rem; margin-top: 4px; }
+  .arrow { align-self: center; color: var(--muted); font-weight: 700; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--border); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: .94rem; min-width: 460px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; background: var(--code-bg); }
+  tr:last-child td { border-bottom: none; }
+  td strong { color: var(--ink); }
+
+  /* Layers stack */
+  .layers { display: flex; flex-direction: column; gap: 8px; margin: 20px 0; }
+  .layer {
+    display: flex; align-items: baseline; gap: 14px; padding: 13px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+  }
+  .layer .tag {
+    font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); flex: 0 0 96px;
+  }
+  .layer .desc { font-size: .93rem; }
+  .layer .desc b { font-weight: 700; }
+
+  .divider { height: 1px; background: var(--border); border: 0; margin: 8px 0; }
+
+  footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
+
+  ul.clean { padding-left: 20px; }
+  ul.clean li { margin: 7px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Avento IA · Aprendizados · Caso 02</p>
+    <h1>Dois modelos: um pensa, o outro executa</h1>
+    <p class="lede">O Avento estava <strong>travado</strong>. A ideia que você trouxe — "e se um modelo pensar no que fazer e outro executar?" — virou a solução. Este doc explica, passo a passo, o que foi mexido, e o ponto que mais confunde: os dois modelos <strong>não rodam juntos</strong>. Um planeja, depois <em>troca</em>, e o outro executa.</p>
+  </header>
+
+  <section>
+    <h2><span class="n">01</span> O sintoma: sensação de travado</h2>
+    <p>Não era um erro — era lentidão. Duas causas somadas:</p>
+    <ul class="clean">
+      <li><strong>A janela de contexto estava no dobro do que a máquina aguenta.</strong> O <code>num_ctx</code> tinha subido para <strong>16384</strong>. Nos teus 16GB, essa memória de trabalho soma com o ComfyUI, o Postgres e o Redis, e a máquina começa a paginar — o modelo desacelera.</li>
+      <li><strong>Um modelo só fazia tudo.</strong> O mesmo modelo raciocinava e executava. E o que rodava era o <code>qwen3:8b</code> antigo, não o mais novo. Pra tarefa mecânica (chamar ferramenta, listar arquivo), ele era mais lento que o necessário.</li>
+    </ul>
+    <div class="plain">
+      <span class="lbl">A pista:</span> antes de trocar qualquer coisa, medimos. Um teste com 5 tarefas reais mostrou o executor gastando <strong>11 segundos por resposta</strong>. É esse número que dá a sensação de "ele está pensando demais pra fazer coisa simples".
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">02</span> A ideia — e de quem foi</h2>
+    <p>A ideia do arranjo foi <strong>sua</strong>: você perguntou "e se colocamos outro modelo pra pensar no que fazer, e colocar ele pra executar?". Isso tem nome — chama-se <strong>padrão planejador/executor</strong> — e é uma das formas mais eficientes de montar um agente local. O trabalho aqui foi confirmar que o Avento já tinha metade da estrutura pronta e ligar os fios certos.</p>
+    <div class="plain">
+      <span class="lbl">Analogia:</span> é um <strong>arquiteto</strong> e um <strong>pedreiro</strong>. O arquiteto (que raciocina melhor) desenha a planta uma vez. Aí ele vai embora, e o pedreiro (que trabalha rápido) constrói tijolo por tijolo seguindo a planta. Você não paga o arquiteto pra assentar tijolo, nem espera o pedreiro redesenhar a casa a cada parede.
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">03</span> Como funciona de verdade — em sequência, não junto</h2>
+    <p>Esse é o ponto que mais gera dúvida, então vale devagar. Os dois modelos <strong>nunca rodam ao mesmo tempo</strong>. Não dá — não caberia na RAM os dois de uma vez com o ComfyUI ligado. O que acontece é uma <strong>passagem de bastão</strong>:</p>
+    <div class="flow">
+      <div class="step"><div class="st">1 · Você pede</div><div class="sd">"faz X no projeto"</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st">2 · qwen PENSA</div><div class="sd">monta o plano (lista de tarefas). Roda <strong>1 vez</strong>.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st">3 · TROCA</div><div class="sd">o qwen sai da memória, o granite entra</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="st">4 · granite EXECUTA</div><div class="sd">roda as tarefas uma a uma. Muitas vezes.</div></div>
+    </div>
+    <p>Repare no ritmo: <strong>pensar acontece uma vez; executar acontece muitas vezes.</strong> É isso que torna a troca barata. A troca de modelo na memória (o "cold load") custa alguns segundos — mas como ela acontece <strong>uma vez por pedido</strong>, e não a cada passo, o custo dilui. Se fosse "pensa → troca → executa → troca → pensa → troca..." a cada rodada, seria inviável na tua máquina: cada troca pagaria o pedágio. O segredo é justamente <strong>planejar tudo primeiro, executar tudo depois</strong>.</p>
+    <div class="saw">
+      <p><strong>E no chat normal?</strong> Quando você só conversa (sem entrar no modo agente com plano), só o <strong>granite</strong> roda. Não há troca nenhuma — é o modelo rápido respondendo direto. O par de modelos só entra em cena quando existe um plano a montar.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">04</span> Por que cada modelo no seu papel</h2>
+    <p>A escolha não foi por gosto — foi por medição. Rodamos o mesmo teste (12 ferramentas, contexto real, português) em três modelos:</p>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>Modelo</th><th>Papel</th><th>Velocidade</th><th>Por quê</th></tr>
+        <tr><td><strong>qwen3.5:9b</strong></td><td>Planejador (pensa)</td><td>~11s / resposta</td><td>Raciocina melhor. Como planeja 1x, o tempo pesa pouco.</td></tr>
+        <tr><td><strong>granite4.1:8b</strong></td><td>Executor (faz)</td><td><strong>~4s / resposta</strong></td><td>3x mais rápido, chama ferramenta e faz tabela bem. É o grosso das chamadas.</td></tr>
+        <tr><td>gemma4:12b</td><td>descartado</td><td>~23s / resposta 🐢</td><td>Bom, mas lento demais nos 16GB — quase metade do tok/s.</td></tr>
+      </table>
+    </div>
+    <p>Planejar bem exige <strong>pensar</strong>; executar exige <strong>velocidade</strong>. Cada modelo é forte exatamente onde o outro é fraco — por isso o arranjo rende mais que qualquer um dos dois sozinho.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">05</span> As quatro mudanças, exatas</h2>
+    <div class="layers">
+      <div class="layer"><span class="tag">Contexto</span><span class="desc"><b>num_ctx: 16384 → 8192.</b> Volta ao teto seguro dos 16GB. É a mudança de maior impacto na fluidez, e serve pra <em>todo</em> modelo. Sozinha já tira boa parte do travamento.</span></div>
+      <div class="layer"><span class="tag">Executor</span><span class="desc"><b>default-model: qwen3:8b → granite4.1:8b.</b> O modelo que responde no chat e roda as tarefas passa a ser o rápido.</span></div>
+      <div class="layer"><span class="tag">Planejador</span><span class="desc"><b>planner-model: qwen3.5:9b.</b> Config nova. O montador de plano (que já era uma etapa separada no código) agora usa o modelo que pensa melhor.</span></div>
+      <div class="layer"><span class="tag">Guarda</span><span class="desc"><b>think só para modelos capazes.</b> Descoberto no teste: o granite devolvia <em>resposta vazia</em> quando recebia o comando de "pensar". Agora esse comando só vai a modelos que suportam (qwen, gemma, deepseek); o granite nunca recebe.</span></div>
+    </div>
+    <p class="muted">Tudo é configurável por variável de ambiente — trocar de modelo não exige recompilar: <code>AVENTO_AGENT_DEFAULT_MODEL</code>, <code>AVENTO_AGENT_PLANNER_MODEL</code>, <code>AVENTO_AGENT_NUM_CTX</code>.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">06</span> Como o modelo enxerga as ferramentas (e por que alucina)</h2>
+    <p>Você sacou um ponto certeiro: <strong>a forma como o modelo acessa as ferramentas afeta a alucinação.</strong> Aqui está o mecanismo, e onde ele ainda falha.</p>
+    <p>Um modelo local pequeno não aguenta ver <strong>todas</strong> as ferramentas de uma vez. Cada ferramenta tem uma "ficha técnica" (o schema) que ocupa espaço no contexto. Com 20+ fichas, duas coisas ruins acontecem:</p>
+    <ul class="clean">
+      <li><strong>Fica lento:</strong> medimos 23 ferramentas fazendo uma rodada passar de 6 minutos; com poucas, fecha em menos de 90 segundos.</li>
+      <li><strong>Alucina:</strong> com opções demais, o modelo pequeno se confunde e "inventa" chamada de ferramenta errada, ou descreve que fez algo sem ter chamado nada.</li>
+    </ul>
+    <p>Por isso o Avento faz uma <strong>triagem por intenção</strong>: lê teu pedido, adivinha o tipo de tarefa e só mostra ao modelo as ferramentas daquele grupo, com um teto de <strong>12 por vez</strong>. Um punhado de ferramentas baratas e essenciais fica <em>sempre</em> visível; o resto entra conforme a intenção detectada.</p>
+    <div class="saw">
+      <p><strong>Onde isso ainda quebra — e por que o PDF "não sabia fazer".</strong> A triagem tem um bug: a ferramenta de gerar PDF está amarrada, por engano, ao grupo de <em>imagem</em>. Então "gera um PDF do relatório" — que não tem palavra de imagem — faz a ferramenta <strong>nem aparecer</strong> pro modelo. Ele não alucina por maldade: ele simplesmente <em>não recebeu</em> a ferramenta, e responde em texto que "não consegue". O conserto é reorganizar essa triagem (criar um grupo "documento"), e está anotado no backlog.</p>
+    </div>
+    <div class="plain">
+      <span class="lbl">A regra de ouro:</span> a melhor defesa contra alucinação de ferramenta não é um modelo melhor — é <strong>entregar ao modelo só as ferramentas certas, na hora certa</strong>. Menos opções, escolhidas bem, erram menos que muitas opções jogadas de uma vez.
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">07</span> O que fica</h2>
+    <ul class="clean">
+      <li><strong>Pra valer, reinicie o <code>dev-up.sh</code>.</strong> As mudanças estão compiladas e testadas (426 testes passando), mas só entram no ar no próximo boot — a config é lida na inicialização.</li>
+      <li><strong>Velocidade melhorou; ferramentas ainda não.</strong> O PDF e a tabela dependem do conserto da triagem (item 06), que é bug de roteamento, não de modelo. Modelo rápido e ferramenta certa são ganhos separados.</li>
+      <li><strong>Modelo se troca sem recompilar.</strong> Se quiser um executor mais "esperto" e menos veloz, é só apontar a variável de ambiente pro qwen3.5:9b e reiniciar.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Caso registrado em 23/07/2026. Arquivos tocados: <code>application.yml</code> (num_ctx, default-model, planner-model, thinking-capable-models), <code>AgentService</code> (guarda de thinking por modelo), <code>PlanBuilderService</code> (planejador usa o planner-model) e os testes correspondentes.
+  </footer>
+</div>
+</body>
+</html>

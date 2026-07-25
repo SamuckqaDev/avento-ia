@@ -8,7 +8,8 @@ import {
   RangeSelector, RangeButton, StatGrid, StatBox,
   MemoryIntro, MemoryAddRow, MemorySectionTitle, MemoryList,
   MemoryCard, MemoryActionButton, MemoryEmpty,
-  AgentForm, AgentField, AgentDefaultToggleRow, AgentDefaultBadge
+  AgentForm, AgentField, AgentDefaultToggleRow, AgentDefaultBadge,
+  BadgeShared, BadgePrivate, ProviderCard, ProviderGrid, ProviderSectionTitle, TestButton, TestStatusPill
 } from './styles';
 import { api } from '../../../services/apiClient';
 import { useAuth } from '../../auth/AuthProvider';
@@ -87,13 +88,28 @@ export function SettingsModal({
   isVoiceEnabled,
   handleToggleVoice
 }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<'conta' | 'uso' | 'preferencias' | 'memoria' | 'agentes'>('conta');
+  const [activeTab, setActiveTab] = useState<'conta' | 'uso' | 'preferencias' | 'provedores' | 'memoria' | 'agentes'>('conta');
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [providerSettings, setProviderSettings] = useState({
+    systemServerUrl: 'http://127.0.0.1:11434',
+    systemServerType: 'OLLAMA',
+    systemDefaultModel: 'granite4.1:8b',
+    usePersonalCloud: false,
+    personalCloudProvider: 'GEMINI',
+    personalCloudApiKeyMasked: '',
+    personalCloudApiKeyInput: '',
+    personalCloudModel: 'gemini-2.5-flash',
+  });
+  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
+  const [testLanStatus, setTestLanStatus] = useState<{ success?: boolean; message?: string; loading?: boolean }>({});
+  const [testCloudStatus, setTestCloudStatus] = useState<{ success?: boolean; message?: string; loading?: boolean }>({});
   
   const [usageData, setUsageData] = useState<UsageSummary | null>(null);
+  const [metricsData, setMetricsData] = useState<{ avgDurationSecs?: number; runsCount?: number } | null>(null);
   const [isLoadingUsage, setIsLoadingUsage] = useState(true);
   const [usageRange, setUsageRange] = useState<UsageRange>('7d');
   
@@ -143,6 +159,9 @@ export function SettingsModal({
         }
       };
       loadUsage();
+      api.get<{ avgDurationSecs?: number; runsCount?: number }>('/api/metrics')
+        .then(({ data }) => setMetricsData(data))
+        .catch(() => {});
     }
   }, [activeTab, usageRange]);
 
@@ -219,9 +238,93 @@ export function SettingsModal({
   useEffect(() => {
     if (activeTab === 'agentes') {
       loadAgents();
+    } else if (activeTab === 'provedores') {
+      loadProviders();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  const loadProviders = async () => {
+    setIsLoadingProviders(true);
+    try {
+      const { data } = await api.get<{
+        systemServerUrl: string;
+        systemServerType: string;
+        systemDefaultModel: string;
+        usePersonalCloud: boolean;
+        personalCloudProvider: string;
+        personalCloudApiKeyMasked: string;
+        personalCloudModel: string;
+      }>('/api/ai/providers');
+      if (data) {
+        setProviderSettings(prev => ({
+          ...prev,
+          systemServerUrl: data.systemServerUrl || 'http://127.0.0.1:11434',
+          systemServerType: data.systemServerType || 'OLLAMA',
+          systemDefaultModel: data.systemDefaultModel || 'granite4.1:8b',
+          usePersonalCloud: data.usePersonalCloud || false,
+          personalCloudProvider: data.personalCloudProvider || 'GEMINI',
+          personalCloudApiKeyMasked: data.personalCloudApiKeyMasked || '',
+          personalCloudModel: data.personalCloudModel || 'gemini-2.5-flash',
+        }));
+      }
+    } catch (error) {
+      console.error("Erro ao carregar configurações de provedores", error);
+    } finally {
+      setIsLoadingProviders(false);
+    }
+  };
+
+  const handleTestLan = async () => {
+    setTestLanStatus({ loading: true });
+    try {
+      const { data } = await api.post<{ success: boolean; message: string; latencyMs: number }>('/api/ai/providers/test', {
+        targetType: 'SYSTEM_LAN',
+        serverUrl: providerSettings.systemServerUrl,
+        serverType: providerSettings.systemServerType,
+        modelName: providerSettings.systemDefaultModel,
+      });
+      setTestLanStatus({ success: data.success, message: data.message, loading: false });
+    } catch (error: any) {
+      setTestLanStatus({ success: false, message: 'Falha no teste de rede local.', loading: false });
+    }
+  };
+
+  const handleTestCloud = async () => {
+    setTestCloudStatus({ loading: true });
+    try {
+      const apiKey = providerSettings.personalCloudApiKeyInput || providerSettings.personalCloudApiKeyMasked;
+      const { data } = await api.post<{ success: boolean; message: string; latencyMs: number }>('/api/ai/providers/test', {
+        targetType: 'PERSONAL_CLOUD',
+        serverUrl: providerSettings.personalCloudProvider,
+        apiKey,
+        modelName: providerSettings.personalCloudModel,
+      });
+      setTestCloudStatus({ success: data.success, message: data.message, loading: false });
+    } catch (error: any) {
+      setTestCloudStatus({ success: false, message: 'Falha na validação da chave cloud.', loading: false });
+    }
+  };
+
+  const handleSaveProviders = async () => {
+    setIsSaving(true);
+    try {
+      await api.put('/api/ai/providers', {
+        systemServerUrl: providerSettings.systemServerUrl,
+        systemServerType: providerSettings.systemServerType,
+        systemDefaultModel: providerSettings.systemDefaultModel,
+        usePersonalCloud: providerSettings.usePersonalCloud,
+        personalCloudProvider: providerSettings.personalCloudProvider,
+        personalCloudApiKey: providerSettings.personalCloudApiKeyInput || undefined,
+        personalCloudModel: providerSettings.personalCloudModel,
+      });
+      await loadProviders();
+    } catch (error) {
+      console.error("Erro ao salvar configurações de provedor", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const loadAgents = async () => {
     setIsLoadingAgents(true);
@@ -419,6 +522,12 @@ export function SettingsModal({
             <span className="stat-value">{fmt(usageData.requestCount)}</span>
             <span className="stat-label">Requisições</span>
           </StatBox>
+          {metricsData && typeof metricsData.avgDurationSecs === 'number' && metricsData.avgDurationSecs > 0 && (
+            <StatBox>
+              <span className="stat-value">{metricsData.avgDurationSecs}s</span>
+              <span className="stat-label">Tempo médio de raciocínio</span>
+            </StatBox>
+          )}
         </StatGrid>
 
         {byDay.length > 0 && (
@@ -759,6 +868,164 @@ export function SettingsModal({
     );
   };
 
+  const renderProvedores = () => (
+    <Body style={{ overflowY: 'auto', paddingRight: '4px' }}>
+      {isLoadingProviders ? (
+        <p style={{ color: '#9FB8B1', padding: '16px 0', fontSize: '0.88rem' }}>Carregando provedores e servidores de IA...</p>
+      ) : (
+        <>
+          <ProviderSectionTitle>
+            <h4>🖥️⚡ Servidor da Casa / Rede Local</h4>
+            <BadgeShared>Compartilhado com Todos os Logins</BadgeShared>
+          </ProviderSectionTitle>
+
+      <ProviderGrid>
+        <ProviderCard
+          $active={providerSettings.systemServerUrl.includes('127.0.0.1') || providerSettings.systemServerUrl.includes('localhost')}
+          onClick={() => setProviderSettings({ ...providerSettings, systemServerUrl: 'http://127.0.0.1:11434' })}
+        >
+          <strong>🖥️ Host Local</strong>
+          <span>Ollama neste computador (127.0.0.1:11434)</span>
+        </ProviderCard>
+
+        <ProviderCard
+          $active={!providerSettings.systemServerUrl.includes('127.0.0.1') && !providerSettings.systemServerUrl.includes('localhost')}
+          onClick={() => setProviderSettings({ ...providerSettings, systemServerUrl: 'http://192.168.1.100:11434' })}
+        >
+          <strong>⚡ Servidor LAN Dedicado</strong>
+          <span>AMD AI Max / NVIDIA DGX na rede</span>
+        </ProviderCard>
+      </ProviderGrid>
+
+      <SettingRow style={{ borderBottom: 'none', paddingBottom: '0' }}>
+        <AgentField style={{ flex: 1 }}>
+          <span>URL do Servidor Ollama ou Workstation LAN</span>
+          <input
+            type="text"
+            value={providerSettings.systemServerUrl}
+            onChange={e => setProviderSettings({ ...providerSettings, systemServerUrl: e.target.value })}
+            placeholder="http://127.0.0.1:11434 ou http://192.168.1.100:11434"
+          />
+        </AgentField>
+      </SettingRow>
+
+      <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
+        <AgentField style={{ flex: 1 }}>
+          <span>Modelo Padrão da Máquina Local/Rede</span>
+          <input
+            type="text"
+            value={providerSettings.systemDefaultModel}
+            onChange={e => setProviderSettings({ ...providerSettings, systemDefaultModel: e.target.value })}
+            placeholder="granite4.1:8b, llama3.3:70b, deepseek-r1:70b..."
+          />
+        </AgentField>
+      </SettingRow>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px', marginBottom: '20px' }}>
+        <TestButton type="button" onClick={handleTestLan} disabled={testLanStatus.loading}>
+          {testLanStatus.loading ? 'Testando...' : 'Testar Conexão da Rede Local'}
+        </TestButton>
+
+        {testLanStatus.message && (
+          <TestStatusPill $success={testLanStatus.success} $error={!testLanStatus.success}>
+            {testLanStatus.message}
+          </TestStatusPill>
+        )}
+      </div>
+
+      <ProviderSectionTitle style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px' }}>
+        <h4>☁️ Provedor na Nuvem Pessoal</h4>
+        <BadgePrivate>Privado do Seu Login</BadgePrivate>
+      </ProviderSectionTitle>
+
+      <SettingRow>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <strong style={{ fontSize: '0.9rem', color: '#F2FFFB' }}>Usar meu Provedor Cloud Pessoal</strong>
+          <span style={{ fontSize: '0.78rem', color: '#9FB8B1' }}>
+            Sobrepõe o servidor da casa usando sua chave pessoal de API da Nuvem (ex: Google Gemini).
+          </span>
+        </div>
+        <ToggleSwitch
+          type="button"
+          $active={providerSettings.usePersonalCloud}
+          onClick={() => setProviderSettings({ ...providerSettings, usePersonalCloud: !providerSettings.usePersonalCloud })}
+        >
+          <span />
+        </ToggleSwitch>
+      </SettingRow>
+
+      {providerSettings.usePersonalCloud && (
+        <>
+          <SettingRow style={{ borderBottom: 'none', paddingBottom: '0' }}>
+            <AgentField style={{ flex: 1 }}>
+              <span>Provedor Cloud</span>
+              <select
+                value={providerSettings.personalCloudProvider}
+                onChange={e => setProviderSettings({ ...providerSettings, personalCloudProvider: e.target.value })}
+                style={{
+                  background: 'rgba(16, 42, 38, 0.55)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '8px',
+                  color: '#F2FFFB',
+                  padding: '9px 11px',
+                  fontSize: '0.88rem',
+                  outline: 'none',
+                }}
+              >
+                <option value="GEMINI">Google Gemini</option>
+                <option value="OPENAI">OpenAI</option>
+              </select>
+            </AgentField>
+          </SettingRow>
+
+          <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
+            <AgentField style={{ flex: 1 }}>
+              <span>Chave de API Cloud (API Key)</span>
+              <input
+                type="password"
+                value={providerSettings.personalCloudApiKeyInput}
+                onChange={e => setProviderSettings({ ...providerSettings, personalCloudApiKeyInput: e.target.value })}
+                placeholder={providerSettings.personalCloudApiKeyMasked || 'Cole sua chave de API aqui...'}
+              />
+            </AgentField>
+          </SettingRow>
+
+          <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
+            <AgentField style={{ flex: 1 }}>
+              <span>Modelo Cloud Desejado</span>
+              <input
+                type="text"
+                value={providerSettings.personalCloudModel}
+                onChange={e => setProviderSettings({ ...providerSettings, personalCloudModel: e.target.value })}
+                placeholder="gemini-2.5-flash, gemini-2.5-pro, gpt-4o..."
+              />
+            </AgentField>
+          </SettingRow>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px', marginBottom: '12px' }}>
+            <TestButton type="button" onClick={handleTestCloud} disabled={testCloudStatus.loading}>
+              {testCloudStatus.loading ? 'Testando...' : 'Testar Chave Cloud'}
+            </TestButton>
+
+            {testCloudStatus.message && (
+              <TestStatusPill $success={testCloudStatus.success} $error={!testCloudStatus.success}>
+                {testCloudStatus.message}
+              </TestStatusPill>
+            )}
+          </div>
+        </>
+      )}
+
+      <Footer style={{ marginTop: 'auto', paddingTop: '16px' }}>
+        <SaveButton onClick={handleSaveProviders} disabled={isSaving}>
+          {isSaving ? 'Salvando...' : 'Salvar Provedores'}
+        </SaveButton>
+      </Footer>
+        </>
+      )}
+    </Body>
+  );
+
   return createPortal(
     <ModalBackdrop onClick={onClose}>
       <ModalContainer
@@ -777,6 +1044,7 @@ export function SettingsModal({
         <Tabs>
           <TabButton $active={activeTab === 'conta'} onClick={() => setActiveTab('conta')}>Conta</TabButton>
           <TabButton $active={activeTab === 'uso'} onClick={() => setActiveTab('uso')}>Uso de Tokens</TabButton>
+          <TabButton $active={activeTab === 'provedores'} onClick={() => setActiveTab('provedores')}>Modelos & Provedores</TabButton>
           <TabButton $active={activeTab === 'agentes'} onClick={() => setActiveTab('agentes')}>Agentes</TabButton>
           <TabButton $active={activeTab === 'memoria'} onClick={() => setActiveTab('memoria')}>Memória</TabButton>
           <TabButton $active={activeTab === 'preferencias'} onClick={() => setActiveTab('preferencias')}>Preferências</TabButton>
@@ -784,6 +1052,7 @@ export function SettingsModal({
 
         {activeTab === 'conta' && renderConta()}
         {activeTab === 'uso' && renderUso()}
+        {activeTab === 'provedores' && renderProvedores()}
         {activeTab === 'agentes' && renderAgentes()}
         {activeTab === 'memoria' && renderMemoria()}
         {activeTab === 'preferencias' && renderPreferencias()}

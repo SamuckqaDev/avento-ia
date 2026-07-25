@@ -1,0 +1,290 @@
+package com.avento.service.provider;
+
+import com.avento.api.dto.ProviderSettingsResponse;
+import com.avento.api.dto.ProviderSettingsUpdateRequest;
+import com.avento.api.dto.ProviderTestRequest;
+import com.avento.api.dto.ProviderTestResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.UUID;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+
+@Service
+public class ModelProviderService {
+
+    private static final String SYS_KEY = "avento:system:ai_server";
+    private static final String USER_KEY_PREFIX = "avento:user:";
+    private static final String USER_KEY_SUFFIX = ":cloud_provider";
+
+    private final StringRedisTemplate redisTemplate;
+    private final String defaultOllamaUrl;
+    private final HttpClient httpClient;
+    private final ObjectMapper objectMapper;
+
+    public ModelProviderService(
+            ObjectProvider<StringRedisTemplate> redisTemplateProvider,
+            @Value("${spring.ai.ollama.base-url:http://127.0.0.1:11434}") String defaultOllamaUrl,
+            ObjectMapper objectMapper) {
+        this.redisTemplate = redisTemplateProvider.getIfAvailable();
+        this.defaultOllamaUrl = defaultOllamaUrl;
+        this.objectMapper = objectMapper;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+    }
+
+    public ProviderSettingsResponse getSettings(UUID userId) {
+        String systemUrl = readSystemField("serverUrl", defaultOllamaUrl);
+        String systemType = readSystemField("serverType", "OLLAMA");
+        String systemModel = readSystemField("defaultModel", "qwen3.5:9b");
+
+        boolean usePersonalCloud = false;
+        String cloudProvider = "GEMINI";
+        String cloudApiKeyMasked = "";
+        String cloudModel = "gemini-2.5-flash";
+
+        if (userId != null && redisTemplate != null) {
+            String userKey = userKey(userId);
+            Object useCloudRaw = redisTemplate.opsForHash().get(userKey, "usePersonalCloud");
+            if (useCloudRaw != null) {
+                usePersonalCloud = Boolean.parseBoolean(useCloudRaw.toString());
+            }
+
+            Object provRaw = redisTemplate.opsForHash().get(userKey, "cloudProvider");
+            if (provRaw != null) {
+                cloudProvider = provRaw.toString();
+            }
+
+            Object keyRaw = redisTemplate.opsForHash().get(userKey, "cloudApiKey");
+            if (keyRaw != null && !keyRaw.toString().isBlank()) {
+                cloudApiKeyMasked = maskApiKey(keyRaw.toString());
+            }
+
+            Object modelRaw = redisTemplate.opsForHash().get(userKey, "cloudModel");
+            if (modelRaw != null) {
+                cloudModel = modelRaw.toString();
+            }
+        }
+
+        return new ProviderSettingsResponse(
+                systemUrl,
+                systemType,
+                systemModel,
+                usePersonalCloud,
+                cloudProvider,
+                cloudApiKeyMasked,
+                cloudModel
+        );
+    }
+
+    public ProviderSettingsResponse updateSettings(UUID userId, ProviderSettingsUpdateRequest request) {
+        if (request == null) {
+            return getSettings(userId);
+        }
+
+        if (redisTemplate != null) {
+            // Update shared system LAN server if provided
+            if (request.systemServerUrl() != null && !request.systemServerUrl().isBlank()) {
+                redisTemplate.opsForHash().put(SYS_KEY, "serverUrl", request.systemServerUrl().trim());
+            }
+            if (request.systemServerType() != null && !request.systemServerType().isBlank()) {
+                redisTemplate.opsForHash().put(SYS_KEY, "serverType", request.systemServerType().trim());
+            }
+            if (request.systemDefaultModel() != null && !request.systemDefaultModel().isBlank()) {
+                redisTemplate.opsForHash().put(SYS_KEY, "defaultModel", request.systemDefaultModel().trim());
+            }
+
+            // Update user cloud settings
+            if (userId != null) {
+                String uKey = userKey(userId);
+                if (request.usePersonalCloud() != null) {
+                    redisTemplate.opsForHash().put(uKey, "usePersonalCloud", request.usePersonalCloud().toString());
+                }
+                if (request.personalCloudProvider() != null) {
+                    redisTemplate.opsForHash().put(uKey, "cloudProvider", request.personalCloudProvider().trim());
+                }
+                if (request.personalCloudApiKey() != null && !request.personalCloudApiKey().isBlank()
+                        && !request.personalCloudApiKey().contains("••••")) {
+                    redisTemplate.opsForHash().put(uKey, "cloudApiKey", request.personalCloudApiKey().trim());
+                }
+                if (request.personalCloudModel() != null) {
+                    redisTemplate.opsForHash().put(uKey, "cloudModel", request.personalCloudModel().trim());
+                }
+            }
+        }
+
+        return getSettings(userId);
+    }
+
+    public ProviderTestResponse testConnection(ProviderTestRequest request) {
+        if (request == null) {
+            return new ProviderTestResponse(false, "Parâmetros de teste inválidos.", 0);
+        }
+
+        long start = System.currentTimeMillis();
+
+        if ("SYSTEM_LAN".equalsIgnoreCase(request.targetType())) {
+            String url = request.serverUrl() != null && !request.serverUrl().isBlank()
+                    ? request.serverUrl().trim()
+                    : defaultOllamaUrl;
+            return testLanServer(url, request.serverType(), start);
+        } else if ("PERSONAL_CLOUD".equalsIgnoreCase(request.targetType())) {
+            return testCloudApi(request.serverUrl(), request.apiKey(), request.modelName(), start);
+        }
+
+        return new ProviderTestResponse(false, "Tipo de destino não reconhecido.", 0);
+    }
+
+    public JsonNode listAvailableModels(UUID userId) {
+        ProviderSettingsResponse settings = getSettings(userId);
+        if (settings.usePersonalCloud() && !settings.personalCloudApiKeyMasked().isBlank()) {
+            ArrayNode models = objectMapper.createArrayNode();
+            if ("GEMINI".equalsIgnoreCase(settings.personalCloudProvider())) {
+                models.add(createModelNode("gemini-2.5-flash", "Google Gemini 2.5 Flash (Cloud)"));
+                models.add(createModelNode("gemini-2.5-pro", "Google Gemini 2.5 Pro (Cloud)"));
+                models.add(createModelNode("gemini-1.5-pro", "Google Gemini 1.5 Pro (Cloud)"));
+            } else {
+                models.add(createModelNode("gpt-4o", "OpenAI GPT-4o (Cloud)"));
+                models.add(createModelNode("gpt-4o-mini", "OpenAI GPT-4o Mini (Cloud)"));
+                models.add(createModelNode("o3-mini", "OpenAI o3 Mini (Cloud)"));
+            }
+            ObjectNode root = objectMapper.createObjectNode();
+            root.set("data", models);
+            return root;
+        }
+
+        String activeUrl = settings.systemServerUrl().replaceAll("/+$", "");
+        try {
+            String endpoint = "OPENAI_COMPATIBLE".equalsIgnoreCase(settings.systemServerType())
+                    ? activeUrl + "/v1/models"
+                    : activeUrl + "/api/tags";
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint))
+                    .GET()
+                    .timeout(Duration.ofSeconds(4))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                return objectMapper.readTree(response.body());
+            }
+        } catch (Exception exception) {
+            // Fallback
+        }
+
+        ObjectNode root = objectMapper.createObjectNode();
+        ArrayNode fallback = objectMapper.createArrayNode();
+        fallback.add(createModelNode(settings.systemDefaultModel(), settings.systemDefaultModel() + " (" + activeUrl + ")"));
+        root.set("data", fallback);
+        return root;
+    }
+
+    public String resolveActiveModelUrl(UUID userId) {
+        ProviderSettingsResponse settings = getSettings(userId);
+        if (settings.usePersonalCloud() && !settings.personalCloudApiKeyMasked().isBlank()) {
+            return "https://generativelanguage.googleapis.com";
+        }
+        return settings.systemServerUrl();
+    }
+
+    public String resolveActiveModelName(UUID userId) {
+        ProviderSettingsResponse settings = getSettings(userId);
+        if (settings.usePersonalCloud() && !settings.personalCloudApiKeyMasked().isBlank()) {
+            return settings.personalCloudModel();
+        }
+        return settings.systemDefaultModel();
+    }
+
+    private ProviderTestResponse testLanServer(String baseUrl, String serverType, long startTimeMs) {
+        try {
+            String endpoint = baseUrl.replaceAll("/+$", "") +
+                    ("OPENAI_COMPATIBLE".equalsIgnoreCase(serverType) ? "/v1/models" : "/api/tags");
+
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint))
+                    .GET()
+                    .timeout(Duration.ofSeconds(4))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            long latency = System.currentTimeMillis() - startTimeMs;
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                return new ProviderTestResponse(true, "Conectado ao servidor da rede local (" + latency + "ms)", latency);
+            } else {
+                return new ProviderTestResponse(false, "Servidor respondeu com código HTTP " + response.statusCode(), latency);
+            }
+        } catch (Exception exception) {
+            long latency = System.currentTimeMillis() - startTimeMs;
+            return new ProviderTestResponse(false, "Falha ao conectar: " + exception.getMessage(), latency);
+        }
+    }
+
+    private ProviderTestResponse testCloudApi(String provider, String apiKey, String modelName, long startTimeMs) {
+        if (apiKey == null || apiKey.isBlank()) {
+            return new ProviderTestResponse(false, "Chave de API não informada.", 0);
+        }
+
+        try {
+            String endpoint = "https://generativelanguage.googleapis.com/v1beta/models?key=" + apiKey.trim();
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint))
+                    .GET()
+                    .timeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            long latency = System.currentTimeMillis() - startTimeMs;
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                return new ProviderTestResponse(true, "Chave de API autenticada na Nuvem (" + latency + "ms)", latency);
+            } else {
+                return new ProviderTestResponse(false, "Chave recusada (HTTP " + response.statusCode() + ")", latency);
+            }
+        } catch (Exception exception) {
+            long latency = System.currentTimeMillis() - startTimeMs;
+            return new ProviderTestResponse(false, "Erro de rede ao validar chave Cloud: " + exception.getMessage(), latency);
+        }
+    }
+
+    private ObjectNode createModelNode(String id, String name) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("id", id);
+        node.put("name", name);
+        return node;
+    }
+
+    private String readSystemField(String field, String fallback) {
+        if (redisTemplate == null) {
+            return fallback;
+        }
+        try {
+            Object raw = redisTemplate.opsForHash().get(SYS_KEY, field);
+            return raw == null ? fallback : raw.toString();
+        } catch (Exception exception) {
+            return fallback;
+        }
+    }
+
+    private String userKey(UUID userId) {
+        return USER_KEY_PREFIX + userId + USER_KEY_SUFFIX;
+    }
+
+    private String maskApiKey(String key) {
+        if (key == null || key.length() <= 8) {
+            return "••••••••";
+        }
+        return key.substring(0, 4) + "••••••••" + key.substring(key.length() - 4);
+    }
+}

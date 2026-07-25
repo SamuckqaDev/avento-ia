@@ -169,7 +169,7 @@ More detail: [current architecture](docs/ARCHITECTURE.md) and [agent and MCP orc
 avento-ia/
 ├── front/                     # React, TypeScript, Vite, and styled-components
 ├── back/
-│   ├── avento/                # Spring Boot, Maven resources and tests
+│   ├── avento/                # Parent POM Multi-Módulo Maven (core, auth, workspace, mcp, execution, agent, media, voice, rag, app)
 │   └── whisper.cpp/           # Local runtime; not versioned
 ├── piper_tts/                 # Local runtime and voices; not versioned
 ├── ~/.avento/tools/           # MarkItDown and MCP runtimes, outside the repository
@@ -248,7 +248,7 @@ Logs live in `tmp/dev/` and are also streamed live to the script's terminal. Eac
 ./scripts/prepare-docker-stack.sh
 
 # Backend, run from the repository root
-mvn -f back/avento/pom.xml spring-boot:run \
+mvn -f back/avento/pom.xml spring-boot:run -pl avento-app -am \
   -Dspring-boot.run.profiles=local
 
 # Frontend
@@ -588,7 +588,7 @@ explicado passo a passo em [execução assíncrona com Redis](docs/REDIS_EXECUTI
 avento-ia/
 ├── front/                     # React, TypeScript, Vite e styled-components
 ├── back/
-│   ├── avento/                # Spring Boot, recursos e testes Maven
+│   ├── avento/                # Parent POM Multi-Módulo Maven (core, auth, workspace, mcp, execution, agent, media, voice, rag, app)
 │   └── whisper.cpp/           # Runtime local; não é versionado
 ├── piper_tts/                 # Runtime e vozes locais; não é versionado
 ├── ~/.avento/tools/           # MarkItDown e runtimes MCP, fora do repositorio
@@ -667,7 +667,7 @@ Os logs ficam em `tmp/dev/` e tambem sao transmitidos ao vivo no terminal do scr
 ./scripts/prepare-docker-stack.sh
 
 # Backend, executado a partir da raiz
-mvn -f back/avento/pom.xml spring-boot:run \
+mvn -f back/avento/pom.xml spring-boot:run -pl avento-app -am \
   -Dspring-boot.run.profiles=local
 
 # Frontend

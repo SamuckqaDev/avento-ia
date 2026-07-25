@@ -8,7 +8,7 @@ import {
   FrequencyGrid, FrequencyOptionButton, SubInputPanel,
   DeleteModalBackdrop, DeleteModal, DeleteModalActions, DeleteModalButton, DeleteModalError,
   KpiBar, KpiCard, EmptyStateWrapper, ToolbarWrapper, FilterChipGroup,
-  FilterChipButton, ActionButtonGroup, SecondaryActionButton
+  FilterChipButton, ActionButtonGroup, SecondaryActionButton, SecondaryBadgeButton, PrimaryBadgeButton
 } from './styles';
 import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen, PencilSimple, Lightning, MagnifyingGlass, DownloadSimple, UploadSimple, SquaresFour } from '@phosphor-icons/react';
 import { TemplatesModal, TaskTemplate } from './TemplatesModal';
@@ -514,16 +514,16 @@ export function CoworkView() {
 
               <FilterChipGroup>
                 <FilterChipButton $active={statusFilter === 'ALL'} onClick={() => setStatusFilter('ALL')}>
-                  Todas ({tasks.length})
+                  <SquaresFour size={14} /> Todas ({tasks.length})
                 </FilterChipButton>
                 <FilterChipButton $active={statusFilter === 'ACTIVE'} onClick={() => setStatusFilter('ACTIVE')}>
-                  🟢 Ativas ({tasks.filter(t => t.status === 'ACTIVE').length})
+                  <Play size={14} style={{ color: '#10B981' }} /> Ativas ({tasks.filter(t => t.status === 'ACTIVE').length})
                 </FilterChipButton>
                 <FilterChipButton $active={statusFilter === 'PAUSED'} onClick={() => setStatusFilter('PAUSED')}>
-                  ⏸️ Pausadas ({tasks.filter(t => t.status === 'PAUSED').length})
+                  <Pause size={14} style={{ color: '#F59E0B' }} /> Pausadas ({tasks.filter(t => t.status === 'PAUSED').length})
                 </FilterChipButton>
                 <FilterChipButton $active={statusFilter === 'FAILED'} onClick={() => setStatusFilter('FAILED')}>
-                  ❌ Com Falha ({tasks.filter(t => t.lastRunStatus === 'FAILED').length})
+                  <XCircle size={14} style={{ color: '#EF4444' }} /> Com Falha ({tasks.filter(t => t.lastRunStatus === 'FAILED').length})
                 </FilterChipButton>
               </FilterChipGroup>
             </div>
@@ -610,47 +610,13 @@ export function CoworkView() {
                       )}
 
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedOutputTask(task)}
-                          style={{
-                            background: 'var(--surface)',
-                            border: '1px solid var(--border)',
-                            color: 'var(--text)',
-                            padding: '4px 10px',
-                            borderRadius: 6,
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            fontWeight: 600,
-                            width: 'fit-content'
-                          }}
-                        >
+                        <SecondaryBadgeButton type="button" onClick={() => setSelectedOutputTask(task)}>
                           <Eye size={14} /> Ver Último Retorno
-                        </button>
+                        </SecondaryBadgeButton>
 
-                        <button
-                          type="button"
-                          onClick={() => handleViewLogs(task)}
-                          style={{
-                            background: 'var(--primary)',
-                            border: 'none',
-                            color: '#fff',
-                            padding: '4px 10px',
-                            borderRadius: 6,
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            fontWeight: 600,
-                            width: 'fit-content'
-                          }}
-                        >
-                          <FileText size={14} /> 📋 Histórico & Logs de Execução
-                        </button>
+                        <PrimaryBadgeButton type="button" onClick={() => handleViewLogs(task)}>
+                          <FileText size={14} /> Histórico & Logs de Execução
+                        </PrimaryBadgeButton>
                       </div>
                     </div>
                   )}
@@ -761,14 +727,14 @@ export function CoworkView() {
                       <div className="field-box">
                         <label>Repetir a cada:</label>
                         <Select value={intervalHours} onChange={e => setIntervalHours(e.target.value)}>
-                          <option value="1min">⚡ A cada 1 Minuto (* * * * *)</option>
-                          <option value="5min">⏱️ A cada 5 Minutos (*/5 * * * *)</option>
-                          <option value="15min">⏱️ A cada 15 Minutos (*/15 * * * *)</option>
-                          <option value="30min">⏱️ A cada 30 Minutos (*/30 * * * *)</option>
-                          <option value="1h">🕐 A cada 1 Hora (0 * * * *)</option>
-                          <option value="2h">🕑 A cada 2 Horas (0 */2 * * *)</option>
-                          <option value="6h">🕕 A cada 6 Horas (0 */6 * * *)</option>
-                          <option value="12h">🕛 A cada 12 Horas (0 */12 * * *)</option>
+                          <option value="1min">A cada 1 Minuto (* * * * *)</option>
+                          <option value="5min">A cada 5 Minutos (*/5 * * * *)</option>
+                          <option value="15min">A cada 15 Minutos (*/15 * * * *)</option>
+                          <option value="30min">A cada 30 Minutos (*/30 * * * *)</option>
+                          <option value="1h">A cada 1 Hora (0 * * * *)</option>
+                          <option value="2h">A cada 2 Horas (0 */2 * * *)</option>
+                          <option value="6h">A cada 6 Horas (0 */6 * * *)</option>
+                          <option value="12h">A cada 12 Horas (0 */12 * * *)</option>
                         </Select>
                       </div>
                     </div>

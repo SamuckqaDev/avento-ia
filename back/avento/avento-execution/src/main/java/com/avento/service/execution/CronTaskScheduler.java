@@ -2,6 +2,7 @@ package com.avento.service.execution;
 
 import com.avento.model.ScheduledTask;
 import com.avento.repository.ScheduledTaskRepository;
+import com.avento.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.LocalDateTime;
@@ -19,16 +20,19 @@ public class CronTaskScheduler {
     private final ScheduledTaskRepository repository;
     private final ScheduledTaskService taskService;
     private final AgentRunSubmissionService submissionService;
+    private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
 
     public CronTaskScheduler(
             ScheduledTaskRepository repository,
             ScheduledTaskService taskService,
             AgentRunSubmissionService submissionService,
+            NotificationService notificationService,
             ObjectMapper objectMapper) {
         this.repository = repository;
         this.taskService = taskService;
         this.submissionService = submissionService;
+        this.notificationService = notificationService;
         this.objectMapper = objectMapper;
     }
 
@@ -74,9 +78,20 @@ public class CronTaskScheduler {
 
             // Sucesso na submissão do job
             taskService.markRunCompleted(task, true, null, "Execução iniciada no motor de agentes com sucesso.");
+            notificationService.record(
+                    "COWORK_TASK_EXECUTED",
+                    "Automação Concluída: " + task.getName(),
+                    "A tarefa agendada '" + task.getName() + "' foi executada com sucesso pelo Avento."
+            );
         } catch (Exception e) {
             logger.error("Erro na execução da tarefa '{}'", task.getName(), e);
-            taskService.markRunCompleted(task, false, e.getMessage(), "Causa Raiz: " + e.getMessage() + "\nSugestão: Verifique as permissões da sandbox e a conectividade com o modelo de IA.");
+            String errorDiag = "Causa Raiz: " + e.getMessage() + "\nSugestão: Verifique as permissões da sandbox e a conectividade com o modelo de IA.";
+            taskService.markRunCompleted(task, false, e.getMessage(), errorDiag);
+            notificationService.record(
+                    "COWORK_TASK_FAILED",
+                    "Falha na Automação: " + task.getName(),
+                    "Ocorreu um erro ao executar '" + task.getName() + "': " + e.getMessage()
+            );
             throw e;
         }
     }

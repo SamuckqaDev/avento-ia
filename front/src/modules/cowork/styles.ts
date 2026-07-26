@@ -291,35 +291,65 @@ export const CalendarGrid = styled.div`
 `;
 
 export const DayCell = styled.div<{ $isToday?: boolean; $isCurrentMonth?: boolean }>`
-  min-height: 90px;
+  height: 95px;
+  max-height: 95px;
   background: ${({ $isToday, theme }) => 
-    $isToday ? `color-mix(in srgb, ${theme.colors.accent} 10%, ${theme.colors.bg})` : theme.colors.bg};
+    $isToday ? `color-mix(in srgb, ${theme.colors.primary} 10%, ${theme.colors.bg})` : theme.colors.bg};
   border: 1px solid ${({ $isToday, theme }) => 
-    $isToday ? theme.colors.accent : theme.colors.border};
+    $isToday ? theme.colors.primary : theme.colors.border};
   border-radius: 8px;
   padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  opacity: ${({ $isCurrentMonth }) => ($isCurrentMonth ? 1 : 0.4)};
-  transition: all 0.15s ease;
+  gap: 4px;
+  opacity: ${({ $isCurrentMonth }) => ($isCurrentMonth ? 1 : 0.45)};
+  cursor: pointer;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: all 0.18s ease;
 
   &:hover {
-    border-color: ${({ theme }) => theme.colors.accent};
+    border-color: ${({ theme }) => theme.colors.primary};
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, ${({ theme }) => theme.colors.primary} 20%, transparent);
   }
 
-  .day-number {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: ${({ $isToday, theme }) => ($isToday ? theme.colors.accent : theme.colors.text)};
+  .day-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .day-number {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: ${({ $isToday, theme }) => ($isToday ? theme.colors.primary : theme.colors.text)};
+    }
+
+    .task-count-pill {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 10px;
+      background: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 15%, transparent);
+      color: ${({ theme }) => theme.colors.primary};
+    }
   }
 
   .events-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    overflow-y: auto;
-    max-height: 60px;
+    gap: 3px;
+    overflow: hidden;
+  }
+
+  .more-indicator {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: ${({ theme }) => theme.colors.primary};
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
   }
 `;
 

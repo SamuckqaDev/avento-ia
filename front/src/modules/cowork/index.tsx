@@ -11,7 +11,7 @@ import {
   ActionButtonGroup, SecondaryActionButton, SecondaryBadgeButton, PrimaryBadgeButton,
   ToggleRow, Switch
 } from './styles';
-import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen, PencilSimple, Lightning, MagnifyingGlass, DownloadSimple, UploadSimple, SquaresFour } from '@phosphor-icons/react';
+import { Plus, Clock, Play, Pause, Trash, Warning, Calendar as CalendarIcon, X, CaretLeft, CaretRight, Robot, ArrowsClockwise, Timer, Gear, CheckCircle, XCircle, FileText, Eye, Folder, FolderOpen, PencilSimple, Lightning, MagnifyingGlass, DownloadSimple, UploadSimple, SquaresFour, DotsThree } from '@phosphor-icons/react';
 import { TemplatesModal, TaskTemplate } from './TemplatesModal';
 
 export interface ScheduledTask {
@@ -161,6 +161,7 @@ export function CoworkView() {
   const [enableChainedTask, setEnableChainedTask] = useState<boolean>(false);
   const [onSuccessTaskId, setOnSuccessTaskId] = useState<number | null>(null);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<{ date: Date; tasks: ScheduledTask[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const filteredTasks = useMemo(() => {
@@ -496,15 +497,25 @@ export function CoworkView() {
                 );
               });
 
+              const visibleTasks = dayTasks.slice(0, 2);
+              const extraCount = dayTasks.length - 2;
+
               return (
                 <DayCell 
                   key={cell.date.toISOString()} 
                   $isToday={cell.isToday} 
                   $isCurrentMonth={cell.isCurrentMonth}
+                  onClick={() => setSelectedCalendarDay({ date: cell.date, tasks: dayTasks })}
                 >
-                  <div className="day-number">{cell.dayNum}</div>
+                  <div className="day-header-row">
+                    <div className="day-number">{cell.dayNum}</div>
+                    {dayTasks.length > 0 && (
+                      <span className="task-count-pill">{dayTasks.length}</span>
+                    )}
+                  </div>
+
                   <div className="events-list">
-                    {dayTasks.map(t => (
+                    {visibleTasks.map(t => (
                       <EventBadge 
                         key={t.id} 
                         className={t.lastRunStatus === 'FAILED' ? 'warning' : 'automation'}
@@ -519,6 +530,12 @@ export function CoworkView() {
                       </EventBadge>
                     ))}
                   </div>
+
+                  {extraCount > 0 && (
+                    <div className="more-indicator">
+                      <DotsThree size={14} weight="bold" /> +{extraCount} mais...
+                    </div>
+                  )}
                 </DayCell>
               );
             })}
@@ -1183,6 +1200,96 @@ export function CoworkView() {
             </DeleteModalActions>
           </DeleteModal>
         </DeleteModalBackdrop>
+      )}
+
+      {selectedCalendarDay && (
+        <ModalBackdrop onClick={() => setSelectedCalendarDay(null)}>
+          <Modal onClick={e => e.stopPropagation()} style={{ maxWidth: 680 }}>
+            <div className="modal-header">
+              <h2>
+                <CalendarIcon size={22} style={{ verticalAlign: 'middle', marginRight: 8, color: 'var(--primary)' }} />
+                Atividades de {selectedCalendarDay.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </h2>
+              <button type="button" onClick={() => setSelectedCalendarDay(null)}><X size={20} /></button>
+            </div>
+
+            {selectedCalendarDay.tasks.length === 0 ? (
+              <EmptyStateWrapper style={{ padding: '30px 20px' }}>
+                <Clock size={40} />
+                <h3 style={{ fontSize: '1.05rem', margin: '10px 0 4px' }}>Nenhuma atividade agendada para este dia</h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 16 }}>Você pode programar uma nova rotina automatizada para rodar nesta data.</p>
+                <CreateButton onClick={() => {
+                  setSelectedCalendarDay(null);
+                  setEditingTask(null);
+                  setIsModalOpen(true);
+                }}>
+                  <Plus size={16} /> Agendar Nova Atividade
+                </CreateButton>
+              </EmptyStateWrapper>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 420, overflowY: 'auto', paddingRight: 4 }}>
+                {selectedCalendarDay.tasks.map(t => (
+                  <Card key={t.id} style={{ margin: 0, padding: 14 }}>
+                    <div className="card-header" style={{ marginBottom: 6 }}>
+                      <h3>
+                        {t.lastRunStatus === 'FAILED' ? (
+                          <XCircle size={18} style={{ color: '#EF4444' }} />
+                        ) : (
+                          <Robot size={18} style={{ color: 'var(--primary)' }} />
+                        )}
+                        {t.name}
+                      </h3>
+                      <span className={`status-badge ${t.status.toLowerCase()}`}>
+                        {t.status === 'ACTIVE' ? 'Ativa' : 'Pausada'}
+                      </span>
+                    </div>
+
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                      {t.description || 'Sem descrição cadastrada.'}
+                    </p>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 10, flexWrap: 'wrap' }}>
+                      <span><strong>Horário / Cron:</strong> <code>{t.cronExpression}</code></span>
+                      {t.nextRunAt && (
+                        <span><strong>Próxima Execução:</strong> {new Date(t.nextRunAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <SecondaryBadgeButton type="button" onClick={() => {
+                        setSelectedCalendarDay(null);
+                        handleRunNow(t.id);
+                      }}>
+                        <Play size={14} style={{ color: '#10B981' }} /> Executar Agora
+                      </SecondaryBadgeButton>
+
+                      <SecondaryBadgeButton type="button" onClick={() => {
+                        setSelectedCalendarDay(null);
+                        handleOpenEditTask(t);
+                      }}>
+                        <PencilSimple size={14} /> Editar
+                      </SecondaryBadgeButton>
+
+                      <SecondaryBadgeButton type="button" onClick={() => {
+                        setSelectedCalendarDay(null);
+                        setSelectedOutputTask(t);
+                      }}>
+                        <Eye size={14} /> Ver Retorno
+                      </SecondaryBadgeButton>
+
+                      <PrimaryBadgeButton type="button" onClick={() => {
+                        setSelectedCalendarDay(null);
+                        handleViewLogs(t);
+                      }}>
+                        <FileText size={14} /> Histórico & Logs
+                      </PrimaryBadgeButton>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </Modal>
+        </ModalBackdrop>
       )}
 
       <TemplatesModal

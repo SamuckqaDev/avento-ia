@@ -15,6 +15,15 @@ export interface TaskTemplate {
 
 export const TEMPLATES_CATALOG: TaskTemplate[] = [
   {
+    id: 'test_1min_spatial',
+    name: '⚡ Teste Espacial de 1 Minuto (Efeito Visual & Diagnóstico)',
+    category: 'Teste Rápido VR',
+    cronExpression: '* * * * *',
+    prompt: 'Execute um teste de diagnóstico de 1 minuto no sistema. Verifique os serviços locais, gere um relatório com status visual colorido e confirme a execução bem-sucedida.',
+    description: 'Roda a cada 1 minuto para testar os cliques de mão, retorno visual de cards e notificações no visor 3D.',
+    icon: 'lightning'
+  },
+  {
     id: 'backup_daily',
     name: '⚡ Backup Diário de Banco & Arquivos',
     category: 'Infraestrutura',

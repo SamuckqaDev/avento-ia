@@ -47,24 +47,19 @@ public class SpatialControlService {
             int targetX = (int) Math.round(xRatio * screenSize.width);
             int targetY = (int) Math.round(yRatio * screenSize.height);
 
-            // Clamp coordinates to screen bounds
             targetX = Math.max(0, Math.min(targetX, screenSize.width - 1));
             targetY = Math.max(0, Math.min(targetY, screenSize.height - 1));
 
             robot.mouseMove(targetX, targetY);
-            robot.delay(30);
             robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            robot.delay(60);
             robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 
             if (isDouble) {
-                robot.delay(70);
                 robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-                robot.delay(60);
                 robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
             }
 
-            logger.info("Spatial click executed at screen position: ({}, {})", targetX, targetY);
+            logger.info("Spatial click executed instantly at screen position: ({}, {})", targetX, targetY);
             return true;
         } catch (Exception e) {
             logger.error("Error executing spatial click: {}", e.getMessage(), e);
@@ -88,12 +83,10 @@ public class SpatialControlService {
             robot.mouseMove(targetX, targetY);
 
             if (isDown && !isMousePressedState) {
-                robot.delay(20);
                 robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
                 isMousePressedState = true;
                 logger.info("Spatial drag PRESS at ({}, {})", targetX, targetY);
             } else if (!isDown && isMousePressedState) {
-                robot.delay(20);
                 robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
                 isMousePressedState = false;
                 logger.info("Spatial drag RELEASE at ({}, {})", targetX, targetY);

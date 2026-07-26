@@ -212,15 +212,24 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
           }
 
           const indexTip = landmarks[8];
+          const indexPip = landmarks[6];
+          const middleTip = landmarks[12];
           const thumbTip = landmarks[4];
 
-          // Mapeamento 1:1 para a área do viewport da tela do Mac
-          const targetLocalX = (1 - indexTip.x) * boxRect.width;
-          const targetLocalY = indexTip.y * boxRect.height;
+          // Fusão vetorial de 3 pontos para alta precisão do cursor (elimina trepidação)
+          const precisionNormX = 0.70 * indexTip.x + 0.15 * indexPip.x + 0.15 * middleTip.x;
+          const precisionNormY = 0.70 * indexTip.y + 0.15 * indexPip.y + 0.15 * middleTip.y;
 
-          // Suavizar movimento (Filtro Passa-Baixa EMA)
-          const smoothedX = smoothedPosRef.current.x + (targetLocalX - smoothedPosRef.current.x) * 0.35;
-          const smoothedY = smoothedPosRef.current.y + (targetLocalY - smoothedPosRef.current.y) * 0.35;
+          // Mapeamento 1:1 para a área do viewport da tela do Mac
+          const targetLocalX = (1 - precisionNormX) * boxRect.width;
+          const targetLocalY = precisionNormY * boxRect.height;
+
+          // Filtro Passa-Baixa Adaptativo (EMA): Alta precisão em movimentos lentos + velocidade em movimentos rápidos
+          const deltaDist = Math.hypot(targetLocalX - smoothedPosRef.current.x, targetLocalY - smoothedPosRef.current.y);
+          const alpha = deltaDist > 30 ? 0.50 : 0.28; // Adaptativo
+
+          const smoothedX = smoothedPosRef.current.x + (targetLocalX - smoothedPosRef.current.x) * alpha;
+          const smoothedY = smoothedPosRef.current.y + (targetLocalY - smoothedPosRef.current.y) * alpha;
 
           smoothedPosRef.current = { x: smoothedX, y: smoothedY };
           setPointerPos({ x: smoothedX, y: smoothedY });

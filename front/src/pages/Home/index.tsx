@@ -15,8 +15,9 @@ import { SkillsManager } from '../../modules/chat/SkillsManager';
 import { McpToolsManager } from '../../modules/chat/McpToolsManager';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import { api, apiErrorMessage } from '../../services/apiClient';
-import { List, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare, ShieldCheck, Hand } from '@phosphor-icons/react';
+import { List, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare, ShieldCheck, Hand, Monitor } from '@phosphor-icons/react';
 import { HandSpatialControl } from '../../components/HandTracking/HandSpatialControl';
+import { SpatialDesktopViewer } from '../../components/SpatialDesktop/SpatialDesktopViewer';
 import { 
   AppLayout, 
   MainContent, 
@@ -704,6 +705,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const isProcessingQueueRef = useRef(false);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(loadVoiceEnabled);
   const [isHandControlActive, setIsHandControlActive] = useState<boolean>(false);
+  const [isSpatialDesktopOpen, setIsSpatialDesktopOpen] = useState<boolean>(false);
   const isVoiceEnabledRef = useRef<boolean>(isVoiceEnabled);
   const [isMobileOpen, setMobileOpen] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -2515,6 +2517,14 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
             </HeaderIconButton>
 
             <HeaderIconButton
+              onClick={() => setIsSpatialDesktopOpen(true)}
+              title="Área de Trabalho Espacial 3D (Espelhar Mac ao Vivo + Controle por Mãos)"
+              aria-label="Abrir Área de Trabalho Espacial"
+            >
+              <Monitor size={22} style={{ color: isSpatialDesktopOpen ? '#00f2fe' : undefined }} />
+            </HeaderIconButton>
+
+            <HeaderIconButton
               onClick={() => setIsHandControlActive(prev => !prev)}
               title={isHandControlActive ? "Desativar Controle por Gestos 3D VR" : "Ativar Controle Espacial por Gestos de Mão (Webcam/VR)"}
               aria-label="Alternar controle por gestos"
@@ -3158,6 +3168,10 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
       <HandSpatialControl
         isActive={isHandControlActive}
         onClose={() => setIsHandControlActive(false)}
+      />
+      <SpatialDesktopViewer
+        isOpen={isSpatialDesktopOpen}
+        onClose={() => setIsSpatialDesktopOpen(false)}
       />
     </AppLayout>
   );

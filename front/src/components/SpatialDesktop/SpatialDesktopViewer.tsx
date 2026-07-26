@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { api } from '../../services/apiClient';
 import {
   SpatialOverlay,
   ViewportCanvasBox,
@@ -114,9 +115,15 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
     // Se estiver transmitindo a tela, disparar o clique real
     if (viewportBoxRef.current) {
       const boxRect = viewportBoxRef.current.getBoundingClientRect();
+      const xRatio = Math.max(0, Math.min(1, localX / boxRect.width));
+      const yRatio = Math.max(0, Math.min(1, localY / boxRect.height));
+
+      // 1. Enviar clique de hardware nativo para o macOS via API Backend
+      api.post('/api/v1/spatial/click', { xRatio, yRatio, isDouble: false }).catch(() => {});
+
+      // 2. Disparar clique local na aba do navegador
       const globalX = boxRect.left + localX;
       const globalY = boxRect.top + localY;
-
       const element = document.elementFromPoint(globalX, globalY) as HTMLElement | null;
       if (element) {
         element.click();

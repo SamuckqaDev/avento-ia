@@ -1,0 +1,81 @@
+package com.avento.service;
+
+import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
+import java.awt.Robot;
+import java.awt.Toolkit;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+@Service
+public class SpatialControlService {
+
+    private static final Logger logger = LoggerFactory.getLogger(SpatialControlService.class);
+    private Robot robot;
+
+    public SpatialControlService() {
+        try {
+            if (!GraphicsEnvironment.isHeadless()) {
+                this.robot = new Robot();
+                this.robot.setAutoDelay(10);
+            } else {
+                logger.warn("GraphicsEnvironment is headless. Spatial hardware mouse simulation fallback active.");
+            }
+        } catch (Exception e) {
+            logger.error("Failed to initialize AWT Robot for spatial hardware control: {}", e.getMessage());
+        }
+    }
+
+    public boolean executeSpatialClick(double xRatio, double yRatio, boolean isDouble) {
+        if (robot == null) {
+            logger.warn("Robot not available for spatial click");
+            return false;
+        }
+
+        try {
+            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+            int targetX = (int) Math.round(xRatio * screenSize.width);
+            int targetY = (int) Math.round(yRatio * screenSize.height);
+
+            // Clamp coordinates to screen bounds
+            targetX = Math.max(0, Math.min(targetX, screenSize.width - 1));
+            targetY = Math.max(0, Math.min(targetY, screenSize.height - 1));
+
+            robot.mouseMove(targetX, targetY);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+
+            if (isDouble) {
+                robot.delay(50);
+                robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            }
+
+            logger.info("Spatial click executed at screen position: ({}, {})", targetX, targetY);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error executing spatial click: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    public boolean executeSpatialSwipe(String direction) {
+        if (robot == null) {
+            return false;
+        }
+
+        try {
+            int keyCode = "right".equalsIgnoreCase(direction) ? KeyEvent.VK_RIGHT : KeyEvent.VK_LEFT;
+            robot.keyPress(keyCode);
+            robot.keyRelease(keyCode);
+            logger.info("Spatial swipe key executed: {}", direction);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error executing spatial swipe: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+}

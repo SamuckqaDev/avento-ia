@@ -34,6 +34,8 @@ public class SpatialControlService {
         }
     }
 
+    private boolean isMousePressedState = false;
+
     public boolean executeSpatialClick(double xRatio, double yRatio, boolean isDouble) {
         if (robot == null && !initRobot()) {
             logger.warn("Robot indisponível para clique espacial");
@@ -50,12 +52,15 @@ public class SpatialControlService {
             targetY = Math.max(0, Math.min(targetY, screenSize.height - 1));
 
             robot.mouseMove(targetX, targetY);
+            robot.delay(30);
             robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            robot.delay(60);
             robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 
             if (isDouble) {
-                robot.delay(50);
+                robot.delay(70);
                 robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                robot.delay(60);
                 robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
             }
 
@@ -63,6 +68,40 @@ public class SpatialControlService {
             return true;
         } catch (Exception e) {
             logger.error("Error executing spatial click: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    public boolean executeSpatialDrag(double xRatio, double yRatio, boolean isDown) {
+        if (robot == null && !initRobot()) {
+            return false;
+        }
+
+        try {
+            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+            int targetX = (int) Math.round(xRatio * screenSize.width);
+            int targetY = (int) Math.round(yRatio * screenSize.height);
+
+            targetX = Math.max(0, Math.min(targetX, screenSize.width - 1));
+            targetY = Math.max(0, Math.min(targetY, screenSize.height - 1));
+
+            robot.mouseMove(targetX, targetY);
+
+            if (isDown && !isMousePressedState) {
+                robot.delay(20);
+                robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                isMousePressedState = true;
+                logger.info("Spatial drag PRESS at ({}, {})", targetX, targetY);
+            } else if (!isDown && isMousePressedState) {
+                robot.delay(20);
+                robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+                isMousePressedState = false;
+                logger.info("Spatial drag RELEASE at ({}, {})", targetX, targetY);
+            }
+
+            return true;
+        } catch (Exception e) {
+            logger.error("Error executing spatial drag: {}", e.getMessage());
             return false;
         }
     }

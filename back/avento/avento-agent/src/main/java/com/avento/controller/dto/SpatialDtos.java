@@ -13,6 +13,12 @@ public class SpatialDtos {
         double yRatio
     ) {}
 
+    public record SpatialDragRequest(
+        double xRatio,
+        double yRatio,
+        boolean isDown
+    ) {}
+
     public record SpatialSwipeRequest(
         String direction
     ) {}

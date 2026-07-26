@@ -1,6 +1,7 @@
 package com.avento.controller;
 
 import com.avento.controller.dto.SpatialDtos.SpatialClickRequest;
+import com.avento.controller.dto.SpatialDtos.SpatialDragRequest;
 import com.avento.controller.dto.SpatialDtos.SpatialMoveRequest;
 import com.avento.controller.dto.SpatialDtos.SpatialSwipeRequest;
 import com.avento.service.SpatialControlService;
@@ -29,6 +30,12 @@ public class SpatialControlController {
     @PostMapping("/move")
     public ResponseEntity<Map<String, Object>> handleMove(@RequestBody SpatialMoveRequest request) {
         boolean success = spatialControlService.executeSpatialMove(request.xRatio(), request.yRatio());
+        return ResponseEntity.ok(Map.of("success", success));
+    }
+
+    @PostMapping("/drag")
+    public ResponseEntity<Map<String, Object>> handleDrag(@RequestBody SpatialDragRequest request) {
+        boolean success = spatialControlService.executeSpatialDrag(request.xRatio(), request.yRatio(), request.isDown());
         return ResponseEntity.ok(Map.of("success", success));
     }
 

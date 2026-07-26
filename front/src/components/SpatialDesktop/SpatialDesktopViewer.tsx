@@ -270,11 +270,20 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
           const pinching = pinchDist < 0.052;
           setIsPinching(pinching);
 
+          const xRatio = Math.max(0, Math.min(1, smoothedX / boxRect.width));
+          const yRatio = Math.max(0, Math.min(1, smoothedY / boxRect.height));
+
           if (pinching) {
             setStatusMsg('👌 Segurando / Arrastando no Ar...');
+            // Enviar estado de clique/arraste mantido para o backend
+            api.post('/api/v1/spatial/drag', { xRatio, yRatio, isDown: true }).catch(() => {});
             triggerSpatialPinchClick(smoothedX, smoothedY);
-          } else if (isStreamingScreen) {
-            setStatusMsg('🟢 Área de Trabalho + ✋ Mão Rastreada (Mova de lado para virar página!)');
+          } else {
+            // Liberar o clique quando abrir os dedos
+            api.post('/api/v1/spatial/drag', { xRatio, yRatio, isDown: false }).catch(() => {});
+            if (isStreamingScreen) {
+              setStatusMsg('🟢 Área de Trabalho + ✋ Mão Rastreada (Mova de lado para virar página!)');
+            }
           }
         } else {
           setHasHand(false);

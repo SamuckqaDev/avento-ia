@@ -38,6 +38,7 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
 
   const lastClickTimeRef = useRef(0);
   const lastSwipeTimeRef = useRef(0);
+  const lastMoveTimeRef = useRef(0);
   const prevPalmXRef = useRef<number | null>(null);
   const smoothedPosRef = useRef({ x: 400, y: 300 });
   const animFrameIdRef = useRef<number | null>(null);
@@ -223,6 +224,15 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
 
           smoothedPosRef.current = { x: smoothedX, y: smoothedY };
           setPointerPos({ x: smoothedX, y: smoothedY });
+
+          // Transmitir posição contínua do mouse para o macOS via backend a cada 45ms
+          const nowMove = Date.now();
+          if (nowMove - lastMoveTimeRef.current > 45) {
+            lastMoveTimeRef.current = nowMove;
+            const xRatio = Math.max(0, Math.min(1, smoothedX / boxRect.width));
+            const yRatio = Math.max(0, Math.min(1, smoothedY / boxRect.height));
+            api.post('/api/v1/spatial/move', { xRatio, yRatio }).catch(() => {});
+          }
 
           // Detectar velocidade da mão para Virar Página / Swipe Lateral (Gesto "Virar Folha")
           const currentPalmX = 1 - landmarks[9].x; // X do centro da palma espelhado

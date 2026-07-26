@@ -67,6 +67,27 @@ public class SpatialControlService {
         }
     }
 
+    public boolean executeSpatialMove(double xRatio, double yRatio) {
+        if (robot == null && !initRobot()) {
+            return false;
+        }
+
+        try {
+            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+            int targetX = (int) Math.round(xRatio * screenSize.width);
+            int targetY = (int) Math.round(yRatio * screenSize.height);
+
+            targetX = Math.max(0, Math.min(targetX, screenSize.width - 1));
+            targetY = Math.max(0, Math.min(targetY, screenSize.height - 1));
+
+            robot.mouseMove(targetX, targetY);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error executing spatial mouse move: {}", e.getMessage());
+            return false;
+        }
+    }
+
     public boolean executeSpatialSwipe(String direction) {
         if (robot == null) {
             return false;

@@ -8,6 +8,11 @@ public class SpatialDtos {
         Boolean isDouble
     ) {}
 
+    public record SpatialMoveRequest(
+        double xRatio,
+        double yRatio
+    ) {}
+
     public record SpatialSwipeRequest(
         String direction
     ) {}

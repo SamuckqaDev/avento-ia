@@ -658,9 +658,63 @@ export function CoworkView() {
                   </div>
 
                   <div className="card-body">
-                    <span className="cron-pill">
-                      <Clock size={14} /> Cron: {task.cronExpression}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                      <span className="cron-pill">
+                        <Clock size={14} /> Cron: {task.cronExpression}
+                      </span>
+
+                      {task.lastRunStatus === 'SUCCESS' && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          background: 'color-mix(in srgb, #10B981 15%, transparent)',
+                          color: '#10B981',
+                          border: '1px solid color-mix(in srgb, #10B981 30%, transparent)'
+                        }} title="Última execução realizada com sucesso">
+                          <CheckCircle size={14} /> Última: Sucesso
+                        </span>
+                      )}
+
+                      {task.lastRunStatus === 'FAILED' && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          background: 'color-mix(in srgb, #EF4444 15%, transparent)',
+                          color: '#EF4444',
+                          border: '1px solid color-mix(in srgb, #EF4444 30%, transparent)'
+                        }} title="Última execução apresentou erro">
+                          <XCircle size={14} /> Última: Falha
+                        </span>
+                      )}
+
+                      {!task.lastRunStatus && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          background: 'color-mix(in srgb, var(--text-muted) 15%, transparent)',
+                          color: 'var(--text-muted)',
+                          border: '1px solid color-mix(in srgb, var(--text-muted) 25%, transparent)'
+                        }} title="Aguardando primeira execução">
+                          <Clock size={14} /> Aguardando
+                        </span>
+                      )}
+                    </div>
+
                     {task.description && <p>{task.description}</p>}
                     <div className="prompt-snippet" title={task.prompt}>
                       <strong>Instrução de IA:</strong> {task.prompt}
@@ -719,6 +773,12 @@ export function CoworkView() {
                     <div className="actions">
                       <button type="button" className="run-now" onClick={() => handleRunNow(task.id)} title="Executar Agora">
                         <Lightning size={14} /> Rodar Agora
+                      </button>
+                      <button type="button" onClick={() => setSelectedOutputTask(task)} title="Ver Último Retorno">
+                        <Eye size={14} />
+                      </button>
+                      <button type="button" onClick={() => handleViewLogs(task)} title="Histórico e Logs">
+                        <FileText size={14} />
                       </button>
                       <button type="button" onClick={() => handleOpenEditTask(task)} title="Editar Atividade">
                         <PencilSimple size={14} />

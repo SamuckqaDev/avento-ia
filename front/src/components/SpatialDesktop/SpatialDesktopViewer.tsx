@@ -3,9 +3,10 @@ import {
   SpatialOverlay,
   ViewportCanvasBox,
   SpatialPointer,
-  SpatialRipple
+  SpatialRipple,
+  GestureFeedbackBanner
 } from './SpatialDesktopViewer.styles';
-import { X, Hand, Camera, Monitor, Play, Eye, CheckCircle } from '@phosphor-icons/react';
+import { X, Hand, Camera, Monitor, Play, Eye, CheckCircle, BookOpen } from '@phosphor-icons/react';
 
 interface SpatialDesktopViewerProps {
   isOpen: boolean;
@@ -31,9 +32,12 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
   const [passThroughOpacity, setPassThroughOpacity] = useState(0.2); // Transparência de fundo
   const [pointerPos, setPointerPos] = useState({ x: 400, y: 300 });
   const [ripples, setRipples] = useState<SpatialRippleItem[]>([]);
+  const [gestureBanner, setGestureBanner] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState('Clique em "Transmitir Tela" para espelhar seu Mac');
 
   const lastClickTimeRef = useRef(0);
+  const lastSwipeTimeRef = useRef(0);
+  const prevPalmXRef = useRef<number | null>(null);
   const smoothedPosRef = useRef({ x: 400, y: 300 });
   const animFrameIdRef = useRef<number | null>(null);
 
@@ -213,6 +217,33 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
           smoothedPosRef.current = { x: smoothedX, y: smoothedY };
           setPointerPos({ x: smoothedX, y: smoothedY });
 
+          // Detectar velocidade da mão para Virar Página / Swipe Lateral (Gesto "Virar Folha")
+          const currentPalmX = 1 - landmarks[9].x; // X do centro da palma espelhado
+          const now = Date.now();
+
+          if (prevPalmXRef.current !== null && now - lastSwipeTimeRef.current > 750) {
+            const vx = currentPalmX - prevPalmXRef.current;
+
+            if (vx > 0.12) {
+              // Swipe para a Direita (Virar Página para Frente)
+              lastSwipeTimeRef.current = now;
+              setGestureBanner('📖 Virou a Página para a Direita! (Próxima Tela / Aba)');
+              setTimeout(() => setGestureBanner(null), 1400);
+
+              // Disparar evento de navegação por teclado (Seta Direita / PageDown)
+              window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', code: 'ArrowRight', bubbles: true }));
+            } else if (vx < -0.12) {
+              // Swipe para a Esquerda (Voltar Página)
+              lastSwipeTimeRef.current = now;
+              setGestureBanner('📖 Virou a Página para a Esquerda! (Tela Anterior / Aba)');
+              setTimeout(() => setGestureBanner(null), 1400);
+
+              // Disparar evento de navegação por teclado (Seta Esquerda / PageUp)
+              window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft', bubbles: true }));
+            }
+          }
+          prevPalmXRef.current = currentPalmX;
+
           // Calcular distância Euclidiana entre indicador e polegar em 3D
           const dx = indexTip.x - thumbTip.x;
           const dy = indexTip.y - thumbTip.y;
@@ -223,10 +254,10 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
           setIsPinching(pinching);
 
           if (pinching) {
-            setStatusMsg('👌 Pinça Espacial Detectada!');
+            setStatusMsg('👌 Segurando / Arrastando no Ar...');
             triggerSpatialPinchClick(smoothedX, smoothedY);
           } else if (isStreamingScreen) {
-            setStatusMsg('🟢 Área de Trabalho + ✋ Mão Rastreada');
+            setStatusMsg('🟢 Área de Trabalho + ✋ Mão Rastreada (Mova de lado para virar página!)');
           }
         } else {
           setHasHand(false);
@@ -320,6 +351,11 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
       </div>
 
       <ViewportCanvasBox ref={viewportBoxRef}>
+        {gestureBanner && (
+          <GestureFeedbackBanner>
+            <BookOpen size={18} /> {gestureBanner}
+          </GestureFeedbackBanner>
+        )}
         {isStreamingScreen ? (
           <>
             <canvas ref={screenCanvasRef} className="screen-canvas" />

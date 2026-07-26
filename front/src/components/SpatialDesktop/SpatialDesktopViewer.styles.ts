@@ -11,6 +11,19 @@ const rippleEffect = keyframes`
   100% { transform: translate(-50%, -50%) scale(3); opacity: 0; border-color: #10b981; }
 `;
 
+export const SpatialRipple = styled.div<{ $x: number; $y: number }>`
+  position: absolute;
+  left: ${({ $x }) => $x}px;
+  top: ${({ $y }) => $y}px;
+  width: 60px;
+  height: 60px;
+  border: 3px solid #10b981;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 99997;
+  animation: ${rippleEffect} 0.55s ease-out forwards;
+`;
+
 export const SpatialOverlay = styled.div<{ $passThroughOpacity: number }>`
   position: fixed;
   inset: 0;
@@ -251,15 +264,30 @@ export const SpatialPointer = styled.div<{ $x: number; $y: number; $isPinching?:
   }
 `;
 
-export const SpatialRipple = styled.div<{ $x: number; $y: number }>`
+const slideBanner = keyframes`
+  0% { transform: translate(-50%, -20px); opacity: 0; }
+  20% { transform: translate(-50%, 0); opacity: 1; }
+  80% { transform: translate(-50%, 0); opacity: 1; }
+  100% { transform: translate(-50%, -20px); opacity: 0; }
+`;
+
+export const GestureFeedbackBanner = styled.div`
   position: absolute;
-  left: ${({ $x }) => $x}px;
-  top: ${({ $y }) => $y}px;
-  width: 60px;
-  height: 60px;
-  border: 3px solid #10b981;
-  border-radius: 50%;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, #00f2fe 20%, rgba(10, 14, 26, 0.95));
+  border: 1px solid #00f2fe;
+  box-shadow: 0 0 25px rgba(0, 242, 254, 0.4);
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 30px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 99999;
   pointer-events: none;
-  z-index: 99997;
-  animation: ${rippleEffect} 0.55s ease-out forwards;
+  animation: ${slideBanner} 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 `;

@@ -39,6 +39,8 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
   const lastClickTimeRef = useRef(0);
   const lastSwipeTimeRef = useRef(0);
   const lastMoveTimeRef = useRef(0);
+  const isLeftHoldingPinchRef = useRef(false);
+  const isRightHoldingPinchRef = useRef(false);
   const prevPalmXRef = useRef<number | null>(null);
   const smoothedPosRef = useRef({ x: 400, y: 300 });
   const animFrameIdRef = useRef<number | null>(null);
@@ -100,8 +102,8 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
     };
   }, [isStreamingScreen]);
 
-  // Disparar clique espacial
-  const triggerSpatialPinchClick = useCallback((localX: number, localY: number) => {
+  // Disparar clique espacial (Esquerdo ou Direito)
+  const triggerSpatialPinchClick = useCallback((localX: number, localY: number, isRight = false) => {
     const now = Date.now();
     if (now - lastClickTimeRef.current < 400) return; // Cooldown de 400ms
     lastClickTimeRef.current = now;
@@ -120,15 +122,19 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
       const yRatio = Math.max(0, Math.min(1, localY / boxRect.height));
 
       // 1. Enviar clique de hardware nativo para o macOS via API Backend
-      api.post('/api/v1/spatial/click', { xRatio, yRatio, isDouble: false }).catch(() => {});
+      api.post('/api/v1/spatial/click', { xRatio, yRatio, isDouble: false, isRight }).catch(() => {});
 
       // 2. Disparar clique local na aba do navegador
       const globalX = boxRect.left + localX;
       const globalY = boxRect.top + localY;
       const element = document.elementFromPoint(globalX, globalY) as HTMLElement | null;
       if (element) {
-        element.click();
-        element.focus?.();
+        if (isRight) {
+          element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: globalX, clientY: globalY }));
+        } else {
+          element.click();
+          element.focus?.();
+        }
       }
     }
   }, []);
@@ -212,21 +218,16 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
           }
 
           const indexTip = landmarks[8];
-          const indexPip = landmarks[6];
           const middleTip = landmarks[12];
           const thumbTip = landmarks[4];
 
-          // Fusão vetorial de 3 pontos para alta precisão do cursor (elimina trepidação)
-          const precisionNormX = 0.70 * indexTip.x + 0.15 * indexPip.x + 0.15 * middleTip.x;
-          const precisionNormY = 0.70 * indexTip.y + 0.15 * indexPip.y + 0.15 * middleTip.y;
+          // Posicionar o cursor HOLOGRÁFICO EXACTAMENTE NA BOLINHA DO INDICADOR (Landmark 8)
+          const targetLocalX = (1 - indexTip.x) * boxRect.width;
+          const targetLocalY = indexTip.y * boxRect.height;
 
-          // Mapeamento 1:1 para a área do viewport da tela do Mac
-          const targetLocalX = (1 - precisionNormX) * boxRect.width;
-          const targetLocalY = precisionNormY * boxRect.height;
-
-          // Filtro Passa-Baixa Adaptativo (EMA): Alta precisão em movimentos lentos + velocidade em movimentos rápidos
+          // Filtro EMA de movimento para resposta fluida
           const deltaDist = Math.hypot(targetLocalX - smoothedPosRef.current.x, targetLocalY - smoothedPosRef.current.y);
-          const alpha = deltaDist > 30 ? 0.50 : 0.28; // Adaptativo
+          const alpha = deltaDist > 25 ? 0.60 : 0.35;
 
           const smoothedX = smoothedPosRef.current.x + (targetLocalX - smoothedPosRef.current.x) * alpha;
           const smoothedY = smoothedPosRef.current.y + (targetLocalY - smoothedPosRef.current.y) * alpha;
@@ -234,9 +235,9 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
           smoothedPosRef.current = { x: smoothedX, y: smoothedY };
           setPointerPos({ x: smoothedX, y: smoothedY });
 
-          // Transmitir posição contínua do mouse para o macOS via backend a cada 45ms
+          // Transmitir posição contínua do mouse para o macOS via backend a cada 40ms
           const nowMove = Date.now();
-          if (nowMove - lastMoveTimeRef.current > 45) {
+          if (nowMove - lastMoveTimeRef.current > 40) {
             lastMoveTimeRef.current = nowMove;
             const xRatio = Math.max(0, Math.min(1, smoothedX / boxRect.width));
             const yRatio = Math.max(0, Math.min(1, smoothedY / boxRect.height));
@@ -251,47 +252,71 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
             const vx = currentPalmX - prevPalmXRef.current;
 
             if (vx > 0.12) {
-              // Swipe para a Direita (Virar Página para Frente)
               lastSwipeTimeRef.current = now;
               setGestureBanner('📖 Virou a Página para a Direita! (Próxima Tela / Aba)');
               setTimeout(() => setGestureBanner(null), 1400);
-
-              // Disparar evento de navegação por teclado (Seta Direita / PageDown)
               window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', code: 'ArrowRight', bubbles: true }));
             } else if (vx < -0.12) {
-              // Swipe para a Esquerda (Voltar Página)
               lastSwipeTimeRef.current = now;
               setGestureBanner('📖 Virou a Página para a Esquerda! (Tela Anterior / Aba)');
               setTimeout(() => setGestureBanner(null), 1400);
-
-              // Disparar evento de navegação por teclado (Seta Esquerda / PageUp)
               window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft', bubbles: true }));
             }
           }
           prevPalmXRef.current = currentPalmX;
 
-          // Calcular distância Euclidiana entre indicador e polegar em 3D
-          const dx = indexTip.x - thumbTip.x;
-          const dy = indexTip.y - thumbTip.y;
-          const dz = indexTip.z - thumbTip.z;
-          const pinchDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          // 1. PINÇA DO INDICADOR (CLIQUE ESQUERDO / ARRASTAR) - Distância 3D
+          const dxIndex = indexTip.x - thumbTip.x;
+          const dyIndex = indexTip.y - thumbTip.y;
+          const dzIndex = indexTip.z - thumbTip.z;
+          const indexPinchDist = Math.hypot(dxIndex, dyIndex, dzIndex);
 
-          const pinching = pinchDist < 0.052;
-          setIsPinching(pinching);
+          // Histerese Anti-Soltura: entra com < 0.042, só sai se abrir > 0.066
+          if (isLeftHoldingPinchRef.current) {
+            if (indexPinchDist > 0.066) {
+              isLeftHoldingPinchRef.current = false;
+            }
+          } else {
+            if (indexPinchDist < 0.042) {
+              isLeftHoldingPinchRef.current = true;
+            }
+          }
+          const isLeftPinching = isLeftHoldingPinchRef.current;
+
+          // 2. PINÇA DO DEDO MÉDIO (CLIQUE DIREITO) - Distância 3D
+          const dxMiddle = middleTip.x - thumbTip.x;
+          const dyMiddle = middleTip.y - thumbTip.y;
+          const dzMiddle = middleTip.z - thumbTip.z;
+          const middlePinchDist = Math.hypot(dxMiddle, dyMiddle, dzMiddle);
+
+          if (isRightHoldingPinchRef.current) {
+            if (middlePinchDist > 0.066) {
+              isRightHoldingPinchRef.current = false;
+            }
+          } else {
+            if (middlePinchDist < 0.042) {
+              isRightHoldingPinchRef.current = true;
+            }
+          }
+          const isRightPinching = isRightHoldingPinchRef.current;
+
+          setIsPinching(isLeftPinching || isRightPinching);
 
           const xRatio = Math.max(0, Math.min(1, smoothedX / boxRect.width));
           const yRatio = Math.max(0, Math.min(1, smoothedY / boxRect.height));
 
-          if (pinching) {
-            setStatusMsg('👌 Segurando / Arrastando no Ar...');
-            // Enviar estado de clique/arraste mantido para o backend
+          if (isRightPinching) {
+            setStatusMsg('🤏 Clique Direito (Dedo Médio + Polegar)');
+            triggerSpatialPinchClick(smoothedX, smoothedY, true);
+          } else if (isLeftPinching) {
+            setStatusMsg('👌 Clique Esquerdo / Arrastando (Indicador + Polegar)');
             api.post('/api/v1/spatial/drag', { xRatio, yRatio, isDown: true }).catch(() => {});
-            triggerSpatialPinchClick(smoothedX, smoothedY);
+            triggerSpatialPinchClick(smoothedX, smoothedY, false);
           } else {
             // Liberar o clique quando abrir os dedos
             api.post('/api/v1/spatial/drag', { xRatio, yRatio, isDown: false }).catch(() => {});
             if (isStreamingScreen) {
-              setStatusMsg('🟢 Área de Trabalho + ✋ Mão Rastreada (Mova de lado para virar página!)');
+              setStatusMsg('🟢 Área de Trabalho | Indicador: Clique Esquerdo | Médio: Clique Direito');
             }
           }
         } else {

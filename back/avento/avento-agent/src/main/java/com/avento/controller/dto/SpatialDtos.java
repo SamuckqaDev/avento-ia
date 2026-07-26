@@ -5,7 +5,8 @@ public class SpatialDtos {
     public record SpatialClickRequest(
         double xRatio,
         double yRatio,
-        Boolean isDouble
+        Boolean isDouble,
+        Boolean isRight
     ) {}
 
     public record SpatialMoveRequest(

@@ -23,7 +23,8 @@ public class SpatialControlController {
     @PostMapping("/click")
     public ResponseEntity<Map<String, Object>> handleClick(@RequestBody SpatialClickRequest request) {
         boolean isDouble = Boolean.TRUE.equals(request.isDouble());
-        boolean success = spatialControlService.executeSpatialClick(request.xRatio(), request.yRatio(), isDouble);
+        boolean isRight = Boolean.TRUE.equals(request.isRight());
+        boolean success = spatialControlService.executeSpatialClick(request.xRatio(), request.yRatio(), isDouble, isRight);
         return ResponseEntity.ok(Map.of("success", success));
     }
 

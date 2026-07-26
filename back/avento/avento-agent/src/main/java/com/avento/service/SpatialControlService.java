@@ -36,7 +36,7 @@ public class SpatialControlService {
 
     private boolean isMousePressedState = false;
 
-    public boolean executeSpatialClick(double xRatio, double yRatio, boolean isDouble) {
+    public boolean executeSpatialClick(double xRatio, double yRatio, boolean isDouble, boolean isRight) {
         if (robot == null && !initRobot()) {
             logger.warn("Robot indisponível para clique espacial");
             return false;
@@ -50,16 +50,18 @@ public class SpatialControlService {
             targetX = Math.max(0, Math.min(targetX, screenSize.width - 1));
             targetY = Math.max(0, Math.min(targetY, screenSize.height - 1));
 
+            int buttonMask = isRight ? InputEvent.BUTTON3_DOWN_MASK : InputEvent.BUTTON1_DOWN_MASK;
+
             robot.mouseMove(targetX, targetY);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            robot.mousePress(buttonMask);
+            robot.mouseRelease(buttonMask);
 
             if (isDouble) {
-                robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-                robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+                robot.mousePress(buttonMask);
+                robot.mouseRelease(buttonMask);
             }
 
-            logger.info("Spatial click executed instantly at screen position: ({}, {})", targetX, targetY);
+            logger.info("Spatial {} click executed at: ({}, {})", isRight ? "RIGHT" : "LEFT", targetX, targetY);
             return true;
         } catch (Exception e) {
             logger.error("Error executing spatial click: {}", e.getMessage(), e);

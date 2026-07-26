@@ -767,7 +767,8 @@ export function CoworkView() {
 
                   <div className="card-footer">
                     <div className="next-run">
-                      Próxima rodada: {task.nextRunAt ? new Date(task.nextRunAt).toLocaleString('pt-BR') : 'Agendada'}
+                      <span>Próxima Execução:</span>
+                      <strong>{task.nextRunAt ? new Date(task.nextRunAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Agendada'}</strong>
                     </div>
 
                     <div className="actions">

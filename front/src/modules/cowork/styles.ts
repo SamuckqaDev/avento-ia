@@ -520,53 +520,69 @@ export const Card = styled.div<{ $status?: string }>`
 
   .card-footer {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
     border-top: 1px solid ${({ theme }) => theme.colors.border};
-    padding-top: 12px;
+    padding-top: 10px;
     margin-top: auto;
 
     .next-run {
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       color: ${({ theme }) => theme.colors.textMuted};
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      strong {
+        color: ${({ theme }) => theme.colors.text};
+        font-weight: 600;
+      }
     }
 
     .actions {
       display: flex;
-      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
 
       button {
         background: transparent;
         border: 1px solid ${({ theme }) => theme.colors.border};
         color: ${({ theme }) => theme.colors.text};
-        padding: 6px 12px;
+        padding: 5px 8px;
         border-radius: 6px;
         font-size: 0.75rem;
+        font-weight: 600;
         cursor: pointer;
-        display: flex;
+        display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 4px;
-        transition: all 0.2s;
+        transition: all 0.15s ease;
 
         &:hover {
-          background: color-mix(in srgb, ${({ theme }) => theme.colors.bg} 80%, ${({ theme }) => theme.colors.surface});
-          border-color: ${({ theme }) => theme.colors.accent};
+          background: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 10%, ${({ theme }) => theme.colors.surface});
+          border-color: ${({ theme }) => theme.colors.primary};
         }
 
         &.run-now {
-          background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 15%, transparent);
-          color: ${({ theme }) => theme.colors.accent};
-          border-color: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 30%, transparent);
+          background: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 15%, transparent);
+          color: ${({ theme }) => theme.colors.primary};
+          border-color: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 30%, transparent);
 
           &:hover {
-            background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 25%, transparent);
+            background: color-mix(in srgb, ${({ theme }) => theme.colors.primary} 25%, transparent);
           }
         }
 
         &.delete {
           color: #ef4444;
+          border-color: color-mix(in srgb, #ef4444 30%, transparent);
           &:hover {
             background: rgba(239, 68, 68, 0.15);
+            border-color: #ef4444;
           }
         }
       }

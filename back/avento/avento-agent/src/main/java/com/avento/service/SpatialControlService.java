@@ -17,21 +17,26 @@ public class SpatialControlService {
     private Robot robot;
 
     public SpatialControlService() {
+        initRobot();
+    }
+
+    private synchronized boolean initRobot() {
+        if (this.robot != null) return true;
         try {
-            if (!GraphicsEnvironment.isHeadless()) {
-                this.robot = new Robot();
-                this.robot.setAutoDelay(10);
-            } else {
-                logger.warn("GraphicsEnvironment is headless. Spatial hardware mouse simulation fallback active.");
-            }
+            System.setProperty("java.awt.headless", "false");
+            this.robot = new Robot();
+            this.robot.setAutoDelay(10);
+            logger.info("Java AWT Robot inicializado com sucesso para controle de clique espacial no macOS/Desktop.");
+            return true;
         } catch (Exception e) {
-            logger.error("Failed to initialize AWT Robot for spatial hardware control: {}", e.getMessage());
+            logger.error("Falha ao inicializar AWT Robot para controle espacial: {}", e.getMessage());
+            return false;
         }
     }
 
     public boolean executeSpatialClick(double xRatio, double yRatio, boolean isDouble) {
-        if (robot == null) {
-            logger.warn("Robot not available for spatial click");
+        if (robot == null && !initRobot()) {
+            logger.warn("Robot indisponível para clique espacial");
             return false;
         }
 

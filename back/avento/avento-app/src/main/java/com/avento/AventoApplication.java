@@ -16,6 +16,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class AventoApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(AventoApplication.class, args);
+        SpringApplication app = new SpringApplication(AventoApplication.class);
+        app.setHeadless(false);
+        app.run(args);
     }
 }

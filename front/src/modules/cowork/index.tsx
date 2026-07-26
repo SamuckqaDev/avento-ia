@@ -45,6 +45,70 @@ export interface ScheduledTaskRun {
 
 type FrequencyMode = 'daily' | 'interval' | 'specific_date' | 'cron';
 
+function parseDayOfWeekPart(part: string): number[] {
+  const days: number[] = [];
+  const items = part.split(',');
+  for (const item of items) {
+    if (item.includes('-')) {
+      const [start, end] = item.split('-').map(Number);
+      for (let d = start; d <= end; d++) {
+        days.push(d === 7 ? 0 : d);
+      }
+    } else {
+      const d = Number(item);
+      days.push(d === 7 ? 0 : d);
+    }
+  }
+  return days;
+}
+
+function matchCronPart(part: string, value: number): boolean {
+  if (part === '*') return true;
+  if (part.includes('/')) {
+    const [, step] = part.split('/');
+    return value % Number(step) === 0;
+  }
+  if (part.includes('-')) {
+    const [start, end] = part.split('-').map(Number);
+    return value >= start && value <= end;
+  }
+  if (part.includes(',')) {
+    const list = part.split(',').map(Number);
+    return list.includes(value);
+  }
+  return Number(part) === value;
+}
+
+function isTaskScheduledOnDate(task: ScheduledTask, cellDate: Date): boolean {
+  if (!task.cronExpression) return false;
+
+  const parts = task.cronExpression.trim().split(/\s+/);
+  if (parts.length !== 5) {
+    if (!task.nextRunAt) return false;
+    const nextDate = new Date(task.nextRunAt);
+    return (
+      nextDate.getFullYear() === cellDate.getFullYear() &&
+      nextDate.getMonth() === cellDate.getMonth() &&
+      nextDate.getDate() === cellDate.getDate()
+    );
+  }
+
+  const [, , dayOfMonth, month, dayOfWeek] = parts;
+  const jsMonth = cellDate.getMonth() + 1;
+  const jsDayOfMonth = cellDate.getDate();
+  const jsDayOfWeek = cellDate.getDay();
+
+  if (month !== '*' && !matchCronPart(month, jsMonth)) return false;
+  if (dayOfMonth !== '*' && !matchCronPart(dayOfMonth, jsDayOfMonth)) return false;
+
+  if (dayOfWeek !== '*') {
+    const allowedDays = parseDayOfWeekPart(dayOfWeek);
+    if (!allowedDays.includes(jsDayOfWeek)) return false;
+  }
+
+  return true;
+}
+
 export function CoworkView() {
   const [activeTab, setActiveTab] = useState<'calendar' | 'automations'>('calendar');
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
@@ -487,15 +551,7 @@ export function CoworkView() {
             ))}
 
             {calendarDays.map(cell => {
-              const dayTasks = tasks.filter(task => {
-                if (!task.nextRunAt) return false;
-                const nextDate = new Date(task.nextRunAt);
-                return (
-                  nextDate.getFullYear() === cell.date.getFullYear() &&
-                  nextDate.getMonth() === cell.date.getMonth() &&
-                  nextDate.getDate() === cell.date.getDate()
-                );
-              });
+              const dayTasks = tasks.filter(task => isTaskScheduledOnDate(task, cell.date));
 
               const visibleTasks = dayTasks.slice(0, 2);
               const extraCount = dayTasks.length - 2;

@@ -667,27 +667,16 @@ export function CoworkView() {
                     </div>
                   </div>
 
-                  {(task.lastRunDiagnosis || task.lastRunOutput || task.lastRunAt) && (
-                    <div className={`diagnosis-box ${task.lastRunStatus === 'SUCCESS' ? 'success' : task.lastRunStatus === 'FAILED' ? 'failed' : 'warning'}`}>
+                  {task.lastRunStatus === 'FAILED' && (
+                    <div className="diagnosis-box failed">
                       <strong>
-                        {task.lastRunStatus === 'SUCCESS' ? (
-                          <>
-                            <CheckCircle size={15} /> Última Execução (Sucesso):
-                          </>
-                        ) : task.lastRunStatus === 'FAILED' ? (
-                          <>
-                            <XCircle size={15} /> Falha na Execução:
-                          </>
-                        ) : (
-                          <>
-                            <Clock size={15} /> Execução Registrada:
-                          </>
-                        )}
+                        <XCircle size={15} /> Falha na Última Execução:
                       </strong>
 
-                      {(task.lastRunOutput || task.lastRunDiagnosis) && (
+                      {(task.lastRunDiagnosis || task.lastRunOutput) && (
                         <div style={{
-                          background: 'rgba(0, 0, 0, 0.18)',
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          border: '1px solid color-mix(in srgb, #EF4444 30%, transparent)',
                           borderRadius: 6,
                           padding: '6px 10px',
                           fontSize: '0.76rem',
@@ -699,11 +688,11 @@ export function CoworkView() {
                           marginTop: 4,
                           color: 'var(--text)'
                         }}>
-                          {task.lastRunOutput || task.lastRunDiagnosis}
+                          {task.lastRunDiagnosis || task.lastRunOutput}
                         </div>
                       )}
 
-                      {task.lastRunError && task.lastRunStatus === 'FAILED' && (
+                      {task.lastRunError && (
                         <div className="error-details">
                           <strong>Sugestão de Correção:</strong>
                           <span>{task.lastRunError}</span>

@@ -15,7 +15,8 @@ import { SkillsManager } from '../../modules/chat/SkillsManager';
 import { McpToolsManager } from '../../modules/chat/McpToolsManager';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import { api, apiErrorMessage } from '../../services/apiClient';
-import { List, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare, ShieldCheck } from '@phosphor-icons/react';
+import { List, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare, ShieldCheck, Hand } from '@phosphor-icons/react';
+import { HandSpatialControl } from '../../components/HandTracking/HandSpatialControl';
 import { 
   AppLayout, 
   MainContent, 
@@ -702,6 +703,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const [messageQueue, setMessageQueue] = useState<QueuedMessage[]>([]);
   const isProcessingQueueRef = useRef(false);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(loadVoiceEnabled);
+  const [isHandControlActive, setIsHandControlActive] = useState<boolean>(false);
   const isVoiceEnabledRef = useRef<boolean>(isVoiceEnabled);
   const [isMobileOpen, setMobileOpen] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -2511,6 +2513,14 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
             >
               <ShieldCheck size={22} weight={isAutoApproveAll ? "fill" : "regular"} style={{ color: isAutoApproveAll ? '#10b981' : undefined }} />
             </HeaderIconButton>
+
+            <HeaderIconButton
+              onClick={() => setIsHandControlActive(prev => !prev)}
+              title={isHandControlActive ? "Desativar Controle por Gestos 3D VR" : "Ativar Controle Espacial por Gestos de Mão (Webcam/VR)"}
+              aria-label="Alternar controle por gestos"
+            >
+              <Hand size={22} weight={isHandControlActive ? "fill" : "regular"} style={{ color: isHandControlActive ? '#00f2fe' : undefined }} />
+            </HeaderIconButton>
             <HeaderIconButton onClick={() => setIsRightPanelOpen(!isRightPanelOpen)} title="Tarefas e contexto">
               <Columns size={24} weight={isRightPanelOpen ? "fill" : "regular"} />
             </HeaderIconButton>
@@ -3145,6 +3155,10 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
           {snackbarMessage}
         </Snackbar>
       )}
+      <HandSpatialControl
+        isActive={isHandControlActive}
+        onClose={() => setIsHandControlActive(false)}
+      />
     </AppLayout>
   );
 }

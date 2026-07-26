@@ -41,6 +41,9 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
   const lastMoveTimeRef = useRef(0);
   const isLeftHoldingPinchRef = useRef(false);
   const isRightHoldingPinchRef = useRef(false);
+  const wasLeftPinchingRef = useRef(false);
+  const wasRightPinchingRef = useRef(false);
+  const pinchStartTimeRef = useRef(0);
   const prevPalmXRef = useRef<number | null>(null);
   const smoothedPosRef = useRef({ x: 400, y: 300 });
   const animFrameIdRef = useRef<number | null>(null);
@@ -305,20 +308,37 @@ export function SpatialDesktopViewer({ isOpen, onClose }: SpatialDesktopViewerPr
           const xRatio = Math.max(0, Math.min(1, smoothedX / boxRect.width));
           const yRatio = Math.max(0, Math.min(1, smoothedY / boxRect.height));
 
-          if (isRightPinching) {
+          // 1. MANUSEIO DO CLIQUE DIREITO (DEDO MÉDIO)
+          if (isRightPinching && !wasRightPinchingRef.current) {
             setStatusMsg('🤏 Clique Direito (Dedo Médio + Polegar)');
             triggerSpatialPinchClick(smoothedX, smoothedY, true);
-          } else if (isLeftPinching) {
-            setStatusMsg('👌 Clique Esquerdo / Arrastando (Indicador + Polegar)');
+          }
+          wasRightPinchingRef.current = isRightPinching;
+
+          // 2. MANUSEIO DO CLIQUE ESQUERDO / ARRASTAR (DEDO INDICADOR)
+          if (isLeftPinching && !wasLeftPinchingRef.current) {
+            // INÍCIO DO CLIQUE / ARRASTE: Pressionar botão do mouse
+            pinchStartTimeRef.current = Date.now();
+            setStatusMsg('👌 Segurando / Arrastando no Ar...');
             api.post('/api/v1/spatial/drag', { xRatio, yRatio, isDown: true }).catch(() => {});
-            triggerSpatialPinchClick(smoothedX, smoothedY, false);
-          } else {
-            // Liberar o clique quando abrir os dedos
+          } else if (isLeftPinching && wasLeftPinchingRef.current) {
+            // MANTER PRESSIONADO & ARRASTAR: Apenas mover o mouse mantendo pressionado (sem repetir cliques!)
+            setStatusMsg('👌 Segurando / Arrastando no Ar...');
+          } else if (!isLeftPinching && wasLeftPinchingRef.current) {
+            // SOLTAR O ARRASTE: Soltar botão do mouse
+            const duration = Date.now() - pinchStartTimeRef.current;
             api.post('/api/v1/spatial/drag', { xRatio, yRatio, isDown: false }).catch(() => {});
+
+            if (duration < 280) {
+              // Se foi uma pinça rápida, disparar um único clique limpo
+              triggerSpatialPinchClick(smoothedX, smoothedY, false);
+            }
+
             if (isStreamingScreen) {
               setStatusMsg('🟢 Área de Trabalho | Indicador: Clique Esquerdo | Médio: Clique Direito');
             }
           }
+          wasLeftPinchingRef.current = isLeftPinching;
         } else {
           setHasHand(false);
           setIsPinching(false);

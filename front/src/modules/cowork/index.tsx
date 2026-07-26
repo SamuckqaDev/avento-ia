@@ -611,24 +611,42 @@ export function CoworkView() {
                     </div>
                   </div>
 
-                  {task.lastRunDiagnosis && (
+                  {(task.lastRunDiagnosis || task.lastRunOutput || task.lastRunAt) && (
                     <div className={`diagnosis-box ${task.lastRunStatus === 'SUCCESS' ? 'success' : task.lastRunStatus === 'FAILED' ? 'failed' : 'warning'}`}>
                       <strong>
                         {task.lastRunStatus === 'SUCCESS' ? (
                           <>
-                            <CheckCircle size={15} /> Status da Execução (Sucesso):
+                            <CheckCircle size={15} /> Última Execução (Sucesso):
                           </>
                         ) : task.lastRunStatus === 'FAILED' ? (
                           <>
-                            <XCircle size={15} /> Diagnóstico de Erro:
+                            <XCircle size={15} /> Falha na Execução:
                           </>
                         ) : (
                           <>
-                            <Warning size={15} /> Observação / Status:
+                            <Clock size={15} /> Execução Registrada:
                           </>
                         )}
                       </strong>
-                      <span>{task.lastRunDiagnosis}</span>
+
+                      {(task.lastRunOutput || task.lastRunDiagnosis) && (
+                        <div style={{
+                          background: 'rgba(0, 0, 0, 0.18)',
+                          borderRadius: 6,
+                          padding: '6px 10px',
+                          fontSize: '0.76rem',
+                          fontFamily: 'monospace',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          maxHeight: 70,
+                          overflowY: 'auto',
+                          marginTop: 4,
+                          color: 'var(--text)'
+                        }}>
+                          {task.lastRunOutput || task.lastRunDiagnosis}
+                        </div>
+                      )}
+
                       {task.lastRunError && task.lastRunStatus === 'FAILED' && (
                         <div className="error-details">
                           <strong>Sugestão de Correção:</strong>
@@ -638,11 +656,11 @@ export function CoworkView() {
 
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                         <SecondaryBadgeButton type="button" onClick={() => setSelectedOutputTask(task)}>
-                          <Eye size={14} /> Ver Último Retorno
+                          <Eye size={14} /> Ver Retorno Completo
                         </SecondaryBadgeButton>
 
                         <PrimaryBadgeButton type="button" onClick={() => handleViewLogs(task)}>
-                          <FileText size={14} /> Histórico & Logs de Execução
+                          <FileText size={14} /> Histórico & Logs
                         </PrimaryBadgeButton>
                       </div>
                     </div>

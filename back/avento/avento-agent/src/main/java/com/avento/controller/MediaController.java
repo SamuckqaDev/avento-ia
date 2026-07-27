@@ -39,13 +39,7 @@ public class MediaController {
                 : Paths.get(configuredMediaDirectory).toAbsolutePath().normalize();
     }
 
-    public record MediaAssetDto(
-            String id,
-            String name,
-            String filename,
-            String url,
-            String type,
-            String createdAt) {}
+    public record MediaAssetDto(String id, String name, String filename, String url, String type, String createdAt) {}
 
     @GetMapping
     public ResponseEntity<List<MediaAssetDto>> listMedia(
@@ -55,23 +49,24 @@ public class MediaController {
             return ResponseEntity.ok(Collections.emptyList());
         }
         List<GeneratedMediaAsset> assets = assetService.listForChat(chatId, principal.userId());
-        List<MediaAssetDto> dtos = assets.stream().map(a -> {
-            String filename = a.getFilename();
-            String type = "image";
-            if (filename != null) {
-                if (filename.startsWith("avento-video-")) type = "video";
-                else if (filename.startsWith("avento-doc-")) type = "document";
-                else if (filename.startsWith("avento-mockup-")) type = "artifact";
-            }
-            return new MediaAssetDto(
-                    String.valueOf(a.getId()),
-                    filename,
-                    filename,
-                    "/api/media/" + filename,
-                    type,
-                    a.getCreatedAt() != null ? a.getCreatedAt().toString() : ""
-            );
-        }).toList();
+        List<MediaAssetDto> dtos = assets.stream()
+                .map(a -> {
+                    String filename = a.getFilename();
+                    String type = "image";
+                    if (filename != null) {
+                        if (filename.startsWith("avento-video-")) type = "video";
+                        else if (filename.startsWith("avento-doc-")) type = "document";
+                        else if (filename.startsWith("avento-mockup-")) type = "artifact";
+                    }
+                    return new MediaAssetDto(
+                            String.valueOf(a.getId()),
+                            filename,
+                            filename,
+                            "/api/media/" + filename,
+                            type,
+                            a.getCreatedAt() != null ? a.getCreatedAt().toString() : "");
+                })
+                .toList();
         return ResponseEntity.ok(dtos);
     }
 
@@ -91,7 +86,8 @@ public class MediaController {
         String contentType = "image/png";
         if (filename.toLowerCase().endsWith(".webp")) {
             contentType = "image/webp";
-        } else if (filename.toLowerCase().endsWith(".jpg") || filename.toLowerCase().endsWith(".jpeg")) {
+        } else if (filename.toLowerCase().endsWith(".jpg")
+                || filename.toLowerCase().endsWith(".jpeg")) {
             contentType = "image/jpeg";
         } else if (filename.toLowerCase().endsWith(".mp4")) {
             contentType = "video/mp4";

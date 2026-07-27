@@ -1,7 +1,6 @@
 package com.avento.service;
 
 import java.awt.Dimension;
-import java.awt.GraphicsEnvironment;
 import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.event.InputEvent;

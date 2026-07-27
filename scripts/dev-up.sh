@@ -25,6 +25,8 @@ COMFYUI_IMAGE_AUTO_INSTALL="${AVENTO_COMFYUI_IMAGE_AUTO_INSTALL:-1}"
 COMFYUI_SDXL_AUTO_INSTALL="${AVENTO_COMFYUI_SDXL_AUTO_INSTALL:-1}"
 COMFYUI_FLUX2_AUTO_INSTALL="${AVENTO_COMFYUI_FLUX2_AUTO_INSTALL:-1}"
 COMFYUI_VIDEO_AUTO_INSTALL="${AVENTO_COMFYUI_VIDEO_AUTO_INSTALL:-1}"
+# Inferencia local. Para rodar na maquina dedicada da rede (libera os ~7GB do modelo neste Mac):
+# AVENTO_OLLAMA_URL=http://192.168.15.2:11434 ./scripts/dev-up.sh
 OLLAMA_URL="${AVENTO_OLLAMA_URL:-http://127.0.0.1:11434}"
 OLLAMA_AUTOSTART="${AVENTO_OLLAMA_AUTOSTART:-1}"
 # Quantized KV cache trims context RAM (q4_0/q8_0 compresses context VRAM by 4x-6x with negligible quality loss); needs flash
@@ -149,6 +151,18 @@ start_ollama() {
     warn "Ollama is not responding at $OLLAMA_URL and autostart is disabled"
     return 0
   fi
+
+  # Autostart so faz sentido para uma URL local: `OLLAMA_HOST=192.168.15.2:11434 ollama serve` nao
+  # tem como subir aqui — esse endereco e de outra maquina. Sem esta guarda o script tentava, o
+  # bind falhava e o erro real (host remoto fora do ar) ficava escondido atras de um timeout.
+  case "$OLLAMA_URL" in
+    *//127.0.0.1:* | *//localhost:* | *//0.0.0.0:*) ;;
+    *)
+      warn "Ollama remoto nao respondeu em $OLLAMA_URL — ligue a maquina de inferencia ou use"
+      warn "AVENTO_OLLAMA_URL=http://127.0.0.1:11434 para rodar o modelo neste Mac"
+      return 0
+      ;;
+  esac
 
   if ! command -v ollama >/dev/null 2>&1; then
     warn "Ollama command was not found; install Ollama or set AVENTO_OLLAMA_AUTOSTART=0"

@@ -77,8 +77,10 @@ public class ConversationContextCache {
 
     private ArrayNode rebuild(UUID userId, Long chatId) {
         List<Message> messages = messageRepository.findByChatIdOrderByTimestampAsc(chatId);
-        int limit = Math.max(30, properties.getContextMessageLimit());
-        int fromIndex = Math.max(0, messages.size() - limit);
+        // O limite vem da configuração (avento.execution.redis.context-message-limit). Um piso fixo
+        // aqui ignorava a config e enchia a janela de num_ctx com histórico, empurrando os schemas
+        // de ferramenta para fora do contexto — para mais histórico, aumente a propriedade.
+        int fromIndex = Math.max(0, messages.size() - properties.getContextMessageLimit());
         ArrayNode context = mapper.createArrayNode();
         for (Message message : messages.subList(fromIndex, messages.size())) {
             context.add(toModelMessage(message));

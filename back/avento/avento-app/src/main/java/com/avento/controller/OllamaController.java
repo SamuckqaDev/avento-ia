@@ -22,8 +22,7 @@ public class OllamaController {
     }
 
     @GetMapping("/models")
-    public ResponseEntity<BaseResponse<JsonNode>> getModels(
-            @AuthenticationPrincipal AuthPrincipal principal) {
+    public ResponseEntity<BaseResponse<JsonNode>> getModels(@AuthenticationPrincipal AuthPrincipal principal) {
         JsonNode models = providerService.listAvailableModels(principal != null ? principal.userId() : null);
         return ApiResponses.ok(models);
     }

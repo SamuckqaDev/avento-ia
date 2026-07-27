@@ -80,7 +80,10 @@ avento:
       run-inactivity-timeout: ${AVENTO_REDIS_RUN_INACTIVITY_TIMEOUT:6m}
       event-ttl: ${AVENTO_REDIS_EVENT_TTL:24h}
       context-ttl: ${AVENTO_REDIS_CONTEXT_TTL:24h}
-      context-message-limit: ${AVENTO_REDIS_CONTEXT_MESSAGE_LIMIT:20}
+      # 30 mensagens de histórico cabem agora que num_ctx subiu para 16384. Se o modelo começar a
+      # perder ferramentas de vista (histórico empurrando os schemas para fora da janela), baixe
+      # aqui — nunca com um piso fixo no código, que ignora esta propriedade.
+      context-message-limit: ${AVENTO_REDIS_CONTEXT_MESSAGE_LIMIT:30}
   image:
     provider: ${AVENTO_IMAGE_PROVIDER:comfyui}
     default-model: ${AVENTO_IMAGE_DEFAULT_MODEL:comfyui:RealVisXL_V5.0_fp16.safetensors}
@@ -242,7 +245,9 @@ spring:
       max-request-size: 50MB
   ai:
     ollama:
-      base-url: http://localhost:11434
+      # O dev-up.sh sobrescreve isto por linha de comando (AVENTO_OLLAMA_URL); este valor vale para
+      # quem sobe o app direto pela IDE.
+      base-url: ${AVENTO_OLLAMA_URL:http://127.0.0.1:11434}
       embedding:
         model: nomic-embed-text
         options:

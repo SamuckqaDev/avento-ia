@@ -38,9 +38,8 @@ public class ModelProviderService {
         this.redisTemplate = redisTemplateProvider.getIfAvailable();
         this.defaultOllamaUrl = defaultOllamaUrl;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .build();
+        this.httpClient =
+                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     }
 
     public ProviderSettingsResponse getSettings(UUID userId) {
@@ -77,14 +76,7 @@ public class ModelProviderService {
         }
 
         return new ProviderSettingsResponse(
-                systemUrl,
-                systemType,
-                systemModel,
-                usePersonalCloud,
-                cloudProvider,
-                cloudApiKeyMasked,
-                cloudModel
-        );
+                systemUrl, systemType, systemModel, usePersonalCloud, cloudProvider, cloudApiKeyMasked, cloudModel);
     }
 
     public ProviderSettingsResponse updateSettings(UUID userId, ProviderSettingsUpdateRequest request) {
@@ -95,30 +87,62 @@ public class ModelProviderService {
         if (redisTemplate != null) {
             // Update shared system LAN server if provided
             if (request.systemServerUrl() != null && !request.systemServerUrl().isBlank()) {
-                redisTemplate.opsForHash().put(SYS_KEY, "serverUrl", request.systemServerUrl().trim());
+                redisTemplate
+                        .opsForHash()
+                        .put(SYS_KEY, "serverUrl", request.systemServerUrl().trim());
             }
-            if (request.systemServerType() != null && !request.systemServerType().isBlank()) {
-                redisTemplate.opsForHash().put(SYS_KEY, "serverType", request.systemServerType().trim());
+            if (request.systemServerType() != null
+                    && !request.systemServerType().isBlank()) {
+                redisTemplate
+                        .opsForHash()
+                        .put(SYS_KEY, "serverType", request.systemServerType().trim());
             }
-            if (request.systemDefaultModel() != null && !request.systemDefaultModel().isBlank()) {
-                redisTemplate.opsForHash().put(SYS_KEY, "defaultModel", request.systemDefaultModel().trim());
+            if (request.systemDefaultModel() != null
+                    && !request.systemDefaultModel().isBlank()) {
+                redisTemplate
+                        .opsForHash()
+                        .put(
+                                SYS_KEY,
+                                "defaultModel",
+                                request.systemDefaultModel().trim());
             }
 
             // Update user cloud settings
             if (userId != null) {
                 String uKey = userKey(userId);
                 if (request.usePersonalCloud() != null) {
-                    redisTemplate.opsForHash().put(uKey, "usePersonalCloud", request.usePersonalCloud().toString());
+                    redisTemplate
+                            .opsForHash()
+                            .put(
+                                    uKey,
+                                    "usePersonalCloud",
+                                    request.usePersonalCloud().toString());
                 }
                 if (request.personalCloudProvider() != null) {
-                    redisTemplate.opsForHash().put(uKey, "cloudProvider", request.personalCloudProvider().trim());
+                    redisTemplate
+                            .opsForHash()
+                            .put(
+                                    uKey,
+                                    "cloudProvider",
+                                    request.personalCloudProvider().trim());
                 }
-                if (request.personalCloudApiKey() != null && !request.personalCloudApiKey().isBlank()
+                if (request.personalCloudApiKey() != null
+                        && !request.personalCloudApiKey().isBlank()
                         && !request.personalCloudApiKey().contains("••••")) {
-                    redisTemplate.opsForHash().put(uKey, "cloudApiKey", request.personalCloudApiKey().trim());
+                    redisTemplate
+                            .opsForHash()
+                            .put(
+                                    uKey,
+                                    "cloudApiKey",
+                                    request.personalCloudApiKey().trim());
                 }
                 if (request.personalCloudModel() != null) {
-                    redisTemplate.opsForHash().put(uKey, "cloudModel", request.personalCloudModel().trim());
+                    redisTemplate
+                            .opsForHash()
+                            .put(
+                                    uKey,
+                                    "cloudModel",
+                                    request.personalCloudModel().trim());
                 }
             }
         }
@@ -185,7 +209,8 @@ public class ModelProviderService {
 
         ObjectNode root = objectMapper.createObjectNode();
         ArrayNode fallback = objectMapper.createArrayNode();
-        fallback.add(createModelNode(settings.systemDefaultModel(), settings.systemDefaultModel() + " (" + activeUrl + ")"));
+        fallback.add(
+                createModelNode(settings.systemDefaultModel(), settings.systemDefaultModel() + " (" + activeUrl + ")"));
         root.set("data", fallback);
         return root;
     }
@@ -208,8 +233,8 @@ public class ModelProviderService {
 
     private ProviderTestResponse testLanServer(String baseUrl, String serverType, long startTimeMs) {
         try {
-            String endpoint = baseUrl.replaceAll("/+$", "") +
-                    ("OPENAI_COMPATIBLE".equalsIgnoreCase(serverType) ? "/v1/models" : "/api/tags");
+            String endpoint = baseUrl.replaceAll("/+$", "")
+                    + ("OPENAI_COMPATIBLE".equalsIgnoreCase(serverType) ? "/v1/models" : "/api/tags");
 
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint))
@@ -221,9 +246,11 @@ public class ModelProviderService {
             long latency = System.currentTimeMillis() - startTimeMs;
 
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                return new ProviderTestResponse(true, "Conectado ao servidor da rede local (" + latency + "ms)", latency);
+                return new ProviderTestResponse(
+                        true, "Conectado ao servidor da rede local (" + latency + "ms)", latency);
             } else {
-                return new ProviderTestResponse(false, "Servidor respondeu com código HTTP " + response.statusCode(), latency);
+                return new ProviderTestResponse(
+                        false, "Servidor respondeu com código HTTP " + response.statusCode(), latency);
             }
         } catch (Exception exception) {
             long latency = System.currentTimeMillis() - startTimeMs;
@@ -254,7 +281,8 @@ public class ModelProviderService {
             }
         } catch (Exception exception) {
             long latency = System.currentTimeMillis() - startTimeMs;
-            return new ProviderTestResponse(false, "Erro de rede ao validar chave Cloud: " + exception.getMessage(), latency);
+            return new ProviderTestResponse(
+                    false, "Erro de rede ao validar chave Cloud: " + exception.getMessage(), latency);
         }
     }
 

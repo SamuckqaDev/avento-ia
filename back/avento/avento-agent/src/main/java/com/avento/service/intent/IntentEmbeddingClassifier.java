@@ -125,7 +125,8 @@ public class IntentEmbeddingClassifier {
             for (var entry : counts) {
                 AgentIntent intent = entry.getKey();
                 int size = entry.getValue();
-                List<float[]> vectors = new ArrayList<>(allVectors.subList(cursor, Math.min(allVectors.size(), cursor + size)));
+                List<float[]> vectors =
+                        new ArrayList<>(allVectors.subList(cursor, Math.min(allVectors.size(), cursor + size)));
                 embedded.put(intent, vectors);
                 cursor += size;
             }

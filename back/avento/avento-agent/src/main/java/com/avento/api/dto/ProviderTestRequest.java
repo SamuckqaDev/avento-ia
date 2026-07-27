@@ -5,5 +5,4 @@ public record ProviderTestRequest(
         String serverUrl,
         String serverType,
         String apiKey,
-        String modelName
-) {}
+        String modelName) {}

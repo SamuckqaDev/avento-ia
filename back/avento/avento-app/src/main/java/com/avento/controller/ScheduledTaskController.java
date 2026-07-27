@@ -2,6 +2,8 @@ package com.avento.controller;
 
 import com.avento.auth.security.AuthPrincipal;
 import com.avento.model.ScheduledTask;
+import com.avento.model.ScheduledTaskRun;
+import com.avento.repository.ScheduledTaskRunRepository;
 import com.avento.service.execution.CronTaskScheduler;
 import com.avento.service.execution.ScheduledTaskService;
 import java.util.List;
@@ -15,9 +17,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.avento.model.ScheduledTaskRun;
-import com.avento.repository.ScheduledTaskRunRepository;
 
 @RestController
 @RequestMapping("/api/scheduled-tasks")
@@ -64,7 +63,8 @@ public class ScheduledTaskController {
     public ResponseEntity<ScheduledTask> getTask(
             @PathVariable("id") Long id, @AuthenticationPrincipal AuthPrincipal principal) {
         if (principal == null) return ResponseEntity.status(401).build();
-        return taskService.getTask(id, principal.userId())
+        return taskService
+                .getTask(id, principal.userId())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -115,7 +115,8 @@ public class ScheduledTaskController {
     public ResponseEntity<ScheduledTask> runNow(
             @PathVariable("id") Long id, @AuthenticationPrincipal AuthPrincipal principal) {
         if (principal == null) return ResponseEntity.status(401).build();
-        ScheduledTask task = taskService.getTask(id, principal.userId())
+        ScheduledTask task = taskService
+                .getTask(id, principal.userId())
                 .orElseThrow(() -> new IllegalArgumentException("Tarefa não encontrada"));
         cronTaskScheduler.executeScheduledTask(task);
         return ResponseEntity.ok(task);
@@ -125,7 +126,8 @@ public class ScheduledTaskController {
     public ResponseEntity<List<ScheduledTaskRun>> getTaskRuns(
             @PathVariable("id") Long id, @AuthenticationPrincipal AuthPrincipal principal) {
         if (principal == null) return ResponseEntity.status(401).build();
-        taskService.getTask(id, principal.userId())
+        taskService
+                .getTask(id, principal.userId())
                 .orElseThrow(() -> new IllegalArgumentException("Tarefa não encontrada"));
         return ResponseEntity.ok(runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(id));
     }

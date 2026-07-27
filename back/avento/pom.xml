@@ -42,6 +42,13 @@
             <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
+        <!-- JUnit 5, Mockito e AssertJ para todos os modulos: a suite de testes vive junto do
+             codigo que ela cobre, entao a dependencia pertence ao pai e nao a cada modulo. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>

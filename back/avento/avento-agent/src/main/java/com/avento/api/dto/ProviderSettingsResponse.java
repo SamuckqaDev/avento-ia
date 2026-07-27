@@ -7,5 +7,4 @@ public record ProviderSettingsResponse(
         boolean usePersonalCloud,
         String personalCloudProvider,
         String personalCloudApiKeyMasked,
-        String personalCloudModel
-) {}
+        String personalCloudModel) {}

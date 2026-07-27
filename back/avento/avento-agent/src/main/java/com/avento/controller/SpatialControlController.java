@@ -24,7 +24,8 @@ public class SpatialControlController {
     public ResponseEntity<Map<String, Object>> handleClick(@RequestBody SpatialClickRequest request) {
         boolean isDouble = Boolean.TRUE.equals(request.isDouble());
         boolean isRight = Boolean.TRUE.equals(request.isRight());
-        boolean success = spatialControlService.executeSpatialClick(request.xRatio(), request.yRatio(), isDouble, isRight);
+        boolean success =
+                spatialControlService.executeSpatialClick(request.xRatio(), request.yRatio(), isDouble, isRight);
         return ResponseEntity.ok(Map.of("success", success));
     }
 
@@ -36,7 +37,8 @@ public class SpatialControlController {
 
     @PostMapping("/drag")
     public ResponseEntity<Map<String, Object>> handleDrag(@RequestBody SpatialDragRequest request) {
-        boolean success = spatialControlService.executeSpatialDrag(request.xRatio(), request.yRatio(), request.isDown());
+        boolean success =
+                spatialControlService.executeSpatialDrag(request.xRatio(), request.yRatio(), request.isDown());
         return ResponseEntity.ok(Map.of("success", success));
     }
 

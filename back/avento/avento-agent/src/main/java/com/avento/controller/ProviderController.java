@@ -36,9 +36,9 @@ public class ProviderController {
 
     @PutMapping
     public ResponseEntity<BaseResponse<ProviderSettingsResponse>> updateProviderSettings(
-            @RequestBody ProviderSettingsUpdateRequest request,
-            @AuthenticationPrincipal AuthPrincipal principal) {
-        ProviderSettingsResponse settings = providerService.updateSettings(principal != null ? principal.userId() : null, request);
+            @RequestBody ProviderSettingsUpdateRequest request, @AuthenticationPrincipal AuthPrincipal principal) {
+        ProviderSettingsResponse settings =
+                providerService.updateSettings(principal != null ? principal.userId() : null, request);
         return ApiResponses.ok(settings);
     }
 

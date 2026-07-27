@@ -30,6 +30,8 @@ class AgentServiceQuotaHintTest {
         assertThat(hint).contains("gemini-3.1-pro-preview");
         assertThat(hint).contains("zero");
         assertThat(hint).contains("faturamento");
+        // O criterio pratico separa os dois grupos: pro exige faturamento, flash e do tier livre.
+        assertThat(hint).contains("flash");
         assertThat(hint).doesNotContain("tente de novo");
     }
 

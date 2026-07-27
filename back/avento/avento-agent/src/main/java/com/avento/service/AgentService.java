@@ -2599,7 +2599,19 @@ public class AgentService implements AgentExecutionEngine {
             return;
         }
 
-        logger.warn("Model stream failed for {}", model, error);
+        // Resposta HTTP de erro nao precisa de stack trace: o Reactor despeja dezenas de linhas de
+        // operador interno que nao dizem nada sobre a causa, e enterram o unico dado util — status e
+        // corpo. Um 429 esperado enchia o log de ruido.
+        if (error instanceof WebClientResponseException httpError) {
+            String body = httpError.getResponseBodyAsString();
+            logger.warn(
+                    "Model stream failed for {}: HTTP {} {}",
+                    model,
+                    httpError.getStatusCode().value(),
+                    body.length() > 300 ? body.substring(0, 300) + "…" : body);
+        } else {
+            logger.warn("Model stream failed for {}", model, error);
+        }
 
         String message = "Falha ao conversar com a IA.";
         if (error instanceof TimeoutException) {
@@ -2632,6 +2644,10 @@ public class AgentService implements AgentExecutionEngine {
         }
         if (remote && message.contains("429")) {
             sink.next(contentChunk(quotaHint(message, model)));
+            // Cota zero significa "escolha outro" — e sem a lista, escolher e tentativa e erro.
+            if (message.contains("limit: 0")) {
+                sink.next(contentChunk(availableModelsHint(state.userId)));
+            }
         }
         sink.complete();
     }
@@ -2654,8 +2670,10 @@ public class AgentService implements AgentExecutionEngine {
 
         if (semCota) {
             return "\n> ⚠️ O modelo `" + model + "` tem cota **zero** no seu plano — nao e limite"
-                    + " atingido, e modelo indisponivel na conta. Habilite faturamento no Google ou"
-                    + " escolha outro modelo em Configuracoes > Modelos & Provedores.\n";
+                    + " atingido, e modelo indisponivel na conta. No Gemini, os modelos **pro**"
+                    + " costumam exigir faturamento habilitado; os **flash** sao os do plano"
+                    + " gratuito. Troque em Configuracoes > Modelos & Provedores, ou habilite"
+                    + " faturamento no Google.\n";
         }
         return "\n> ⚠️ Limite de uso do provedor atingido"
                 + (espera.isBlank() ? "" : "; tente de novo em " + espera + "s")

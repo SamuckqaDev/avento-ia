@@ -4,6 +4,8 @@ import com.avento.api.dto.ProviderSettingsResponse;
 import com.avento.api.dto.ProviderSettingsUpdateRequest;
 import com.avento.api.dto.ProviderTestRequest;
 import com.avento.api.dto.ProviderTestResponse;
+import com.avento.model.ProviderSettings;
+import com.avento.repository.ProviderSettingsRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -22,22 +24,30 @@ import org.springframework.stereotype.Service;
 @Service
 public class ModelProviderService {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ModelProviderService.class);
+
     private static final String SYS_KEY = "avento:system:ai_server";
-    private static final String USER_KEY_PREFIX = "avento:user:";
-    private static final String USER_KEY_SUFFIX = ":cloud_provider";
 
     private final StringRedisTemplate redisTemplate;
     private final String defaultOllamaUrl;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    // Postgres e a verdade; o Redis fica como cache na frente. A chave de API vivia so no Redis, que
+    // nao persiste — o usuario tinha de reconfigura-la a cada restart do container.
+    private final ProviderSettingsRepository repository;
+    private final SecretCipher cipher;
 
     public ModelProviderService(
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
             @Value("${spring.ai.ollama.base-url:http://127.0.0.1:11434}") String defaultOllamaUrl,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ObjectProvider<ProviderSettingsRepository> repositoryProvider,
+            ObjectProvider<SecretCipher> cipherProvider) {
         this.redisTemplate = redisTemplateProvider.getIfAvailable();
         this.defaultOllamaUrl = defaultOllamaUrl;
         this.objectMapper = objectMapper;
+        this.repository = repositoryProvider == null ? null : repositoryProvider.getIfAvailable();
+        this.cipher = cipherProvider == null ? null : cipherProvider.getIfAvailable();
         this.httpClient =
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     }
@@ -52,26 +62,18 @@ public class ModelProviderService {
         String cloudApiKeyMasked = "";
         String cloudModel = "gemini-2.5-flash";
 
-        if (userId != null && redisTemplate != null) {
-            String userKey = userKey(userId);
-            Object useCloudRaw = redisTemplate.opsForHash().get(userKey, "usePersonalCloud");
-            if (useCloudRaw != null) {
-                usePersonalCloud = Boolean.parseBoolean(useCloudRaw.toString());
+        ProviderSettings stored = findStored(userId);
+        if (stored != null) {
+            usePersonalCloud = stored.isUsePersonalCloud();
+            if (stored.getCloudProvider() != null && !stored.getCloudProvider().isBlank()) {
+                cloudProvider = stored.getCloudProvider();
             }
-
-            Object provRaw = redisTemplate.opsForHash().get(userKey, "cloudProvider");
-            if (provRaw != null) {
-                cloudProvider = provRaw.toString();
+            if (stored.getCloudModel() != null && !stored.getCloudModel().isBlank()) {
+                cloudModel = stored.getCloudModel();
             }
-
-            Object keyRaw = redisTemplate.opsForHash().get(userKey, "cloudApiKey");
-            if (keyRaw != null && !keyRaw.toString().isBlank()) {
-                cloudApiKeyMasked = maskApiKey(keyRaw.toString());
-            }
-
-            Object modelRaw = redisTemplate.opsForHash().get(userKey, "cloudModel");
-            if (modelRaw != null) {
-                cloudModel = modelRaw.toString();
+            String plainKey = decryptedKey(stored);
+            if (!plainKey.isBlank()) {
+                cloudApiKeyMasked = maskApiKey(plainKey);
             }
         }
 
@@ -106,46 +108,9 @@ public class ModelProviderService {
                                 "defaultModel",
                                 request.systemDefaultModel().trim());
             }
-
-            // Update user cloud settings
-            if (userId != null) {
-                String uKey = userKey(userId);
-                if (request.usePersonalCloud() != null) {
-                    redisTemplate
-                            .opsForHash()
-                            .put(
-                                    uKey,
-                                    "usePersonalCloud",
-                                    request.usePersonalCloud().toString());
-                }
-                if (request.personalCloudProvider() != null) {
-                    redisTemplate
-                            .opsForHash()
-                            .put(
-                                    uKey,
-                                    "cloudProvider",
-                                    request.personalCloudProvider().trim());
-                }
-                if (request.personalCloudApiKey() != null
-                        && !request.personalCloudApiKey().isBlank()
-                        && !request.personalCloudApiKey().contains("••••")) {
-                    redisTemplate
-                            .opsForHash()
-                            .put(
-                                    uKey,
-                                    "cloudApiKey",
-                                    request.personalCloudApiKey().trim());
-                }
-                if (request.personalCloudModel() != null) {
-                    redisTemplate
-                            .opsForHash()
-                            .put(
-                                    uKey,
-                                    "cloudModel",
-                                    request.personalCloudModel().trim());
-                }
-            }
         }
+
+        persistCloudSettings(userId, request);
 
         return getSettings(userId);
     }
@@ -222,6 +187,64 @@ public class ModelProviderService {
      * ({@code /api/chat}, corpo no formato nativo), entao escolher Gemini nao muda para onde a
      * requisicao vai — e sem aviso o usuario recebe o modelo local achando que falou com a nuvem.
      */
+    private ProviderSettings findStored(UUID userId) {
+        if (userId == null || repository == null) {
+            return null;
+        }
+        try {
+            return repository.findById(userId).orElse(null);
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private String decryptedKey(ProviderSettings stored) {
+        if (stored == null || cipher == null) {
+            return "";
+        }
+        return cipher.decrypt(stored.getCloudApiKeyEncrypted());
+    }
+
+    /**
+     * Grava a configuracao de nuvem no banco. Campo nulo significa "nao mexi": manter o que estava e
+     * o que permite salvar so o modelo sem apagar a chave.
+     *
+     * <p>O valor mascarado que a tela devolve (com marcadores) nunca e regravado como chave — senao
+     * um "salvar" sem editar a chave a destruiria.
+     */
+    private void persistCloudSettings(UUID userId, ProviderSettingsUpdateRequest request) {
+        if (userId == null || repository == null || request == null) {
+            return;
+        }
+        try {
+            ProviderSettings stored = repository.findById(userId).orElseGet(() -> new ProviderSettings(userId));
+            if (request.usePersonalCloud() != null) {
+                stored.setUsePersonalCloud(request.usePersonalCloud());
+            }
+            if (request.personalCloudProvider() != null) {
+                stored.setCloudProvider(request.personalCloudProvider().trim());
+            }
+            if (request.personalCloudModel() != null) {
+                stored.setCloudModel(request.personalCloudModel().trim());
+            }
+            if (isRealApiKey(request.personalCloudApiKey()) && cipher != null) {
+                stored.setCloudApiKeyEncrypted(
+                        cipher.encrypt(request.personalCloudApiKey().trim()));
+            }
+            repository.save(stored);
+        } catch (RuntimeException exception) {
+            // Nunca inclui a chave na mensagem.
+            logger.warn(
+                    "Falha ao gravar a configuracao de provedor: {}",
+                    exception.getClass().getSimpleName());
+        }
+    }
+
+    /** Falso para vazio e para o valor mascarado que a propria tela devolve. */
+    static boolean isRealApiKey(String candidate) {
+        return candidate != null && !candidate.isBlank() && !candidate.contains("\u2022");
+    }
+
     public boolean cloudProviderSelected(UUID userId) {
         if (userId == null) {
             return false;
@@ -254,15 +277,7 @@ public class ModelProviderService {
      * pode voltar para o cliente nem entrar em log. Existe porque a chamada ao provedor precisa dela.
      */
     public String rawCloudApiKey(UUID userId) {
-        if (userId == null || redisTemplate == null) {
-            return "";
-        }
-        try {
-            Object raw = redisTemplate.opsForHash().get(userKey(userId), "cloudApiKey");
-            return raw == null ? "" : raw.toString();
-        } catch (RuntimeException exception) {
-            return "";
-        }
+        return decryptedKey(findStored(userId));
     }
 
     /** Modelo de nuvem escolhido, ex.: {@code gemini-2.5-flash}. */
@@ -358,10 +373,6 @@ public class ModelProviderService {
         } catch (Exception exception) {
             return fallback;
         }
-    }
-
-    private String userKey(UUID userId) {
-        return USER_KEY_PREFIX + userId + USER_KEY_SUFFIX;
     }
 
     private String maskApiKey(String key) {

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -18,12 +19,18 @@ import org.springframework.stereotype.Service;
 public class WorkspaceAccessService {
 
     private static final String LOCAL_SCOPE = "local";
+    private static final String WORKSPACE_PLACEHOLDER_PREFIX = "/workspace/";
 
     private final Map<String, Set<Path>> workspaceRoots = new ConcurrentHashMap<>();
     private ToolExecutionContext executionContext;
 
     @Value("${avento.workspace.default-root:}")
     private String defaultWorkspaceRoot;
+
+    // Autoriza o diretório de trabalho do processo quando nenhuma raiz foi registrada. Só existe
+    // como escape manual de depuração; em uso normal a pasta vem da conversa ou da tarefa.
+    @Value("${avento.workspace.allow-working-directory-fallback:false}")
+    private boolean allowWorkingDirectoryFallback;
 
     public WorkspaceAccessService() {}
 
@@ -57,20 +64,45 @@ public class WorkspaceAccessService {
 
     public Path requireAuthorized(UUID userId, String path) {
         Set<Path> roots = authorizedRoots(userId);
-        if (path == null || path.isBlank() || ".".equals(path) || "./".equals(path) || "/workspace".equals(path) || path.startsWith("/workspace/")) {
-            if (!roots.isEmpty()) {
-                return roots.iterator().next();
-            }
+        Path primaryRoot = roots.isEmpty() ? null : roots.iterator().next();
+
+        // O modelo escreve caminhos-marcador em vez do caminho real com frequência ("." , "/workspace").
+        // Resolvê-los para a raiz do projeto é correto — resolver "." pelo diretório do processo
+        // apontaria para o código do próprio Avento.
+        if (primaryRoot != null && isWorkspacePlaceholder(path)) {
+            return primaryRoot;
         }
-        Path target = normalizePath(path);
-        boolean allowed = roots.stream().anyMatch(root -> target.startsWith(root) || root.startsWith(target));
-        if (!allowed) {
-            if (!roots.isEmpty()) {
-                return roots.iterator().next();
+        // "/workspace/src/App.tsx" -> "<raiz>/src/App.tsx". Antes o prefixo inteiro virava a raiz,
+        // então uma escrita em /workspace/src/App.tsx caía na própria pasta raiz.
+        if (primaryRoot != null && path != null && path.startsWith(WORKSPACE_PLACEHOLDER_PREFIX)) {
+            Path resolved = primaryRoot
+                    .resolve(path.substring(WORKSPACE_PLACEHOLDER_PREFIX.length()))
+                    .normalize();
+            if (!resolved.startsWith(primaryRoot)) {
+                throw new SecurityException("Path escapes the workspace root: " + path);
             }
+            return resolved;
+        }
+
+        Path target = normalizePath(path);
+        // Somente descendentes de uma raiz autorizada. A checagem inversa (root.startsWith(target))
+        // autorizava qualquer PAI da raiz — com raiz /Users/x/projeto, "/Users" e "/" passavam.
+        boolean allowed = roots.stream().anyMatch(target::startsWith);
+        if (!allowed) {
+            // Negar é o contrato deste método. Devolver a raiz aqui transformava um caminho fora do
+            // workspace numa operação sobre a raiz: delete_directory("/fora") apagava o projeto.
             throw new SecurityException("Path is outside the authorized workspace roots: " + path);
         }
         return target;
+    }
+
+    private boolean isWorkspacePlaceholder(String path) {
+        return path == null
+                || path.isBlank()
+                || ".".equals(path)
+                || "./".equals(path)
+                || "/workspace".equals(path)
+                || "/workspace/".equals(path);
     }
 
     public void clearUser(UUID userId) {
@@ -103,20 +135,28 @@ public class WorkspaceAccessService {
             authorized.addAll(roots(LOCAL_SCOPE));
         } else {
             authorized.addAll(roots(scopeFor(userId)));
-            if (executionContext != null && userId.equals(executionContext.current().userId())) {
+            if (executionContext != null
+                    && userId.equals(executionContext.current().userId())) {
                 authorized.addAll(roots(executionContext.current().scopeKey()));
             }
         }
-        if (authorized.isEmpty()) {
+        if (authorized.isEmpty() && allowWorkingDirectoryFallback) {
+            // Desligado por padrão: o diretório do processo é o código-fonte do próprio Avento, e
+            // autorizá-lo em silêncio deixou uma tarefa autônoma escrever arquivos dentro do repo.
             try {
-                Path userDir = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
+                Path userDir = Paths.get(System.getProperty("user.dir"))
+                        .toAbsolutePath()
+                        .normalize();
                 if (Files.exists(userDir)) {
                     authorized.add(userDir.toRealPath());
                 }
             } catch (IOException ignored) {
             }
         }
-        return Set.copyOf(authorized);
+        // Ordem de inserção preservada: requireAuthorized resolve "." e "/workspace" pela PRIMEIRA
+        // raiz. Set.copyOf tem ordem não especificada, então com dois projetos abertos o marcador
+        // caía num projeto arbitrário, podendo mudar entre execuções.
+        return Collections.unmodifiableSet(authorized);
     }
 
     private Set<Path> roots(String scope) {

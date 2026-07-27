@@ -3,6 +3,7 @@ package com.avento.service.execution;
 import com.avento.config.RedisExecutionProperties;
 import com.avento.model.AgentRunJob;
 import com.avento.repository.AgentRunJobRepository;
+import com.avento.service.WorkspaceAccessService;
 import com.avento.service.context.ConversationContextCache;
 import com.avento.service.dto.AgentRunSnapshot;
 import com.avento.service.image.ImageGenerationOptions;
@@ -59,6 +60,7 @@ public class AgentRunWorker {
     private final com.avento.repository.ScheduledTaskRunRepository runRepository;
     private final com.avento.service.AgentTimelineService timelineService;
     private final com.avento.service.execution.CronTaskScheduler cronTaskScheduler;
+    private final WorkspaceAccessService workspaceAccessService;
     private final String consumerName = "agent-" + UUID.randomUUID().toString().substring(0, 8);
     private final AtomicBoolean queueFailureLogged = new AtomicBoolean();
 
@@ -76,7 +78,8 @@ public class AgentRunWorker {
             com.avento.repository.ScheduledTaskRepository scheduledTaskRepository,
             com.avento.repository.ScheduledTaskRunRepository runRepository,
             com.avento.service.AgentTimelineService timelineService,
-            com.avento.service.execution.CronTaskScheduler cronTaskScheduler) {
+            com.avento.service.execution.CronTaskScheduler cronTaskScheduler,
+            WorkspaceAccessService workspaceAccessService) {
         this.jobRepository = jobRepository;
         this.submissionService = submissionService;
         this.cancellationRegistry = cancellationRegistry;
@@ -91,6 +94,7 @@ public class AgentRunWorker {
         this.runRepository = runRepository;
         this.timelineService = timelineService;
         this.cronTaskScheduler = cronTaskScheduler;
+        this.workspaceAccessService = workspaceAccessService;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -187,12 +191,30 @@ public class AgentRunWorker {
                 requestMessages.add(userMsg);
             }
             ArrayNode messages = contextCache.resolve(job.getUserId(), job.getChatId(), requestMessages);
-            List<String> workspaceRoots = stringList(request.path("workspaceRoots"));
-            if (workspaceRoots.isEmpty() && request.hasNonNull("projectPath") && !request.path("projectPath").asText().isBlank()) {
-                workspaceRoots = List.of(request.path("projectPath").asText());
+            List<String> requestedRoots = stringList(request.path("workspaceRoots"));
+            if (requestedRoots.isEmpty()
+                    && request.hasNonNull("projectPath")
+                    && !request.path("projectPath").asText().isBlank()) {
+                requestedRoots = List.of(request.path("projectPath").asText());
             }
-            if (workspaceRoots.isEmpty()) {
-                workspaceRoots = List.of(System.getProperty("user.dir"));
+            // Autoriza as pastas no sandbox ANTES de executar. Sem esta etapa o agente recebe os
+            // caminhos no prompt mas o WorkspaceAccessService não tem nada registrado para este
+            // usuário, e toda ferramenta de arquivo/terminal falha com SecurityException — foi
+            // exatamente o erro de permissão das tarefas do Cowork. O fluxo de chat já fazia isso
+            // em LocalAiOrchestratorController.registerWorkspaceRoots; o worker não.
+            List<String> workspaceRoots = registerWorkspaceRoots(job.getUserId(), requestedRoots);
+            // Sem pasta válida, só a TAREFA AGENDADA falha: ela existe para agir sobre um projeto,
+            // então rodar sem pasta gastaria uma execução para nada e esconderia a má configuração.
+            // Uma conversa comum sem projeto conectado é caso normal e segue sem raiz nenhuma — as
+            // ferramentas de arquivo nem chegam a ser expostas, e o sandbox continua negando tudo.
+            boolean isScheduledTask = request.path("taskId").asLong(0L) > 0L;
+            if (workspaceRoots.isEmpty() && isScheduledTask) {
+                throw new IllegalStateException(
+                        requestedRoots.isEmpty()
+                                ? "Esta tarefa não tem pasta de projeto definida. Abra o Cowork, edite a tarefa"
+                                        + " e selecione a pasta em que ela deve rodar."
+                                : "Nenhuma das pastas configuradas para esta tarefa existe mais: " + requestedRoots
+                                        + ". Atualize a pasta da tarefa no Cowork.");
             }
             ImageGenerationOptions imageOptions = ImageGenerationOptions.from(request.path("imageOptions"));
             // Restricts this run's toolset to the agent's allow-list, if the plan sent one.
@@ -256,19 +278,27 @@ public class AgentRunWorker {
                         for (com.avento.model.AgentTimelineEvent e : events) {
                             if (e.getDetail() != null && !e.getDetail().isBlank()) {
                                 sb.append("[").append(e.getEventType()).append("] ");
-                                if (e.getToolName() != null) sb.append(e.getToolName()).append(": ");
+                                if (e.getToolName() != null)
+                                    sb.append(e.getToolName()).append(": ");
                                 sb.append(e.getDetail()).append("\n");
                             } else if (e.getPayload() != null && !e.getPayload().isBlank()) {
-                                sb.append("[").append(e.getEventType()).append("] ").append(e.getPayload()).append("\n");
+                                sb.append("[")
+                                        .append(e.getEventType())
+                                        .append("] ")
+                                        .append(e.getPayload())
+                                        .append("\n");
                             }
                         }
                     }
 
-                    ArrayNode finalMessages = contextCache.resolve(job.getUserId(), job.getChatId(), mapper.createArrayNode());
+                    ArrayNode finalMessages =
+                            contextCache.resolve(job.getUserId(), job.getChatId(), mapper.createArrayNode());
                     if (finalMessages != null && !finalMessages.isEmpty()) {
                         for (int i = finalMessages.size() - 1; i >= 0; i--) {
                             JsonNode msg = finalMessages.get(i);
-                            if ("assistant".equalsIgnoreCase(msg.path("role").asText()) && msg.hasNonNull("content") && !msg.path("content").asText().isBlank()) {
+                            if ("assistant".equalsIgnoreCase(msg.path("role").asText())
+                                    && msg.hasNonNull("content")
+                                    && !msg.path("content").asText().isBlank()) {
                                 if (sb.length() > 0) sb.append("\n--- Resposta / Análise do Agente ---\n");
                                 sb.append(msg.path("content").asText());
                                 break;
@@ -276,30 +306,43 @@ public class AgentRunWorker {
                         }
                     }
 
-                    String outputToSave = sb.length() > 0 ? sb.toString() : "Execução autônoma concluída com sucesso pelo motor de IA do Avento.";
+                    String outputToSave = sb.length() > 0
+                            ? sb.toString()
+                            : "Execução autônoma concluída com sucesso pelo motor de IA do Avento.";
                     Long targetTaskId = request.path("taskId").asLong(0L);
 
                     if (targetTaskId > 0) {
                         scheduledTaskRepository.findById(targetTaskId).ifPresent(t -> {
                             t.setLastRunOutput(outputToSave);
-                            t.setLastRunDiagnosis("Execução autônoma concluída com sucesso às " + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")));
+                            t.setLastRunDiagnosis("Execução autônoma concluída com sucesso às "
+                                    + java.time.LocalTime.now()
+                                            .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")));
                             scheduledTaskRepository.save(t);
 
                             // Workflows Encadeados (Disparo de Tarefa Dependente)
                             if (t.getOnSuccessTaskId() != null && t.getOnSuccessTaskId() > 0) {
-                                scheduledTaskRepository.findById(t.getOnSuccessTaskId()).ifPresent(nextTask -> {
-                                    logger.info("Disparando tarefa encadeada dependente ID {} ({}) pós-sucesso da tarefa {}",
-                                            nextTask.getId(), nextTask.getName(), t.getId());
-                                    try {
-                                        cronTaskScheduler.executeScheduledTask(nextTask);
-                                    } catch (Exception ex) {
-                                        logger.warn("Erro ao disparar tarefa encadeada {}: {}", nextTask.getId(), ex.getMessage());
-                                    }
-                                });
+                                scheduledTaskRepository
+                                        .findById(t.getOnSuccessTaskId())
+                                        .ifPresent(nextTask -> {
+                                            logger.info(
+                                                    "Disparando tarefa encadeada dependente ID {} ({}) pós-sucesso da tarefa {}",
+                                                    nextTask.getId(),
+                                                    nextTask.getName(),
+                                                    t.getId());
+                                            try {
+                                                cronTaskScheduler.executeScheduledTask(nextTask);
+                                            } catch (Exception ex) {
+                                                logger.warn(
+                                                        "Erro ao disparar tarefa encadeada {}: {}",
+                                                        nextTask.getId(),
+                                                        ex.getMessage());
+                                            }
+                                        });
                             }
                         });
 
-                        List<com.avento.model.ScheduledTaskRun> runs = runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(targetTaskId);
+                        List<com.avento.model.ScheduledTaskRun> runs =
+                                runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(targetTaskId);
                         if (!runs.isEmpty()) {
                             com.avento.model.ScheduledTaskRun latestRun = runs.get(0);
                             latestRun.setOutput(outputToSave);
@@ -412,6 +455,24 @@ public class AgentRunWorker {
             });
         }
         return List.copyOf(values);
+    }
+
+    /**
+     * Registra as pastas da tarefa no sandbox e devolve as que realmente existem. Espelha
+     * {@code LocalAiOrchestratorController.registerWorkspaceRoots} — uma pasta apagada desde que a
+     * tarefa foi criada é ignorada em vez de derrubar a execução inteira.
+     */
+    private List<String> registerWorkspaceRoots(UUID userId, List<String> requestedRoots) {
+        List<String> registered = new ArrayList<>();
+        for (String root : requestedRoots) {
+            try {
+                workspaceAccessService.registerWorkspaceRoot(userId, root);
+                registered.add(root);
+            } catch (IllegalArgumentException staleRoot) {
+                logger.warn("Pasta configurada na tarefa não pôde ser autorizada: {}", root);
+            }
+        }
+        return List.copyOf(registered);
     }
 
     private boolean enabled() {

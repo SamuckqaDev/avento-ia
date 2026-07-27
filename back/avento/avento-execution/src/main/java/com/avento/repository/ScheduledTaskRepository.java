@@ -15,6 +15,5 @@ public interface ScheduledTaskRepository extends JpaRepository<ScheduledTask, Lo
 
     Optional<ScheduledTask> findByIdAndUserId(Long id, UUID userId);
 
-    List<ScheduledTask> findByStatusAndNextRunAtBefore(
-            ScheduledTask.TaskStatus status, LocalDateTime now);
+    List<ScheduledTask> findByStatusAndNextRunAtBefore(ScheduledTask.TaskStatus status, LocalDateTime now);
 }

@@ -652,8 +652,11 @@ public class McpController implements ToolProvider {
                 "Agenda uma nova atividade autônoma ou lembrete para a IA rodar na agenda do Cowork (Cron ou horário específico).",
                 Map.of(
                         "name", stringProperty("Nome amigável da tarefa ou lembrete (ex: Backup Diário das 03:57 AM)."),
-                        "cronExpression", stringProperty("Expressão Cron no formato de 5 partes (ex: '57 3 * * *' para todos os dias às 03:57)."),
-                        "prompt", stringProperty("Instrução completa e detalhada que a IA executará de forma autônoma."),
+                        "cronExpression",
+                                stringProperty(
+                                        "Expressão Cron no formato de 5 partes (ex: '57 3 * * *' para todos os dias às 03:57)."),
+                        "prompt",
+                                stringProperty("Instrução completa e detalhada que a IA executará de forma autônoma."),
                         "description", stringProperty("Descrição adicional opcional.")),
                 List.of("name", "cronExpression", "prompt")));
         allTools.add(tool(
@@ -864,10 +867,14 @@ public class McpController implements ToolProvider {
 
     private JsonNode executeScheduleTask(Map<String, Object> payload) throws IOException {
         String name = requiredString(payload, "name");
-        String cron = payload.get("cronExpression") != null ? payload.get("cronExpression").toString() : "57 3 * * *";
+        String cron = payload.get("cronExpression") != null
+                ? payload.get("cronExpression").toString()
+                : "57 3 * * *";
         String prompt = requiredString(payload, "prompt");
-        String description = payload.get("description") != null ? payload.get("description").toString() : "";
-        String projectPath = payload.get("projectPath") != null ? payload.get("projectPath").toString() : "";
+        String description =
+                payload.get("description") != null ? payload.get("description").toString() : "";
+        String projectPath =
+                payload.get("projectPath") != null ? payload.get("projectPath").toString() : "";
 
         if (scheduledTaskService == null) {
             ObjectNode err = mapper.createObjectNode();
@@ -885,8 +892,10 @@ public class McpController implements ToolProvider {
         response.put("taskId", task.getId());
         response.put("name", task.getName());
         response.put("cronExpression", task.getCronExpression());
-        response.put("nextRunAt", task.getNextRunAt() != null ? task.getNextRunAt().toString() : "");
-        response.put("message", "Atividade '" + name + "' agendada com sucesso na sua agenda do Cowork (" + cron + ").");
+        response.put(
+                "nextRunAt", task.getNextRunAt() != null ? task.getNextRunAt().toString() : "");
+        response.put(
+                "message", "Atividade '" + name + "' agendada com sucesso na sua agenda do Cowork (" + cron + ").");
         return toolResult(response);
     }
 
@@ -1902,33 +1911,61 @@ public class McpController implements ToolProvider {
     // continua exigindo aprovacao visual antes de rodar (ToolCapabilityRegistry).
     private static final Pattern NPM_OR_NPX_COMMAND = Pattern.compile("^(npm|npx)\\s+\\S.*$");
 
+    // Subcomandos de leitura do git. Casamento por TOKEN EXATO, nunca por prefixo: startsWith("diff")
+    // tambem casa "difftool", que com --extcmd executa um comando arbitrario.
+    private static final Set<String> GIT_READ_SUBCOMMANDS =
+            Set.of("status", "diff", "log", "branch", "show", "rev-parse", "remote", "tag", "describe");
+
+    // Flags que transformam um comando de leitura em execucao arbitraria de codigo. Valem para
+    // qualquer comando: git as usa em --upload-pack/--exec, mvn no plugin exec.
+    private static final Set<String> CODE_EXECUTION_FLAGS = Set.of(
+            "-c", "--exec", "--upload-pack", "--receive-pack", "--ext-diff", "--extcmd", "--config", "--output-file");
+
+    // Flags de curl que gravam arquivo no disco ou leem arquivo local (exfiltracao via -d @arquivo).
+    private static final Set<String> CURL_FILE_FLAGS =
+            Set.of("-o", "-O", "--output", "--upload-file", "-T", "--config", "-K", "--dump-header", "-D", "--trace");
+
+    private static final Set<String> DOCKER_READ_SUBCOMMANDS = Set.of("ps", "images", "logs", "version", "stats");
+
+    private static final Set<String> SHELL_METACHARACTERS = Set.of("|", "||", "&", "&&", ";", ">", ">>", "<", "`");
+
     private List<String> allowedTerminalCommand(String commandText) {
         String command = commandText.trim().replaceAll("\\s+", " ");
         if (command.isBlank()) {
             return List.of();
         }
-
-        // Git inspection commands (status, diff, log, branch, show, etc.)
-        if (command.startsWith("git ")) {
-            String sub = command.substring(4);
-            if (sub.startsWith("status") || sub.startsWith("diff") || sub.startsWith("log")
-                    || sub.startsWith("branch") || sub.startsWith("show") || sub.startsWith("rev-parse")
-                    || sub.startsWith("fetch") || sub.startsWith("pull")) {
-                return List.of(command.split(" "));
-            }
+        List<String> tokens = List.of(command.split(" "));
+        // O comando roda via ProcessBuilder sem shell, entao "curl url | sh" nao encadeia nada — o
+        // "|" e o "sh" viram argumentos do curl. Mesmo assim se rejeita: o metacaractere revela que
+        // o modelo acha que esta num shell, e o pedido nao e o que ele pensa que e.
+        if (tokens.stream().anyMatch(SHELL_METACHARACTERS::contains)) {
+            return List.of();
+        }
+        if (containsAnyFlag(tokens, CODE_EXECUTION_FLAGS)) {
+            return List.of();
         }
 
-        // Curl HTTP inspection commands
-        if (command.startsWith("curl ")) {
-            return List.of(command.split(" "));
+        if ("git".equals(tokens.get(0))) {
+            return tokens.size() > 1 && GIT_READ_SUBCOMMANDS.contains(tokens.get(1)) ? tokens : List.of();
+        }
+
+        if ("curl".equals(tokens.get(0))) {
+            return allowedCurlCommand(tokens);
         }
 
         if (NPM_OR_NPX_COMMAND.matcher(command).matches()) {
-            return List.of(command.split(" "));
+            return tokens;
         }
 
-        if (command.startsWith("mvn ")) {
-            return List.of(command.split(" "));
+        // Goals de leitura/validacao apenas. `mvn` livre permite `mvn exec:exec
+        // -Dexec.executable=/bin/sh`, que e execucao arbitraria com outro nome.
+        if ("mvn".equals(tokens.get(0))) {
+            boolean goalsAllowed = tokens.stream()
+                    .skip(1)
+                    .filter(token -> !token.startsWith("-"))
+                    .allMatch(CommandAllowlists.MAVEN_GOALS::contains);
+            boolean hasGoal = tokens.stream().skip(1).anyMatch(token -> !token.startsWith("-"));
+            return hasGoal && goalsAllowed ? tokens : List.of();
         }
 
         Matcher rmMatcher = Pattern.compile("^rm -rf (\\S+)$").matcher(command);
@@ -1941,15 +1978,49 @@ public class McpController implements ToolProvider {
             return List.of("mkdir", "-p", mkdirMatcher.group(1));
         }
 
-        if (command.startsWith("docker ")) {
-            return List.of(command.split(" "));
+        // `docker run -v /:/mnt` monta o disco inteiro dentro do container com privilegio de root,
+        // entao so subcomandos de inspecao passam.
+        if ("docker".equals(tokens.get(0))) {
+            if (tokens.size() > 2 && "compose".equals(tokens.get(1))) {
+                return DOCKER_READ_SUBCOMMANDS.contains(tokens.get(2)) ? tokens : List.of();
+            }
+            return tokens.size() > 1 && DOCKER_READ_SUBCOMMANDS.contains(tokens.get(1)) ? tokens : List.of();
         }
 
-        if (command.startsWith("ls") || command.startsWith("pwd") || command.startsWith("echo ") || command.startsWith("cat ")) {
-            return List.of(command.split(" "));
+        // Leitura local: o processo roda com o workspace como diretorio de trabalho, entao um
+        // caminho relativo fica contido nele. Caminho absoluto ou ".." escapa (`cat ~/.ssh/id_rsa`).
+        if ("ls".equals(tokens.get(0)) || "cat".equals(tokens.get(0)) || "head".equals(tokens.get(0))) {
+            boolean targetsInsideWorkspace = tokens.stream()
+                    .skip(1)
+                    .filter(token -> !token.startsWith("-"))
+                    .allMatch(this::isSafeRelativePathTarget);
+            return targetsInsideWorkspace ? tokens : List.of();
+        }
+        if ("pwd".equals(tokens.get(0)) || "echo".equals(tokens.get(0))) {
+            return tokens;
         }
 
         return List.of();
+    }
+
+    private List<String> allowedCurlCommand(List<String> tokens) {
+        if (containsAnyFlag(tokens, CURL_FILE_FLAGS)) {
+            return List.of();
+        }
+        // Exatamente uma URL http(s) e nenhum argumento lendo arquivo local (-d @segredo).
+        List<String> urls = tokens.stream()
+                .skip(1)
+                .filter(token -> token.startsWith("http://") || token.startsWith("https://"))
+                .toList();
+        boolean readsLocalFile = tokens.stream().anyMatch(token -> token.startsWith("@") || token.contains("=@"));
+        return urls.size() == 1 && !readsLocalFile ? tokens : List.of();
+    }
+
+    private boolean containsAnyFlag(List<String> tokens, Set<String> flags) {
+        return tokens.stream().anyMatch(token -> {
+            String flag = token.contains("=") ? token.substring(0, token.indexOf('=')) : token;
+            return flags.contains(flag);
+        });
     }
 
     // npm/npx installs (create-*, @scope/cli new, install) routinely take longer than 120s on a

@@ -56,7 +56,8 @@ public class ScheduledTaskService {
         LocalDateTime nextRun = calculateNextRun(cronExpression);
         task.setNextRunAt(nextRun);
 
-        logger.info("Criando tarefa repetitiva '{}' com cron '{}'. Próxima execução: {}", name, cronExpression, nextRun);
+        logger.info(
+                "Criando tarefa repetitiva '{}' com cron '{}'. Próxima execução: {}", name, cronExpression, nextRun);
         return repository.save(task);
     }
 
@@ -82,7 +83,8 @@ public class ScheduledTaskService {
             String projectPath,
             Long onSuccessTaskId,
             UUID userId) {
-        ScheduledTask task = repository.findByIdAndUserId(id, userId)
+        ScheduledTask task = repository
+                .findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Tarefa agendada não encontrada"));
 
         task.setName(name);
@@ -112,7 +114,8 @@ public class ScheduledTaskService {
 
     @Transactional
     public ScheduledTask toggleTaskStatus(Long id, UUID userId) {
-        ScheduledTask task = repository.findByIdAndUserId(id, userId)
+        ScheduledTask task = repository
+                .findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Tarefa agendada não encontrada"));
 
         if (task.getStatus() == ScheduledTask.TaskStatus.ACTIVE) {
@@ -127,7 +130,8 @@ public class ScheduledTaskService {
 
     @Transactional
     public void deleteTask(Long id, UUID userId) {
-        ScheduledTask task = repository.findByIdAndUserId(id, userId)
+        ScheduledTask task = repository
+                .findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Tarefa agendada não encontrada"));
         repository.delete(task);
     }
@@ -162,7 +166,8 @@ public class ScheduledTaskService {
             LocalDateTime next = cron.next(LocalDateTime.now());
             return next != null ? next : LocalDateTime.now().plusHours(24);
         } catch (Exception e) {
-            logger.warn("Expressão Cron inválida ou não suportada: '{}'. Usando fallback de 24h.", cronExpressionStr, e);
+            logger.warn(
+                    "Expressão Cron inválida ou não suportada: '{}'. Usando fallback de 24h.", cronExpressionStr, e);
             return LocalDateTime.now().plusHours(24);
         }
     }

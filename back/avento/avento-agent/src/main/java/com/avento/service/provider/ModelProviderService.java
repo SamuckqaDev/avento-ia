@@ -215,6 +215,38 @@ public class ModelProviderService {
         return root;
     }
 
+    /**
+     * Verdadeiro quando o usuario escolheu um provedor de nuvem na tela de configuracao.
+     *
+     * <p>Existe para o agente poder AVISAR: o fluxo de chat fala direto com o Ollama
+     * ({@code /api/chat}, corpo no formato nativo), entao escolher Gemini nao muda para onde a
+     * requisicao vai — e sem aviso o usuario recebe o modelo local achando que falou com a nuvem.
+     */
+    public boolean cloudProviderSelected(UUID userId) {
+        if (userId == null) {
+            return false;
+        }
+        try {
+            ProviderSettingsResponse settings = getSettings(userId);
+            return settings.usePersonalCloud()
+                    && settings.personalCloudApiKeyMasked() != null
+                    && !settings.personalCloudApiKeyMasked().isBlank();
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    /** Nome do provedor de nuvem escolhido (ex.: GEMINI), vazio quando nao ha. */
+    public String selectedCloudProviderName(UUID userId) {
+        if (!cloudProviderSelected(userId)) {
+            return "";
+        }
+        ProviderSettingsResponse settings = getSettings(userId);
+        String provider = settings.personalCloudProvider();
+        String model = settings.personalCloudModel();
+        return model == null || model.isBlank() ? provider : provider + " (" + model + ")";
+    }
+
     public String resolveActiveModelUrl(UUID userId) {
         ProviderSettingsResponse settings = getSettings(userId);
         if (settings.usePersonalCloud() && !settings.personalCloudApiKeyMasked().isBlank()) {

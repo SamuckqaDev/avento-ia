@@ -168,6 +168,12 @@ public class AgentService implements AgentExecutionEngine {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry;
 
+    // Mesma injecao opcional. Serve so para AVISAR: o chat fala direto com o Ollama (/api/chat, corpo
+    // no formato nativo), entao escolher Gemini na tela nao muda para onde a requisicao vai. Sem
+    // aviso, o usuario recebe o modelo local achando que falou com a nuvem.
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.avento.service.provider.ModelProviderService modelProviderService;
+
     // Progressive tool discovery (activate_tools persists per run in Redis). Optional for the same
     // reason as the field above: tests build AgentService through the constructor.
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -785,7 +791,29 @@ public class AgentService implements AgentExecutionEngine {
         state.imageOptions = imageOptions;
         state.chatId = chatId;
         state.userId = userId;
-        return runTurn(chatModel, messages, state, 1);
+        // O aviso vai ANTES da resposta: se o usuario escolheu nuvem e recebe o modelo local sem
+        // saber, ele julga a qualidade do Gemini olhando para a saida de um 9B local.
+        String cloudNotice = cloudProviderNotice(userId, chatModel);
+        Flux<String> turn = runTurn(chatModel, messages, state, 1);
+        return cloudNotice.isEmpty() ? turn : Flux.concat(Flux.just(contentChunk(cloudNotice)), turn);
+    }
+
+    /**
+     * Texto de aviso quando ha provedor de nuvem selecionado, vazio quando nao ha.
+     *
+     * <p>O fluxo de chat monta corpo no formato nativo do Ollama e chama {@code /api/chat} num
+     * WebClient com a base URL fixada no construtor. Nada disso consulta o provedor — os metodos
+     * {@code resolveActiveModelUrl}/{@code resolveActiveModelName} existem no ModelProviderService e
+     * nunca foram chamados por ninguem. Ate a camada de provedor existir, o minimo honesto e dizer.
+     */
+    String cloudProviderNotice(UUID userId, String modelUsed) {
+        if (modelProviderService == null || !modelProviderService.cloudProviderSelected(userId)) {
+            return "";
+        }
+        String selected = modelProviderService.selectedCloudProviderName(userId);
+        return "\n> ⚠️ Você selecionou **" + selected + "**, mas o fluxo de conversa ainda fala apenas"
+                + " com o modelo local. Esta resposta veio de `" + modelUsed + "`, não da nuvem."
+                + " A integração com provedor de nuvem ainda não foi implementada aqui.\n\n";
     }
 
     private int lastUserMessageIndex(ArrayNode messages) {

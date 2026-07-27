@@ -46,8 +46,25 @@ public class ProviderSettings {
     @Column(name = "cloud_api_key_encrypted", columnDefinition = "TEXT")
     private String cloudApiKeyEncrypted;
 
+    /** Modelo de conversa. O nome herdado do esquema antigo; hoje vale para qualquer tipo. */
     @Column(name = "cloud_model")
     private String cloudModel;
+
+    /** Modelo que le imagem anexada. */
+    @Column(name = "vision_model")
+    private String visionModel;
+
+    /** Modelo que GERA imagem. */
+    @Column(name = "image_model")
+    private String imageModel;
+
+    /** Modelo do planejador. Vazio usa o de conversa. */
+    @Column(name = "planner_model")
+    private String plannerModel;
+
+    /** Modelo de embedding, usado na classificacao de intencao. */
+    @Column(name = "embedding_model")
+    private String embeddingModel;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
@@ -114,6 +131,38 @@ public class ProviderSettings {
 
     public void setCloudModel(String cloudModel) {
         this.cloudModel = cloudModel;
+    }
+
+    public String getVisionModel() {
+        return visionModel;
+    }
+
+    public void setVisionModel(String visionModel) {
+        this.visionModel = visionModel;
+    }
+
+    public String getImageModel() {
+        return imageModel;
+    }
+
+    public void setImageModel(String imageModel) {
+        this.imageModel = imageModel;
+    }
+
+    public String getPlannerModel() {
+        return plannerModel;
+    }
+
+    public void setPlannerModel(String plannerModel) {
+        this.plannerModel = plannerModel;
+    }
+
+    public String getEmbeddingModel() {
+        return embeddingModel;
+    }
+
+    public void setEmbeddingModel(String embeddingModel) {
+        this.embeddingModel = embeddingModel;
     }
 
     public LocalDateTime getUpdatedAt() {

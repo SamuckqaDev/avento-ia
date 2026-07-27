@@ -477,10 +477,13 @@ class AgentServiceDirectAutomationTest {
 
     @Test
     void backendRoutesImageContextFromTextModelToConfiguredVisionModel() throws Exception {
-        Method method = AgentService.class.getDeclaredMethod("resolveChatModel", String.class, ArrayNode.class);
+        // Ganhou o userId: o modelo de visao passou a vir da TELA de provedores, com o valor de
+        // configuracao so como padrao. Sem usuario configurado, o padrao continua valendo.
+        Method method = AgentService.class.getDeclaredMethod(
+                "resolveChatModel", String.class, ArrayNode.class, java.util.UUID.class);
         method.setAccessible(true);
 
-        String resolved = (String) method.invoke(service, "qwen3:8b", userMessagesWithImage("analisa pra mim"));
+        String resolved = (String) method.invoke(service, "qwen3:8b", userMessagesWithImage("analisa pra mim"), null);
 
         assertEquals("qwen2.5vl:7b", resolved);
     }

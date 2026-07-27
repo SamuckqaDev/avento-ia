@@ -105,6 +105,10 @@ export function SettingsModal({
     providerKind: 'OLLAMA',
     baseUrl: 'http://127.0.0.1:11434',
     selectedModel: '',
+    visionModel: '',
+    imageModel: '',
+    plannerModel: '',
+    embeddingModel: '',
     apiKeyMasked: '',
     apiKeyInput: '',
   });
@@ -255,6 +259,10 @@ export function SettingsModal({
         providerKind: string;
         baseUrl: string;
         selectedModel: string;
+        visionModel: string;
+        imageModel: string;
+        plannerModel: string;
+        embeddingModel: string;
         apiKeyMasked: string;
       }>('/api/ai/providers');
       if (data) {
@@ -263,6 +271,10 @@ export function SettingsModal({
           providerKind: data.providerKind || 'OLLAMA',
           baseUrl: data.baseUrl || 'http://127.0.0.1:11434',
           selectedModel: data.selectedModel || '',
+          visionModel: data.visionModel || '',
+          imageModel: data.imageModel || '',
+          plannerModel: data.plannerModel || '',
+          embeddingModel: data.embeddingModel || '',
           apiKeyMasked: data.apiKeyMasked || '',
           apiKeyInput: '',
         }));
@@ -317,6 +329,10 @@ export function SettingsModal({
         providerKind: providerSettings.providerKind,
         baseUrl: providerSettings.baseUrl,
         selectedModel: providerSettings.selectedModel,
+        visionModel: providerSettings.visionModel,
+        imageModel: providerSettings.imageModel,
+        plannerModel: providerSettings.plannerModel,
+        embeddingModel: providerSettings.embeddingModel,
         // Só manda a chave quando foi digitada: mandar a mascarada a apagaria no backend.
         apiKey: providerSettings.apiKeyInput || undefined,
       });
@@ -870,6 +886,16 @@ export function SettingsModal({
     );
   };
 
+  const selectStyle = {
+    background: 'rgba(16, 42, 38, 0.55)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '8px',
+    color: '#F2FFFB',
+    padding: '9px 11px',
+    fontSize: '0.88rem',
+    outline: 'none',
+  } as const;
+
   const PROVIDER_KINDS = [
     { kind: 'OLLAMA', icon: '🖥️', title: 'Ollama', hint: 'Local ou em outra máquina da rede', url: 'http://127.0.0.1:11434', key: false },
     { kind: 'OPENAI_COMPATIBLE', icon: '⚡', title: 'Compatível com OpenAI', hint: 'DGX, vLLM, LM Studio, TGI', url: 'http://192.168.15.2:8000', key: false },
@@ -978,6 +1004,71 @@ export function SettingsModal({
               </span>
             </AgentField>
           </SettingRow>
+
+          {/* Todo modelo do provedor sai daqui: trocar modelo de visao ou de imagem nao deveria
+              exigir editar YAML e reiniciar o backend. Vazio significa "usa o padrao do sistema". */}
+          {providerModels.length > 0 && (
+            <>
+              <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
+                <AgentField style={{ flex: 1 }}>
+                  <span>Modelo para ler imagem anexada</span>
+                  <select
+                    value={providerSettings.visionModel}
+                    onChange={e => setProviderSettings({ ...providerSettings, visionModel: e.target.value })}
+                    style={selectStyle}
+                  >
+                    <option value="">Usar o padrão do sistema</option>
+                    {providerModels.map(model => <option key={model} value={model}>{model}</option>)}
+                  </select>
+                </AgentField>
+              </SettingRow>
+
+              <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
+                <AgentField style={{ flex: 1 }}>
+                  <span>Modelo para gerar imagem</span>
+                  <select
+                    value={providerSettings.imageModel}
+                    onChange={e => setProviderSettings({ ...providerSettings, imageModel: e.target.value })}
+                    style={selectStyle}
+                  >
+                    <option value="">Usar o padrão do sistema (ComfyUI no modo local)</option>
+                    {providerModels.map(model => <option key={model} value={model}>{model}</option>)}
+                  </select>
+                </AgentField>
+              </SettingRow>
+
+              <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
+                <AgentField style={{ flex: 1 }}>
+                  <span>Modelo do planejador</span>
+                  <select
+                    value={providerSettings.plannerModel}
+                    onChange={e => setProviderSettings({ ...providerSettings, plannerModel: e.target.value })}
+                    style={selectStyle}
+                  >
+                    <option value="">Usar o mesmo da conversa</option>
+                    {providerModels.map(model => <option key={model} value={model}>{model}</option>)}
+                  </select>
+                </AgentField>
+              </SettingRow>
+
+              <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
+                <AgentField style={{ flex: 1 }}>
+                  <span>Modelo de embedding</span>
+                  <select
+                    value={providerSettings.embeddingModel}
+                    onChange={e => setProviderSettings({ ...providerSettings, embeddingModel: e.target.value })}
+                    style={selectStyle}
+                  >
+                    <option value="">Usar o padrão do sistema</option>
+                    {providerModels.map(model => <option key={model} value={model}>{model}</option>)}
+                  </select>
+                  <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '4px' }}>
+                    Usado na classificação de intenção — decide quais ferramentas o modelo enxerga.
+                  </span>
+                </AgentField>
+              </SettingRow>
+            </>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px', marginBottom: '20px' }}>
             <TestButton type="button" onClick={handleTestProvider} disabled={testLanStatus.loading}>

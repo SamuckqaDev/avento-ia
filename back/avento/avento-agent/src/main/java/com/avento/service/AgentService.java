@@ -651,6 +651,17 @@ public class AgentService implements AgentExecutionEngine {
         return modelName != null && modelName.equalsIgnoreCase(defaultVisionModel);
     }
 
+    /** Modelo de imagem configurado na tela, ou o padrao de configuracao. */
+    public String imageModelFor(UUID userId) {
+        if (modelProviderService != null) {
+            String configured = modelProviderService.activeImageModel(userId);
+            if (!configured.isBlank()) {
+                return configured;
+            }
+        }
+        return defaultImageModel;
+    }
+
     private boolean isVisionModel(String modelName, String family) {
         String normalizedName = modelName == null ? "" : modelName.toLowerCase(Locale.ROOT);
         String normalizedFamily = family == null ? "" : family.toLowerCase(Locale.ROOT);
@@ -783,7 +794,7 @@ public class AgentService implements AgentExecutionEngine {
             String runId,
             Long chatId,
             UUID userId) {
-        String chatModel = resolveChatModel(model, messages);
+        String chatModel = resolveChatModel(model, messages, userId);
 
         // Skill explicita (/nome argumento) ganha de qualquer detector. Sem barra, tenta ativar
         // automaticamente por gatilho (linha "Gatilhos:" do arquivo da skill) — o usuario nao
@@ -831,12 +842,28 @@ public class AgentService implements AgentExecutionEngine {
         return streamChatResolved(chatModel, messages, workspaceRoots, imageModel, imageOptions, runId, chatId, userId);
     }
 
-    private String resolveChatModel(String requestedModel, ArrayNode messages) {
+    private String resolveChatModel(String requestedModel, ArrayNode messages, UUID userId) {
         String selectedModel = normalizeChatModel(requestedModel);
         if (!conversationHasImages(messages) || isVisionModel(selectedModel, inferFamily(selectedModel))) {
             return selectedModel;
         }
-        return normalizeChatModel(defaultVisionModel);
+        return normalizeChatModel(visionModelFor(userId));
+    }
+
+    /**
+     * Modelo de visao configurado na TELA, caindo no valor de configuracao so quando nao ha escolha.
+     *
+     * <p>Trocar de modelo de visao exigia editar YAML e reiniciar. Provedor e modelo sao decisao de
+     * quem usa o produto, nao de quem edita arquivo.
+     */
+    private String visionModelFor(UUID userId) {
+        if (modelProviderService != null) {
+            String configured = modelProviderService.activeVisionModel(userId);
+            if (!configured.isBlank()) {
+                return configured;
+            }
+        }
+        return defaultVisionModel;
     }
 
     private Flux<String> streamChatResolved(

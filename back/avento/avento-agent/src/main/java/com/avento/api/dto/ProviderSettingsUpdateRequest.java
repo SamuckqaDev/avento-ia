@@ -1,17 +1,19 @@
 package com.avento.api.dto;
 
 /**
- * Atualizacao da configuracao de provedor.
+ * Atualizacao da configuracao de provedor. Campo nulo significa "nao mexi".
  *
- * <p>{@code providerKind}, {@code baseUrl}, {@code apiKey} e {@code selectedModel} sao o caminho
- * novo. Os campos {@code system*}/{@code personalCloud*} seguem aceitos para a tela atual continuar
- * funcionando enquanto migra. Campo nulo significa "nao mexi".
+ * <p>Os campos {@code system*}/{@code personalCloud*} seguem aceitos para compatibilidade.
  */
 public record ProviderSettingsUpdateRequest(
         String providerKind,
         String baseUrl,
         String apiKey,
         String selectedModel,
+        String visionModel,
+        String imageModel,
+        String plannerModel,
+        String embeddingModel,
         String systemServerUrl,
         String systemServerType,
         String systemDefaultModel,

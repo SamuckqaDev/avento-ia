@@ -94,6 +94,39 @@ public class ModelProviderService {
         return activeKind(userId) == ProviderKind.OLLAMA ? readSystemField("defaultModel", "qwen3.5:9b") : "";
     }
 
+    /**
+     * Modelo de visao configurado. Vazio quando nao ha escolha — quem chama decide o padrao.
+     *
+     * <p>Estes acessores existem para tirar a configuracao de provedor dos arquivos: quem usa o
+     * produto nao deveria editar YAML para trocar de modelo.
+     */
+    public String activeVisionModel(UUID userId) {
+        ProviderSettings stored = findStored(userId);
+        return stored == null ? "" : blankToEmpty(stored.getVisionModel());
+    }
+
+    /** Modelo de geracao de imagem configurado, ou vazio. */
+    public String activeImageModel(UUID userId) {
+        ProviderSettings stored = findStored(userId);
+        return stored == null ? "" : blankToEmpty(stored.getImageModel());
+    }
+
+    /** Modelo do planejador; vazio significa "use o de conversa". */
+    public String activePlannerModel(UUID userId) {
+        ProviderSettings stored = findStored(userId);
+        return stored == null ? "" : blankToEmpty(stored.getPlannerModel());
+    }
+
+    /** Modelo de embedding configurado, ou vazio. */
+    public String activeEmbeddingModel(UUID userId) {
+        ProviderSettings stored = findStored(userId);
+        return stored == null ? "" : blankToEmpty(stored.getEmbeddingModel());
+    }
+
+    private static String blankToEmpty(String value) {
+        return value == null || value.isBlank() ? "" : value;
+    }
+
     /** Chave crua, para uso SERVIDOR-A-SERVIDOR apenas. Nunca volta ao cliente nem para log. */
     public String rawApiKey(UUID userId) {
         return decryptedKey(findStored(userId));
@@ -139,6 +172,10 @@ public class ModelProviderService {
                 baseUrl,
                 model,
                 maskedKey,
+                activeVisionModel(userId),
+                activeImageModel(userId),
+                activePlannerModel(userId),
+                activeEmbeddingModel(userId),
                 // Campos herdados, mantidos enquanto a tela migra: descrevem a MESMA configuracao,
                 // nao dois provedores paralelos como antes.
                 baseUrl,
@@ -171,6 +208,18 @@ public class ModelProviderService {
                     firstPresent(request.selectedModel(), request.personalCloudModel(), request.systemDefaultModel());
             if (model != null) {
                 stored.setCloudModel(model.trim());
+            }
+            if (request.visionModel() != null) {
+                stored.setVisionModel(request.visionModel().trim());
+            }
+            if (request.imageModel() != null) {
+                stored.setImageModel(request.imageModel().trim());
+            }
+            if (request.plannerModel() != null) {
+                stored.setPlannerModel(request.plannerModel().trim());
+            }
+            if (request.embeddingModel() != null) {
+                stored.setEmbeddingModel(request.embeddingModel().trim());
             }
             String apiKey = firstPresent(request.apiKey(), request.personalCloudApiKey());
             if (isRealApiKey(apiKey) && cipher != null) {

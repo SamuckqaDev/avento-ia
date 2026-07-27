@@ -288,7 +288,7 @@ export function SettingsModal({
   const handleTestProvider = async () => {
     setTestLanStatus({ loading: true });
     try {
-      const { data } = await api.post<{ success: boolean; message: string; latencyMs: number }>('/api/ai/providers/test', {
+      const { data } = await api.post<{ success: boolean; message: string; latencyMs: number; models?: string[] }>('/api/ai/providers/test', {
         targetType: 'PROVIDER',
         serverType: providerSettings.providerKind,
         serverUrl: providerSettings.baseUrl,
@@ -296,6 +296,15 @@ export function SettingsModal({
         modelName: providerSettings.selectedModel,
       });
       setTestLanStatus({ success: data.success, message: data.message, loading: false });
+      // O teste alimenta o seletor: e assim que se escolhe um modelo ANTES de salvar, sem digitar
+      // nome de cabeca. Foi digitando de cabeca que um nome chumbado acabou salvo e deu 404.
+      if (data.models && data.models.length > 0) {
+        setProviderModels(data.models);
+        setProviderSettings(prev => ({
+          ...prev,
+          selectedModel: data.models!.includes(prev.selectedModel) ? prev.selectedModel : data.models![0],
+        }));
+      }
     } catch {
       setTestLanStatus({ success: false, message: 'Falha ao testar o provedor.', loading: false });
     }
@@ -940,20 +949,32 @@ export function SettingsModal({
           <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
             <AgentField style={{ flex: 1 }}>
               <span>Modelo</span>
-              <input
-                type="text"
-                list="provider-models"
+              {/* Select, nunca texto livre: os nomes validos sao os que o provedor devolve, e
+                  digitar de cabeca foi como um nome inexistente acabou salvo e deu 404. */}
+              <select
                 value={providerSettings.selectedModel}
                 onChange={e => setProviderSettings({ ...providerSettings, selectedModel: e.target.value })}
-                placeholder={providerModels[0] || 'Salve o provedor para listar os modelos'}
-              />
-              <datalist id="provider-models">
-                {providerModels.map(model => <option key={model} value={model} />)}
-              </datalist>
+                disabled={providerModels.length === 0}
+                style={{
+                  background: 'rgba(16, 42, 38, 0.55)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '8px',
+                  color: providerModels.length === 0 ? '#6F8A83' : '#F2FFFB',
+                  padding: '9px 11px',
+                  fontSize: '0.88rem',
+                  outline: 'none',
+                }}
+              >
+                {providerModels.length === 0 ? (
+                  <option value="">Teste a conexão para carregar os modelos</option>
+                ) : (
+                  providerModels.map(model => <option key={model} value={model}>{model}</option>)
+                )}
+              </select>
               <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '4px' }}>
                 {providerModels.length > 0
-                  ? `${providerModels.length} modelo(s) disponíveis neste provedor.`
-                  : 'Nenhum modelo confirmado ainda — teste a conexão.'}
+                  ? `${providerModels.length} modelo(s) que este provedor realmente oferece.`
+                  : 'A lista vem da API do provedor — clique em "Testar conexão".'}
               </span>
             </AgentField>
           </SettingRow>
@@ -978,7 +999,7 @@ export function SettingsModal({
           )}
 
           <Footer style={{ marginTop: 'auto', paddingTop: '16px' }}>
-            <SaveButton onClick={handleSaveProviders} disabled={isSaving}>
+            <SaveButton onClick={handleSaveProviders} disabled={isSaving || !providerSettings.selectedModel}>
               {isSaving ? 'Salvando...' : 'Salvar provedor'}
             </SaveButton>
           </Footer>

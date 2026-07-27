@@ -78,7 +78,12 @@ public class ModelProviderService {
         return kind == ProviderKind.OLLAMA ? defaultOllamaUrl : kind.defaultBaseUrl();
     }
 
-    /** Modelo escolhido no provedor ativo. */
+    /**
+     * Modelo escolhido no provedor ativo.
+     *
+     * <p>Num provedor remoto sem escolha, devolve vazio de proposito: cair no padrao LOCAL mandaria
+     * um nome de modelo do Ollama para o Gemini, que responde 404 sem explicar.
+     */
     public String activeModelName(UUID userId) {
         ProviderSettings stored = findStored(userId);
         if (stored != null
@@ -86,7 +91,7 @@ public class ModelProviderService {
                 && !stored.getCloudModel().isBlank()) {
             return stored.getCloudModel();
         }
-        return readSystemField("defaultModel", "qwen3.5:9b");
+        return activeKind(userId) == ProviderKind.OLLAMA ? readSystemField("defaultModel", "qwen3.5:9b") : "";
     }
 
     /** Chave crua, para uso SERVIDOR-A-SERVIDOR apenas. Nunca volta ao cliente nem para log. */
@@ -105,7 +110,12 @@ public class ModelProviderService {
         if (kind == ProviderKind.OLLAMA) {
             return false;
         }
-        return !kind.requiresApiKey() || !rawApiKey(userId).isBlank();
+        if (kind.requiresApiKey() && rawApiKey(userId).isBlank()) {
+            return false;
+        }
+        // Sem modelo escolhido nao ha o que chamar: rotear daria 404 na primeira mensagem, e o
+        // usuario nao saberia que faltou escolher.
+        return !activeModelName(userId).isBlank();
     }
 
     /** Rótulo para mensagens ao usuário, ex.: {@code GEMINI (gemini-2.5-flash)}. */
@@ -255,7 +265,7 @@ public class ModelProviderService {
                     false, "Nao foi possivel listar modelos em " + kind + ". Verifique endereco e chave.", latency);
         }
         return new ProviderTestResponse(
-                true, "Conectado a " + kind + ": " + models.size() + " modelo(s) (" + latency + "ms)", latency);
+                true, "Conectado a " + kind + ": " + models.size() + " modelo(s) (" + latency + "ms)", latency, models);
     }
 
     // --------------------------------------------------- compatibilidade herdada

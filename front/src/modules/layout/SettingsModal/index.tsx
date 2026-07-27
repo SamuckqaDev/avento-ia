@@ -285,10 +285,19 @@ export function SettingsModal({
       // Modelos que o provedor REALMENTE tem, para o campo de modelo sugerir em vez de exigir que a
       // pessoa acerte o nome de cabeca.
       try {
-        const models = await api.get<{ data?: { id: string }[] }>('/api/ollama/models');
+        // /api/models, nao /api/ollama/models: o controller esta mapeado em @RequestMapping("/api").
+        // A URL errada devolvia 404 e o catch zerava a lista em silencio — o seletor abria vazio e
+        // nao havia como escolher modelo nenhum.
+        const models = await api.get<{ data?: { id: string }[] }>('/api/models');
         setProviderModels((models.data?.data || []).map(model => model.id).filter(Boolean));
-      } catch {
+      } catch (error) {
+        console.error('Erro ao listar modelos do provedor', error);
         setProviderModels([]);
+        setTestLanStatus({
+          success: false,
+          message: 'Não consegui listar os modelos do provedor. Clique em "Testar conexão".',
+          loading: false,
+        });
       }
     } catch (error) {
       console.error("Erro ao carregar configurações de provedores", error);

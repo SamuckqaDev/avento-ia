@@ -52,7 +52,8 @@ class AgentRunWorkerTest {
     // existe para agir sobre um projeto.
     @Test
     void onlyScheduledTasksRequireAWorkspaceFolder() throws Exception {
-        assertThat(requiresFolder("{\"taskId\":12,\"prompt\":\"roda os testes\"}")).isTrue();
+        assertThat(requiresFolder("{\"taskId\":12,\"prompt\":\"roda os testes\"}"))
+                .isTrue();
         assertThat(requiresFolder("{\"prompt\":\"oi, tudo bem?\"}")).isFalse();
         assertThat(requiresFolder("{\"taskId\":0,\"prompt\":\"oi\"}")).isFalse();
     }

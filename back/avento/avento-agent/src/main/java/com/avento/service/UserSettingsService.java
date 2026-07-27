@@ -3,6 +3,8 @@ package com.avento.service;
 import com.avento.api.dto.UserSettingsRequest;
 import com.avento.api.dto.UserSettingsResponse;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class UserSettingsService {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserSettingsService.class);
     private static final String KEY_PREFIX = "avento:user:";
     private static final String KEY_SUFFIX = ":settings";
     private static final String TTS_FIELD = "ttsEnabled";
@@ -70,12 +73,16 @@ public class UserSettingsService {
 
     private boolean readFlag(UUID userId, String field, boolean fallback) {
         if (redisTemplate == null) {
+            logger.warn("Sem Redis: preferencia {} caiu para o padrao {}", field, fallback);
             return fallback;
         }
         try {
             Object raw = redisTemplate.opsForHash().get(key(userId), field);
             return raw == null ? fallback : Boolean.parseBoolean(raw.toString());
         } catch (RuntimeException exception) {
+            // Silenciar aqui escondia uma falha de seguranca: com o Redis fora do ar, autoApproveAll
+            // caia no padrao e o usuario nunca sabia por que parou de ser perguntado.
+            logger.warn("Falha ao ler a preferencia {}; usando o padrao {}", field, fallback, exception);
             return fallback;
         }
     }

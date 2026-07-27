@@ -15,12 +15,28 @@ import org.springframework.stereotype.Service;
 public class RunToolPolicyRegistry {
 
     private final ConcurrentHashMap<String, Set<String>> allowedToolsByRun = new ConcurrentHashMap<>();
+    private final Set<String> autonomousRuns = ConcurrentHashMap.newKeySet();
 
     public void allow(String runId, Set<String> toolNames) {
         if (runId == null || runId.isBlank() || toolNames == null || toolNames.isEmpty()) {
             return;
         }
         allowedToolsByRun.put(runId, Set.copyOf(toolNames));
+    }
+
+    /**
+     * Marks a run as autonomous: it executes with no human watching (scheduled task, Cowork), so it
+     * auto-approves its tools. An interactive chat must never be marked — there the approval prompt
+     * is the whole point, and the alternative to asking is acting without consent.
+     */
+    public void markAutonomous(String runId) {
+        if (runId != null && !runId.isBlank()) {
+            autonomousRuns.add(runId);
+        }
+    }
+
+    public boolean isAutonomous(String runId) {
+        return runId != null && autonomousRuns.contains(runId);
     }
 
     /** Returns the allow-list for the run, or an empty set when the run has no restriction. */
@@ -34,6 +50,7 @@ public class RunToolPolicyRegistry {
     public void clear(String runId) {
         if (runId != null) {
             allowedToolsByRun.remove(runId);
+            autonomousRuns.remove(runId);
         }
     }
 }

@@ -753,7 +753,11 @@ public class AgentService implements AgentExecutionEngine {
                 return executeDirectTool(messages, directImageToolCall, runId);
             }
             if (permissionService.canAutoApprove(
-                    userId, directImageToolCall.name(), permissionArguments(directImageToolCall), workspaceRoots)) {
+                    runId,
+                    userId,
+                    directImageToolCall.name(),
+                    permissionArguments(directImageToolCall),
+                    workspaceRoots)) {
                 return executeDirectTool(messages, directImageToolCall, runId);
             }
             return requestDirectToolApproval(chatModel, messages, directImageToolCall, workspaceRoots, runId);
@@ -765,7 +769,7 @@ public class AgentService implements AgentExecutionEngine {
                 return executeDirectTool(messages, directToolCall, runId);
             }
             if (permissionService.canAutoApprove(
-                    userId, directToolCall.name(), permissionArguments(directToolCall), workspaceRoots)) {
+                    runId, userId, directToolCall.name(), permissionArguments(directToolCall), workspaceRoots)) {
                 return executeDirectTool(messages, directToolCall, runId);
             }
             return requestDirectToolApproval(chatModel, messages, directToolCall, workspaceRoots, runId);
@@ -2481,7 +2485,11 @@ public class AgentService implements AgentExecutionEngine {
             if (requiresApproval(toolCall.name())) {
                 boolean planApproved = planApprovedRuns.contains(state.runId) && !isAlwaysConfirmToolCall(toolCall);
                 if (permissionService.canAutoApprove(
-                                state.userId, toolCall.name(), permissionArguments(toolCall), state.workspaceRoots)
+                                state.runId,
+                                state.userId,
+                                toolCall.name(),
+                                permissionArguments(toolCall),
+                                state.workspaceRoots)
                         || planApproved) {
                     timelineService.record(
                             state.runId,

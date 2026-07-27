@@ -3,6 +3,7 @@ package com.avento.service;
 import com.avento.model.AgentPermissionRule;
 import com.avento.repository.AgentPermissionRuleRepository;
 import com.avento.service.dto.*;
+import com.avento.service.tools.RunToolPolicyRegistry;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,32 +22,52 @@ public class AgentPermissionService {
 
     private final Optional<AgentPermissionRuleRepository> repository;
     private final UserSettingsService userSettingsService;
+    private final RunToolPolicyRegistry runPolicyRegistry;
 
     @Value("${avento.agent.auto-approve-all:false}")
     private boolean autoApproveAll;
 
     public AgentPermissionService(Optional<AgentPermissionRuleRepository> repository) {
-        this(repository, null);
+        this(repository, null, null);
     }
 
     @Autowired
     public AgentPermissionService(
             Optional<AgentPermissionRuleRepository> repository,
-            ObjectProvider<UserSettingsService> userSettingsServiceProvider) {
+            ObjectProvider<UserSettingsService> userSettingsServiceProvider,
+            ObjectProvider<RunToolPolicyRegistry> runPolicyRegistryProvider) {
         this.repository = repository;
         this.userSettingsService =
                 userSettingsServiceProvider == null ? null : userSettingsServiceProvider.getIfAvailable();
+        this.runPolicyRegistry = runPolicyRegistryProvider == null ? null : runPolicyRegistryProvider.getIfAvailable();
     }
 
     public boolean canAutoApprove(String toolName, JsonNode arguments, List<String> workspaceRoots) {
-        return canAutoApprove(null, toolName, arguments, workspaceRoots);
+        return canAutoApprove(null, null, toolName, arguments, workspaceRoots);
     }
 
     public boolean canAutoApprove(UUID userId, String toolName, JsonNode arguments, List<String> workspaceRoots) {
+        return canAutoApprove(null, userId, toolName, arguments, workspaceRoots);
+    }
+
+    /**
+     * Ponto único de decisão de aprovação. A ordem importa: execução autônoma decide primeiro, por
+     * ORIGEM da run — uma tarefa agendada roda sem ninguém para responder, e pedir aprovação ali é
+     * o mesmo que travar até o timeout. Só depois entra a preferência do usuário, que vale para a
+     * conversa interativa.
+     */
+    public boolean canAutoApprove(
+            String runId, UUID userId, String toolName, JsonNode arguments, List<String> workspaceRoots) {
         if (autoApproveAll) {
             return true;
         }
-        if (userId != null && userSettingsService != null && userSettingsService.autoApproveAllEnabled(userId, true)) {
+        if (runPolicyRegistry != null && runPolicyRegistry.isAutonomous(runId)) {
+            return true;
+        }
+        // Fallback FALSE de propósito: se a preferência não pôde ser lida (Redis vazio depois de um
+        // restart, Redis fora do ar), o certo é PERGUNTAR. Com fallback true, todo reinício do dev
+        // desligava silenciosamente a aprovação e o botão do header não significava nada.
+        if (userId != null && userSettingsService != null && userSettingsService.autoApproveAllEnabled(userId, false)) {
             return true;
         }
         return repository

@@ -222,6 +222,11 @@ public class AgentRunWorker {
             if (!allowedTools.isEmpty()) {
                 toolPolicyRegistry.allow(job.getRunId(), java.util.Set.copyOf(allowedTools));
             }
+            // Execução sem ninguém olhando: não há para quem pedir aprovação. Sem esta marca a run
+            // pararia no primeiro pedido de permissão e morreria no timeout de inatividade — de
+            // madrugada, silenciosamente. O que limita o estrago aqui é o sandbox do
+            // WorkspaceAccessService, não a aprovação: é ele que prende a tarefa à pasta dela.
+            toolPolicyRegistry.markAutonomous(job.getRunId());
 
             CountDownLatch completed = new CountDownLatch(1);
             AtomicReference<Throwable> error = new AtomicReference<>();

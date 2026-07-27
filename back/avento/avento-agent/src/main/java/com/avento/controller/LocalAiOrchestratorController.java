@@ -93,17 +93,25 @@ public class LocalAiOrchestratorController {
     }
 
     @GetMapping(value = "/models/images", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ResponseEntity<BaseResponse<List<LocalModelInfo>>>> getImageModelDetails() {
-        return Mono.zip(agentService.getImageModelDetails(), comfyUiImageService.getModels())
-                .map(models -> {
-                    if (comfyUiImageService.isComfyOnly()) {
-                        return models.getT2();
-                    }
-                    List<LocalModelInfo> combined = new ArrayList<>(models.getT2());
-                    combined.addAll(models.getT1());
-                    return combined;
-                })
-                .map(ApiResponses::ok);
+    public Mono<ResponseEntity<BaseResponse<List<LocalModelInfo>>>> getImageModelDetails(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        java.util.UUID userId = principal == null ? null : principal.userId();
+        return agentService.getImageModelDetails(userId).flatMap(providerModels -> {
+            // Provedor remoto ativo manda sozinho: somar os checkpoints do ComfyUI local aqui faria
+            // o seletor oferecer modelos que o provedor ativo nao conhece — o mesmo defeito que o
+            // seletor de chat tinha.
+            if (!providerModels.isEmpty() && agentService.usesRemoteProvider(userId)) {
+                return Mono.just(ApiResponses.ok(providerModels));
+            }
+            return comfyUiImageService.getModels().map(comfyModels -> {
+                if (comfyUiImageService.isComfyOnly()) {
+                    return ApiResponses.ok(comfyModels);
+                }
+                List<LocalModelInfo> combined = new ArrayList<>(comfyModels);
+                combined.addAll(providerModels);
+                return ApiResponses.ok(combined);
+            });
+        });
     }
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

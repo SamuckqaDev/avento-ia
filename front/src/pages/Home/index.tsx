@@ -2435,8 +2435,33 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     </>
   );
 
+  // Provedor remoto ativo: o backend manda o TIPO em `family` nos modelos que ele oferece. Sem isso
+  // visivel, o usuario configura o Gemini e nao tem como saber de onde a resposta veio.
+  const REMOTE_FAMILIES = ['GEMINI', 'ANTHROPIC', 'OPENAI_COMPATIBLE'];
+  const activeRemoteProvider = REMOTE_FAMILIES.includes(selectedModelInfo?.family || '')
+    ? selectedModelInfo?.family
+    : null;
+
   const renderModelSelectors = (inMenu = false) => (
     <>
+      {activeRemoteProvider && (
+        <span
+          className="provider-badge"
+          title={`As respostas vêm de ${activeRemoteProvider}. Ferramentas locais indisponíveis neste modo.`}
+          style={{
+            fontSize: '0.68rem',
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            padding: '3px 8px',
+            borderRadius: '999px',
+            background: 'rgba(79, 209, 180, 0.16)',
+            color: '#4FD1B4',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ☁️ {activeRemoteProvider}
+        </span>
+      )}
       <label className={inMenu ? 'menu-model-control' : 'model-control'}>
         <select
           value={selectedModel}

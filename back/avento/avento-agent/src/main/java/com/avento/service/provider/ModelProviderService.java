@@ -215,6 +215,14 @@ public class ModelProviderService {
         return root;
     }
 
+    /** Modelos de imagem do provedor ativo. Vazio no modo local, onde quem responde e o ComfyUI. */
+    public List<String> listImageModelNames(UUID userId) {
+        if (modelCatalog == null) {
+            return List.of();
+        }
+        return modelCatalog.listImageModels(activeKind(userId), activeBaseUrl(userId), rawApiKey(userId));
+    }
+
     // ------------------------------------------------------------------ conexao
 
     /**

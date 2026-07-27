@@ -405,6 +405,21 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     public Mono<List<LocalModelInfo>> getImageModelDetails() {
+        return getImageModelDetails(null);
+    }
+
+    /**
+     * Modelos de imagem oferecidos ao seletor.
+     *
+     * <p>Com provedor remoto ativo, o seletor de imagem tem de listar os modelos DELE. Oferecer os
+     * checkpoints do ComfyUI local enquanto a conversa vai para o Gemini repete o mesmo erro do
+     * seletor de chat: um nome que o provedor ativo nao conhece.
+     */
+    public Mono<List<LocalModelInfo>> getImageModelDetails(UUID userId) {
+        List<LocalModelInfo> providerImages = providerImageModelsFor(userId);
+        if (!providerImages.isEmpty()) {
+            return Mono.just(providerImages);
+        }
         return webClient
                 .get()
                 .uri("/api/tags")
@@ -533,6 +548,39 @@ public class AgentService implements AgentExecutionEngine {
         return models;
     }
 
+    /** Se um provedor remoto esta ativo e pronto. Usado por quem monta listas por provedor. */
+    public boolean usesRemoteProvider(java.util.UUID userId) {
+        return modelProviderService != null && modelProviderService.remoteProviderReady(userId);
+    }
+
+    /** Modelos de imagem do provedor remoto ativo; vazio no modo local. */
+    private List<LocalModelInfo> providerImageModelsFor(UUID userId) {
+        if (modelProviderService == null || !modelProviderService.remoteProviderReady(userId)) {
+            return List.of();
+        }
+        try {
+            List<LocalModelInfo> models = new ArrayList<>();
+            for (String name : modelProviderService.listImageModelNames(userId)) {
+                models.add(new LocalModelInfo(
+                        name,
+                        0L,
+                        "nuvem",
+                        "",
+                        modelProviderService.activeKind(userId).name(),
+                        false,
+                        false,
+                        false,
+                        false));
+            }
+            return models;
+        } catch (RuntimeException exception) {
+            logger.warn(
+                    "Falha ao listar modelos de imagem do provedor: {}",
+                    exception.getClass().getSimpleName());
+            return List.of();
+        }
+    }
+
     /** Modelos do provedor de nuvem ativo, ou lista vazia quando o fluxo e local. */
     private List<LocalModelInfo> cloudModelsFor(UUID userId) {
         if (modelProviderService == null || !modelProviderService.cloudProviderSelected(userId)) {
@@ -552,7 +600,9 @@ public class AgentService implements AgentExecutionEngine {
                         0L,
                         "nuvem",
                         "",
-                        "cloud",
+                        // family carrega o TIPO do provedor: e por ele que a interface mostra de
+                        // onde a resposta vem, em vez de um "cloud" generico.
+                        modelProviderService.activeKind(userId).name(),
                         name.equalsIgnoreCase(selected),
                         false,
                         // Gemini e multimodal; marcar como vision evita a UI trocar para um modelo

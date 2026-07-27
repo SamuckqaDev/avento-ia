@@ -63,6 +63,71 @@ public class ProviderModelCatalog {
         }
     }
 
+    /**
+     * Modelos de GERACAO DE IMAGEM do provedor.
+     *
+     * <p>Separado da listagem de chat porque o seletor de imagem e outro: com o Gemini ativo, listar
+     * os checkpoints do ComfyUI local seria o mesmo erro do seletor de chat — oferecer um nome que
+     * o provedor ativo nao conhece.
+     */
+    public List<String> listImageModels(ProviderKind kind, String baseUrl, String apiKey) {
+        if (kind == ProviderKind.OLLAMA) {
+            // Imagem local nao sai do Ollama: quem responde e o ComfyUI, tratado noutro caminho.
+            return List.of();
+        }
+        String base = (baseUrl == null || baseUrl.isBlank() ? kind.defaultBaseUrl() : baseUrl).replaceAll("/+$", "");
+        try {
+            HttpRequest.Builder request = HttpRequest.newBuilder()
+                    .uri(URI.create(base + kind.modelsPath()))
+                    .GET()
+                    .timeout(Duration.ofSeconds(8));
+            applyAuth(request, kind, apiKey);
+            HttpResponse<String> response = httpClient.send(request.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                return List.of();
+            }
+            return parseImageModels(kind, mapper.readTree(response.body()));
+        } catch (Exception exception) {
+            logger.warn(
+                    "Falha ao listar modelos de imagem do provedor {}: {}",
+                    kind,
+                    exception.getClass().getSimpleName());
+            return List.of();
+        }
+    }
+
+    /** Imagem tem marcador proprio em cada provedor. */
+    static List<String> parseImageModels(ProviderKind kind, JsonNode body) {
+        List<String> models = new ArrayList<>();
+        if (kind == ProviderKind.GEMINI) {
+            for (JsonNode model : body.path("models")) {
+                String name = model.path("name").asText("").replaceFirst("^models/", "");
+                // Imagen expoe "predict"; os de conversa expoem generateContent.
+                if (name.toLowerCase(java.util.Locale.ROOT).contains("imagen") || supportsPredict(model)) {
+                    addIfPresent(models, name);
+                }
+            }
+        } else if (kind == ProviderKind.OPENAI_COMPATIBLE) {
+            for (JsonNode model : body.path("data")) {
+                String id = model.path("id").asText("");
+                String lower = id.toLowerCase(java.util.Locale.ROOT);
+                if (lower.contains("dall-e") || lower.contains("image") || lower.contains("flux")) {
+                    addIfPresent(models, id);
+                }
+            }
+        }
+        return models;
+    }
+
+    private static boolean supportsPredict(JsonNode model) {
+        for (JsonNode method : model.path("supportedGenerationMethods")) {
+            if ("predict".equals(method.asText(""))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void applyAuth(HttpRequest.Builder request, ProviderKind kind, String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
             return;

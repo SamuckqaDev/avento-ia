@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.avento.service.dto.LocalModelInfo;
 import com.avento.service.provider.ModelProviderService;
+import com.avento.service.provider.ProviderKind;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.lang.reflect.Field;
@@ -39,6 +40,7 @@ class AgentServiceCloudModelListTest {
     void listsCloudModelsWhenACloudProviderIsActive() throws Exception {
         ModelProviderService provider = mock(ModelProviderService.class);
         when(provider.cloudProviderSelected(USER_ID)).thenReturn(true);
+        when(provider.activeKind(USER_ID)).thenReturn(ProviderKind.GEMINI);
         when(provider.listAvailableModels(USER_ID)).thenReturn(geminiListing());
         when(provider.cloudModelName(USER_ID)).thenReturn("gemini-2.5-flash");
 
@@ -52,6 +54,7 @@ class AgentServiceCloudModelListTest {
     void marksTheConfiguredModelAsRecommended() throws Exception {
         ModelProviderService provider = mock(ModelProviderService.class);
         when(provider.cloudProviderSelected(USER_ID)).thenReturn(true);
+        when(provider.activeKind(USER_ID)).thenReturn(ProviderKind.GEMINI);
         when(provider.listAvailableModels(USER_ID)).thenReturn(geminiListing());
         when(provider.cloudModelName(USER_ID)).thenReturn("gemini-2.5-pro");
 
@@ -67,10 +70,23 @@ class AgentServiceCloudModelListTest {
     void marksCloudModelsAsVisionCapable() throws Exception {
         ModelProviderService provider = mock(ModelProviderService.class);
         when(provider.cloudProviderSelected(USER_ID)).thenReturn(true);
+        when(provider.activeKind(USER_ID)).thenReturn(ProviderKind.GEMINI);
         when(provider.listAvailableModels(USER_ID)).thenReturn(geminiListing());
         when(provider.cloudModelName(USER_ID)).thenReturn("gemini-2.5-flash");
 
         assertThat(cloudModelsFor(provider, USER_ID)).allMatch(LocalModelInfo::vision);
+    }
+
+    // family carrega o TIPO: e por ele que a interface mostra de onde a resposta vem.
+    @Test
+    void tagsModelsWithTheProviderKind() throws Exception {
+        ModelProviderService provider = mock(ModelProviderService.class);
+        when(provider.cloudProviderSelected(USER_ID)).thenReturn(true);
+        when(provider.activeKind(USER_ID)).thenReturn(ProviderKind.GEMINI);
+        when(provider.listAvailableModels(USER_ID)).thenReturn(geminiListing());
+        when(provider.cloudModelName(USER_ID)).thenReturn("gemini-2.5-flash");
+
+        assertThat(cloudModelsFor(provider, USER_ID)).allMatch(model -> "GEMINI".equals(model.family()));
     }
 
     @Test

@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -32,10 +33,14 @@ public class UserSettingsService {
     private final StringRedisTemplate redisTemplate;
     private final UserSettingsRepository repository;
 
+    /** Conveniência para teste. Sem repositório, só o cache responde. */
     public UserSettingsService(ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
         this(redisTemplateProvider, null);
     }
 
+    // @Autowired obrigatório: com dois construtores e nenhum marcado, o Spring não escolhe — procura
+    // um sem argumentos, não acha, e a aplicação nem sobe.
+    @Autowired
     public UserSettingsService(
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
             ObjectProvider<UserSettingsRepository> repositoryProvider) {

@@ -336,9 +336,22 @@ export function SettingsModal({
         // Só manda a chave quando foi digitada: mandar a mascarada a apagaria no backend.
         apiKey: providerSettings.apiKeyInput || undefined,
       });
+      // Confere o que voltou: se o backend nao gravou o que foi enviado, dizer — salvar em
+      // silencio e depois a conversa usar outro modelo foi exatamente o que aconteceu.
+      const { data } = await api.get<{ selectedModel: string }>('/api/ai/providers');
+      if (data?.selectedModel === providerSettings.selectedModel) {
+        setTestLanStatus({ success: true, message: `Salvo: ${data.selectedModel}`, loading: false });
+      } else {
+        setTestLanStatus({
+          success: false,
+          message: `O backend gravou "${data?.selectedModel || '(vazio)'}" em vez de "${providerSettings.selectedModel}".`,
+          loading: false,
+        });
+      }
       await loadProviders();
     } catch (error) {
       console.error("Erro ao salvar configurações de provedor", error);
+      setTestLanStatus({ success: false, message: 'Falha ao salvar o provedor.', loading: false });
     } finally {
       setIsSaving(false);
     }
@@ -905,6 +918,13 @@ export function SettingsModal({
 
   const activeKind = PROVIDER_KINDS.find(k => k.kind === providerSettings.providerKind) || PROVIDER_KINDS[0];
 
+  // O modelo salvo entra na lista mesmo que a consulta ao provedor tenha falhado. Sem isso, o
+  // <select> fica com um value que nao casa com nenhuma <option>: o navegador mostra a primeira,
+  // o estado guarda outra, e salvar regravava o modelo antigo sem a pessoa perceber.
+  const modelOptions = providerSettings.selectedModel && !providerModels.includes(providerSettings.selectedModel)
+    ? [providerSettings.selectedModel, ...providerModels]
+    : providerModels;
+
   const renderProvedores = () => (
     <Body style={{ overflowY: 'auto', paddingRight: '4px' }}>
       {isLoadingProviders ? (
@@ -980,27 +1000,19 @@ export function SettingsModal({
               <select
                 value={providerSettings.selectedModel}
                 onChange={e => setProviderSettings({ ...providerSettings, selectedModel: e.target.value })}
-                disabled={providerModels.length === 0}
-                style={{
-                  background: 'rgba(16, 42, 38, 0.55)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  borderRadius: '8px',
-                  color: providerModels.length === 0 ? '#6F8A83' : '#F2FFFB',
-                  padding: '9px 11px',
-                  fontSize: '0.88rem',
-                  outline: 'none',
-                }}
+                disabled={modelOptions.length === 0}
+                style={{ ...selectStyle, color: modelOptions.length === 0 ? '#6F8A83' : '#F2FFFB' }}
               >
-                {providerModels.length === 0 ? (
+                {modelOptions.length === 0 ? (
                   <option value="">Teste a conexão para carregar os modelos</option>
                 ) : (
-                  providerModels.map(model => <option key={model} value={model}>{model}</option>)
+                  modelOptions.map(model => <option key={model} value={model}>{model}</option>)
                 )}
               </select>
               <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '4px' }}>
                 {providerModels.length > 0
-                  ? `${providerModels.length} modelo(s) que este provedor realmente oferece.`
-                  : 'A lista vem da API do provedor — clique em "Testar conexão".'}
+                  ? `${providerModels.length} modelo(s) confirmados pelo provedor.`
+                  : 'Nenhum modelo confirmado ainda — clique em "Testar conexão" para carregar a lista real.'}
               </span>
             </AgentField>
           </SettingRow>

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.Duration;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,12 +38,18 @@ public class GeminiChatProvider implements CloudChatProvider {
     private final WebClient webClient;
     private final ObjectMapper mapper;
     private final Duration timeout;
+    private final String baseUrl;
+    // So usado quando a chamada FALHA: um 404 sozinho nao diz qual nome usar.
+    private final ProviderModelCatalog modelCatalog;
 
     public GeminiChatProvider(
             ObjectMapper mapper,
+            ProviderModelCatalog modelCatalog,
             @Value("${avento.provider.gemini.base-url:" + DEFAULT_BASE_URL + "}") String baseUrl,
             @Value("${avento.provider.gemini.timeout-seconds:120}") long timeoutSeconds) {
         this.mapper = mapper;
+        this.modelCatalog = modelCatalog;
+        this.baseUrl = baseUrl;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
@@ -80,7 +87,7 @@ public class GeminiChatProvider implements CloudChatProvider {
                 .onErrorResume(error -> {
                     // A mensagem do Google pode conter eco do payload; loga só o tipo e o resumo.
                     logger.warn("Falha ao falar com o Gemini ({}): {}", model, error.getMessage());
-                    return Flux.just(contentChunk("\n> ❌ Falha ao falar com o Gemini: " + shortReason(error) + "\n"));
+                    return Flux.just(contentChunk(explainFailure(error, model, apiKey)));
                 });
     }
 
@@ -151,6 +158,37 @@ public class GeminiChatProvider implements CloudChatProvider {
         } catch (Exception exception) {
             return null;
         }
+    }
+
+    /**
+     * Transforma a falha em algo acionavel.
+     *
+     * <p>Um 404 nesta API quer dizer "esse modelo nao existe para esta chave" — e sozinho nao diz
+     * qual usar. Como o nome pode ter vindo de um padrao antigo escrito no codigo, e nao de uma
+     * escolha real, aqui se consulta a lista do provedor e se mostram os nomes validos.
+     */
+    private String explainFailure(Throwable error, String model, String apiKey) {
+        String reason = shortReason(error);
+        if (!reason.contains("404")) {
+            return "\n> ❌ Falha ao falar com o Gemini: " + reason + "\n";
+        }
+
+        StringBuilder message =
+                new StringBuilder("\n> ❌ O modelo `").append(model).append("` nao existe para esta chave de API.\n");
+        List<String> available =
+                modelCatalog == null ? List.of() : modelCatalog.listModels(ProviderKind.GEMINI, baseUrl, apiKey);
+        if (available.isEmpty()) {
+            message.append("> Nao consegui listar os modelos disponiveis — verifique a chave em"
+                    + " Configuracoes > Modelos & Provedores.\n");
+        } else {
+            message.append("> Disponiveis na sua conta: ");
+            message.append(String.join(", ", available.subList(0, Math.min(8, available.size()))));
+            if (available.size() > 8) {
+                message.append(", e mais ").append(available.size() - 8);
+            }
+            message.append(".\n> Escolha um deles em Configuracoes > Modelos & Provedores.\n");
+        }
+        return message.toString();
     }
 
     private String shortReason(Throwable error) {

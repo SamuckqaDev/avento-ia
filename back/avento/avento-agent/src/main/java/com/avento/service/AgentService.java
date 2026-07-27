@@ -2383,13 +2383,21 @@ public class AgentService implements AgentExecutionEngine {
             // entao sem esta guarda a run completava em silencio absoluto. Uma unica nova
             // tentativa, com o pedido original repetido e uma instrucao explicita de agir.
             boolean emptyTurn = capture.assistantText.toString().isBlank();
-            if (emptyTurn && !state.retriedEmptyTurn) {
+            // Anunciar sem executar falha igual ao turno vazio, e para o usuario e pior: parece que
+            // algo esta acontecendo. A guarda antiga exigia texto em branco e deixava passar.
+            boolean announcedOnly = announcedActionWithoutCalling(
+                    capture.assistantText.toString(), false, !state.availableToolNames.isEmpty());
+            if ((emptyTurn || announcedOnly) && !state.retriedEmptyTurn) {
                 state.retriedEmptyTurn = true;
-                sink.next(eventChunk(
-                        "agent.round.retry",
-                        "Resposta vazia — tentando de novo",
-                        "O modelo terminou a rodada sem texto e sem ferramenta; repetindo com instrução"
-                                + " explícita."));
+                sink.next(
+                        eventChunk(
+                                "agent.round.retry",
+                                emptyTurn
+                                        ? "Resposta vazia — tentando de novo"
+                                        : "Ação anunciada sem execução — tentando de novo",
+                                emptyTurn
+                                        ? "O modelo terminou a rodada sem texto e sem ferramenta; repetindo com instrução explícita."
+                                        : "O modelo disse que ia agir mas não chamou nenhuma ferramenta; repetindo com instrução explícita."));
                 String originalRequest = lastUserMessage(messages);
                 ArrayNode nudged = messages.deepCopy();
                 ObjectNode nudge = nudged.addObject();
@@ -2397,8 +2405,12 @@ public class AgentService implements AgentExecutionEngine {
                 nudge.put(
                         "content",
                         (originalRequest == null || originalRequest.isBlank() ? "" : originalRequest + "\n\n")
-                                + "[Aviso do Avento] Sua resposta anterior terminou vazia: sem texto e sem chamada"
-                                + " de ferramenta. Responda agora de forma útil — chame a ferramenta adequada para"
+                                + (emptyTurn
+                                        ? "[Aviso do Avento] Sua resposta anterior terminou vazia: sem texto e sem"
+                                                + " chamada de ferramenta."
+                                        : "[Aviso do Avento] Você ANUNCIOU que ia agir mas não chamou ferramenta"
+                                                + " nenhuma, então nada aconteceu. Não anuncie de novo.")
+                                + " Responda agora de forma útil — chame a ferramenta adequada para"
                                 + " executar o pedido acima, ou dê a resposta final em texto.");
                 forward(runTurn(model, nudged, state, round + 1), sink, state);
                 return;
@@ -3864,6 +3876,40 @@ public class AgentService implements AgentExecutionEngine {
      * preâmbulo: mantém-se só o começo, o bastante para preservar um raciocínio curto sem realimentar
      * o parágrafo que o modelo vai copiar na rodada seguinte.
      */
+    // Verbos de acao que so se cumprem com ferramenta. "vou explicar" nao entra: e coisa que o
+    // modelo faz em texto mesmo.
+    private static final Pattern ANNOUNCED_ACTION = Pattern.compile(
+            "\\b(vou|irei|deixa\\s+eu|deixe-me|estou)\\s+(?:\\w+\\s+)?"
+                    + "(pesquisar|pesquisando|buscar|buscando|procurar|procurando|acessar|acessando|"
+                    + "consultar|consultando|verificar|verificando|ler|lendo|baixar|baixando|"
+                    + "executar|executando|rodar|rodando|abrir|abrindo|analisar|analisando)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    /** Limite acima do qual o texto ja e uma resposta de verdade, nao um preambulo vazio. */
+    private static final int ANNOUNCEMENT_MAX_CHARS = 900;
+
+    /**
+     * Detecta a rodada em que o modelo ANUNCIA uma acao e nao executa nada.
+     *
+     * <p>A guarda de turno vazio nao pegava isto: ela exige texto em branco, e aqui o modelo escreve
+     * "Vou pesquisar agora!" e encerra. Para o usuario e pior que o silencio — parece que algo esta
+     * acontecendo. Observado quatro vezes seguidas, duas delas repetindo o mesmo paragrafo palavra
+     * por palavra, com a ferramenta disponivel na mesa.
+     *
+     * <p>So vale quando havia ferramenta para chamar: sem toolset, prometer e a unica saida.
+     */
+    static boolean announcedActionWithoutCalling(
+            String assistantText, boolean roundCalledATool, boolean toolsAvailable) {
+        if (roundCalledATool || !toolsAvailable || assistantText == null) {
+            return false;
+        }
+        String text = assistantText.trim();
+        if (text.isEmpty() || text.length() > ANNOUNCEMENT_MAX_CHARS) {
+            return false;
+        }
+        return ANNOUNCED_ACTION.matcher(text).find();
+    }
+
     static String narrationForHistory(String assistantText, boolean roundCalledATool) {
         if (!roundCalledATool || assistantText.length() <= MAX_NARRATION_CHARS_KEPT) {
             return assistantText;

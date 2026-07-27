@@ -119,15 +119,20 @@ baixar
 download
 
 [WEB]
-pesquisa
-pesquisar
-pesquise
+# Radicais, nao formas completas: o casamento e por substring, entao "pesquis" cobre
+# pesquisa/pesquisar/pesquise/pesquisando E o typo "pesquisr" (visto em uso real, e a rodada
+# ficou sem a ferramenta de web por causa da letra faltando).
+# Cuidado ao encurtar demais: "prec" casaria "preciso", que nao e pedido de web.
+pesquis
 busca
 buscar
 busque
-procura
-procurar
-procure
+buscand
+procur
+comparativ
+especificac
+quanto custa
+ficha tecnica
 google
 site
 website

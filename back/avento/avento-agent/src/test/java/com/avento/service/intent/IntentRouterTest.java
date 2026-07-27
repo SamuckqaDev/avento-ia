@@ -63,6 +63,27 @@ class IntentRouterTest {
         assertFalse(router.shouldExposeTool("fetch", "Corrige esse bug no arquivo."));
     }
 
+    /**
+     * Casos reais em que a rodada ficou SEM a ferramenta de web e o modelo respondeu prometendo
+     * pesquisar. O primeiro é um typo — o casamento é por substring, então o radical "pesquis" cobre
+     * "pesquisr" e todas as flexões, enquanto as formas completas deixavam passar.
+     */
+    @Test
+    void exposesWebReaderDespiteTypoOrInflection() {
+        assertTrue(router.shouldExposeTool("fetch", "Pode pesquisr sobre"));
+        assertTrue(router.shouldExposeTool("fetch", "Estou pesquisando placas de video"));
+        assertTrue(router.shouldExposeTool("fetch", "me traz o comparativo de precos"));
+        assertTrue(router.shouldExposeTool("fetch", "quanto custa uma RTX 4090"));
+        assertTrue(router.shouldExposeTool("fetch", "quero a ficha tecnica dela"));
+    }
+
+    // O radical nao pode ser curto a ponto de virar falso positivo: "preciso" nao e pedido de web.
+    @Test
+    void doesNotTreatCommonWordsAsWebRequests() {
+        assertFalse(router.shouldExposeTool("fetch", "preciso corrigir esse metodo"));
+        assertFalse(router.shouldExposeTool("fetch", "precisa de um teste aqui"));
+    }
+
     // Pedido composto imagem+pdf mantém as duas ferramentas na mesa.
     @Test
     void keepsPdfGenerationAvailableForImageIntentFallback() {

@@ -1106,7 +1106,9 @@ public class AgentService implements AgentExecutionEngine {
         if (toolCatalogService != null && !state.runId.isBlank()) {
             state.extraExposedToolNames.addAll(toolCatalogService.getActiveTools(state.runId));
         }
-        ArrayNode tools = modelsWithoutToolSupport.contains(model) || conversationHasImages
+        // finalSynthesis zera o toolset de propósito: é a rodada em que o modelo precisa RESPONDER
+        // com o que já coletou. Com ferramentas na mesa ele pede mais uma leitura e o ciclo recomeça.
+        ArrayNode tools = modelsWithoutToolSupport.contains(model) || conversationHasImages || state.finalSynthesis
                 ? mapper.createArrayNode()
                 : state.forceFullToolset
                         ? availableTools
@@ -2445,11 +2447,30 @@ public class AgentService implements AgentExecutionEngine {
                 : maxToolRounds;
         if (round > effectiveMaxRounds || state.executedToolCalls >= maxToolCalls) {
             planApprovedRuns.remove(state.runId);
-            sink.next(eventChunk(
-                    "agent.limit.reached",
-                    "Limite de ferramentas atingido",
-                    "A execucao foi interrompida para evitar loop infinito."));
-            sink.next(contentChunk("\n> Limite de ferramentas atingido. Vou parar aqui para evitar loop infinito.\n"));
+            // Antes daqui saía só "Limite atingido" e sink.complete(): minutos de leitura de arquivo
+            // eram descartados e o usuário ficava com a narração e nenhuma análise. Agora o limite
+            // corta as FERRAMENTAS, não a resposta — uma última rodada sem toolset pedindo o
+            // fechamento com o que já foi coletado. O flag garante que isso acontece uma só vez.
+            if (!state.finalSynthesis) {
+                state.finalSynthesis = true;
+                sink.next(eventChunk(
+                        "agent.limit.reached",
+                        "Limite de ferramentas atingido",
+                        "Fechando com o que já foi coletado, sem novas ferramentas."));
+                ArrayNode closing = messages.deepCopy();
+                ObjectNode instruction = closing.addObject();
+                instruction.put("role", "user");
+                instruction.put(
+                        "content",
+                        "[Aviso do Avento] Você atingiu o limite de ferramentas desta resposta e não pode"
+                                + " chamar mais nenhuma. Responda AGORA, em texto, ao pedido original, usando"
+                                + " apenas o que já leu nesta conversa. Entregue as conclusões que conseguir"
+                                + " sustentar e diga explicitamente o que ficou por verificar. Não anuncie"
+                                + " próximos passos nem prometa continuar.");
+                forward(runTurn(model, closing, state, round + 1), sink, state);
+                return;
+            }
+            sink.next(contentChunk("\n> Limite de ferramentas atingido.\n"));
             sink.complete();
             return;
         }
@@ -3828,10 +3849,29 @@ public class AgentService implements AgentExecutionEngine {
                 .trim();
     }
 
+    // O preâmbulo antes de uma chamada de ferramenta ("Vou continuar a análise...") voltava inteiro
+    // para o histórico. Na rodada seguinte o modelo via a própria frase, copiava, e na outra via
+    // duas cópias — eco que enche o contexto e produz a resposta repetida que o usuário vê. O que o
+    // modelo precisa reter da rodada é o tool_call e o resultado, não o floreio; guarda-se só um
+    // trecho curto para não perder um raciocínio que às vezes vem junto.
+    private static final int MAX_NARRATION_CHARS_KEPT = 240;
+
+    /**
+     * Sem chamada de ferramenta o texto É a resposta ao usuário e vai inteiro. Com chamada, ele é
+     * preâmbulo: mantém-se só o começo, o bastante para preservar um raciocínio curto sem realimentar
+     * o parágrafo que o modelo vai copiar na rodada seguinte.
+     */
+    static String narrationForHistory(String assistantText, boolean roundCalledATool) {
+        if (!roundCalledATool || assistantText.length() <= MAX_NARRATION_CHARS_KEPT) {
+            return assistantText;
+        }
+        return assistantText.substring(0, MAX_NARRATION_CHARS_KEPT).stripTrailing() + "…";
+    }
+
     private void appendAssistantToolRequest(ArrayNode messages, TurnCapture capture) {
         ObjectNode assistantMsg = mapper.createObjectNode();
         assistantMsg.put("role", "assistant");
-        String fullText = capture.assistantText.toString();
+        String fullText = narrationForHistory(capture.assistantText.toString(), !capture.nativeToolCalls.isEmpty());
         if (!fullText.isEmpty()) {
             assistantMsg.put("content", fullText);
         }
@@ -4238,6 +4278,9 @@ public class AgentService implements AgentExecutionEngine {
         boolean forceFullToolset = false;
         boolean retriedWithFullToolset = false;
         boolean retriedEmptyTurn = false;
+        // Rodada final, sem ferramentas: responder com o contexto ja coletado em vez de descartar
+        // tudo ao bater o limite. Marcada uma unica vez, senao o proprio fecho viraria outro loop.
+        boolean finalSynthesis = false;
         // Guarda contra insistir numa ferramenta quebrada: nome da última ferramenta que falhou e
         // quantas vezes seguidas. Um sucesso zera. Ao bater no limite, o Avento para e explica em
         // vez de gastar mais rodadas (~50s cada no modelo local) repetindo a mesma falha.

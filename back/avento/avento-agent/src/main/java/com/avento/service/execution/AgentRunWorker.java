@@ -264,9 +264,10 @@ public class AgentRunWorker {
                 submissionService.markCancelled(current);
             } else if (error.get() != null) {
                 submissionService.markFailed(current, error.get());
-                if (causedByTimeout(error.get())) {
-                    publishFailure(current, error.get());
-                }
+                // Publica SEMPRE, não só em timeout. Uma falha que só existe na coluna last_error é
+                // invisível: a interface não mostra nada e o sintoma vira "mandei e não aconteceu
+                // nada", com o motivo real (pasta ausente, modelo inexistente) escondido no banco.
+                publishFailure(current, error.get());
                 sendToDeadLetter(current, error.get());
             } else if (orchestrator
                     .registry()
@@ -427,13 +428,30 @@ public class AgentRunWorker {
     }
 
     private void publishFailure(AgentRunJob job, Throwable error) {
+        String detail = error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
         ObjectNode root = mapper.createObjectNode();
         ObjectNode event = root.putObject("avento_event");
         event.put("type", "agent.run.failed");
         event.put("title", "Execução falhou");
-        event.put("detail", error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage());
+        event.put("detail", detail);
         event.put("runId", job.getRunId());
         eventPublisher.publish(job.getRunId(), job.getUserId(), job.getChatId(), root.toString());
+
+        // O evento acima não é renderizado por ninguém no front (nenhum consumidor de
+        // onActivityEvent). O que a conversa mostra é chunk de conteúdo, então o motivo da falha vai
+        // também como texto — senão o usuário vê a resposta parar sem explicação e o motivo real
+        // fica só na coluna last_error do banco.
+        eventPublisher.publish(
+                job.getRunId(),
+                job.getUserId(),
+                job.getChatId(),
+                contentChunk("\n> ❌ **Execução falhou:** " + detail + "\n"));
+    }
+
+    private String contentChunk(String content) {
+        ObjectNode root = mapper.createObjectNode();
+        root.putArray("choices").addObject().putObject("delta").put("content", content);
+        return root.toString();
     }
 
     private void acknowledge(MapRecord<String, String, String> record) {

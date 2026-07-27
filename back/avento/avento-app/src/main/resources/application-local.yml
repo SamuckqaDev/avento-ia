@@ -25,7 +25,10 @@ avento:
       password: ${AVENTO_AUTH_ROOT_PASSWORD:Root@123456+-}
       display-name: ${AVENTO_AUTH_ROOT_DISPLAY_NAME:MatsuTech Root}
   agent:
-    max-tool-rounds: 6
+    # 15 rodadas: 6 não fechava um pedido do tipo "analise este projeto" (um arquivo por rodada num
+    # monorepo), e ao estourar o limite a resposta era descartada. Agora o estouro entrega a síntese
+    # do que já foi lido, então rodada a mais custa tempo, não a resposta inteira.
+    max-tool-rounds: 15
     max-tool-calls: 16
     # 8192, nao 16384: medido nesta maquina, o qwen3.5:9b @ 16384 levava 34-46s por pedido SIMPLES
     # (a maquina paginava o KV cache); granite4.1:8b @ 8192 responde em ~2.8s em regime. 8192 e o teto.

@@ -6,8 +6,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.avento.api.dto.UserSettingsRequest;
+import com.avento.model.UserSettings;
+import com.avento.repository.UserSettingsRepository;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -49,5 +53,62 @@ class UserSettingsServiceTest {
         assertThat(service.get(UUID.randomUUID()).ttsEnabled()).isFalse();
         assertThat(service.get(UUID.randomUUID()).thinkingEnabled()).isFalse();
         assertThat(service.get(UUID.randomUUID()).autoApproveAll()).isFalse();
+    }
+
+    /**
+     * O Redis de desenvolvimento não persiste: a preferência precisa viver no banco, senão ligar
+     * thinking some no próximo restart e o botão do menu parece não ter efeito.
+     */
+    @Test
+    void persistsSettingsInTheDatabaseNotOnlyInTheCache() {
+        UserSettingsRepository repository = mock(UserSettingsRepository.class);
+        UUID userId = UUID.randomUUID();
+        when(repository.findById(userId)).thenReturn(Optional.empty());
+        UserSettingsService service = serviceWith(null, repository);
+
+        service.update(userId, new UserSettingsRequest(null, true, null));
+
+        ArgumentCaptor<UserSettings> saved = ArgumentCaptor.forClass(UserSettings.class);
+        verify(repository).save(saved.capture());
+        assertThat(saved.getValue().getUserId()).isEqualTo(userId);
+        assertThat(saved.getValue().isThinkingEnabled()).isTrue();
+    }
+
+    // Sem cache, a leitura tem que cair no banco — e não no padrão.
+    @Test
+    void readsFromTheDatabaseWhenTheCacheIsEmpty() {
+        UserSettingsRepository repository = mock(UserSettingsRepository.class);
+        UUID userId = UUID.randomUUID();
+        UserSettings stored = new UserSettings(userId);
+        stored.setThinkingEnabled(true);
+        when(repository.findById(userId)).thenReturn(Optional.of(stored));
+
+        assertThat(serviceWith(null, repository).thinkingEnabled(userId, false)).isTrue();
+    }
+
+    // Um campo nulo no pedido significa "não mexi nisso": não pode zerar o que já estava gravado.
+    @Test
+    void leavesUntouchedFieldsAloneOnPartialUpdate() {
+        UserSettingsRepository repository = mock(UserSettingsRepository.class);
+        UUID userId = UUID.randomUUID();
+        UserSettings stored = new UserSettings(userId);
+        stored.setAutoApproveAll(true);
+        when(repository.findById(userId)).thenReturn(Optional.of(stored));
+
+        serviceWith(null, repository).update(userId, new UserSettingsRequest(null, true, null));
+
+        ArgumentCaptor<UserSettings> saved = ArgumentCaptor.forClass(UserSettings.class);
+        verify(repository).save(saved.capture());
+        assertThat(saved.getValue().isAutoApproveAll()).isTrue();
+        assertThat(saved.getValue().isThinkingEnabled()).isTrue();
+    }
+
+    @SuppressWarnings("unchecked")
+    private UserSettingsService serviceWith(StringRedisTemplate redis, UserSettingsRepository repository) {
+        ObjectProvider<StringRedisTemplate> redisProvider = mock(ObjectProvider.class);
+        when(redisProvider.getIfAvailable()).thenReturn(redis);
+        ObjectProvider<UserSettingsRepository> repositoryProvider = mock(ObjectProvider.class);
+        when(repositoryProvider.getIfAvailable()).thenReturn(repository);
+        return new UserSettingsService(redisProvider, repositoryProvider);
     }
 }

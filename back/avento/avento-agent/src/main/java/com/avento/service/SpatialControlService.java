@@ -26,11 +26,64 @@ public class SpatialControlService {
             this.robot = new Robot();
             this.robot.setAutoDelay(10);
             logger.info("Java AWT Robot inicializado com sucesso para controle de clique espacial no macOS/Desktop.");
+            warnIfAccessibilityIsMissing();
             return true;
         } catch (Exception e) {
             logger.error("Falha ao inicializar AWT Robot para controle espacial: {}", e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * No macOS, sem permissão de Acessibilidade o {@code mouseMove} NÃO lança exceção — ele
+     * simplesmente não move nada. O log dizia sucesso, o cursor ficava parado, e o sintoma virava
+     * "não funciona e não sei por quê". Aqui move 1px e relê a posição: se não mudou, avisa com o
+     * caminho exato do ajuste.
+     */
+    private void warnIfAccessibilityIsMissing() {
+        try {
+            java.awt.Point before = java.awt.MouseInfo.getPointerInfo().getLocation();
+            int probeX = before.x + (before.x > 0 ? -1 : 1);
+            robot.mouseMove(probeX, before.y);
+            java.awt.Point after = java.awt.MouseInfo.getPointerInfo().getLocation();
+            robot.mouseMove(before.x, before.y);
+
+            if (after.x == before.x && after.y == before.y) {
+                logger.warn("O cursor nao respondeu ao Robot: falta permissao de Acessibilidade. Conceda em"
+                        + " Ajustes do Sistema > Privacidade e Seguranca > Acessibilidade para o processo"
+                        + " Java/Terminal e reinicie o backend. Ate la, o controle por gesto nao move nada.");
+            }
+        } catch (Exception e) {
+            logger.debug("Nao foi possivel verificar a permissao de Acessibilidade", e);
+        }
+    }
+
+    /**
+     * Retângulo de TODOS os monitores, não só o principal. {@code Toolkit.getScreenSize()} devolve
+     * apenas o display primário, então com um monitor externo ligado metade da área era inalcançável
+     * e o mapeamento saía deslocado.
+     */
+    private java.awt.Rectangle virtualDesktopBounds() {
+        java.awt.Rectangle bounds = new java.awt.Rectangle();
+        for (java.awt.GraphicsDevice device :
+                java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
+            bounds = bounds.union(device.getDefaultConfiguration().getBounds());
+        }
+        if (bounds.isEmpty()) {
+            Dimension primary = Toolkit.getDefaultToolkit().getScreenSize();
+            return new java.awt.Rectangle(0, 0, primary.width, primary.height);
+        }
+        return bounds;
+    }
+
+    /** Converte proporção 0..1 em ponto absoluto do desktop virtual, preso dentro dos limites. */
+    private java.awt.Point toScreenPoint(double xRatio, double yRatio) {
+        java.awt.Rectangle bounds = virtualDesktopBounds();
+        int x = bounds.x + (int) Math.round(xRatio * bounds.width);
+        int y = bounds.y + (int) Math.round(yRatio * bounds.height);
+        return new java.awt.Point(
+                Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - 1)),
+                Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - 1)));
     }
 
     private boolean isMousePressedState = false;
@@ -42,12 +95,9 @@ public class SpatialControlService {
         }
 
         try {
-            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-            int targetX = (int) Math.round(xRatio * screenSize.width);
-            int targetY = (int) Math.round(yRatio * screenSize.height);
-
-            targetX = Math.max(0, Math.min(targetX, screenSize.width - 1));
-            targetY = Math.max(0, Math.min(targetY, screenSize.height - 1));
+            java.awt.Point target = toScreenPoint(xRatio, yRatio);
+            int targetX = target.x;
+            int targetY = target.y;
 
             int buttonMask = isRight ? InputEvent.BUTTON3_DOWN_MASK : InputEvent.BUTTON1_DOWN_MASK;
 
@@ -74,12 +124,9 @@ public class SpatialControlService {
         }
 
         try {
-            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-            int targetX = (int) Math.round(xRatio * screenSize.width);
-            int targetY = (int) Math.round(yRatio * screenSize.height);
-
-            targetX = Math.max(0, Math.min(targetX, screenSize.width - 1));
-            targetY = Math.max(0, Math.min(targetY, screenSize.height - 1));
+            java.awt.Point target = toScreenPoint(xRatio, yRatio);
+            int targetX = target.x;
+            int targetY = target.y;
 
             robot.mouseMove(targetX, targetY);
 
@@ -106,12 +153,9 @@ public class SpatialControlService {
         }
 
         try {
-            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-            int targetX = (int) Math.round(xRatio * screenSize.width);
-            int targetY = (int) Math.round(yRatio * screenSize.height);
-
-            targetX = Math.max(0, Math.min(targetX, screenSize.width - 1));
-            targetY = Math.max(0, Math.min(targetY, screenSize.height - 1));
+            java.awt.Point target = toScreenPoint(xRatio, yRatio);
+            int targetX = target.x;
+            int targetY = target.y;
 
             robot.mouseMove(targetX, targetY);
             return true;

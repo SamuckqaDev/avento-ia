@@ -96,6 +96,20 @@ const MAX_DOCUMENT_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 const MAX_DOCUMENT_CONTEXT_CHARS = 5000;
 const IMAGE_PREFERENCES_KEY = 'avento-image-generation-options';
 const VOICE_ENABLED_KEY = 'avento-voice-enabled';
+const SELECTED_MODEL_KEY = 'avento-selected-model';
+
+/**
+ * A escolha de modelo era só estado React: recarregar a página descartava e a lista voltava a
+ * eleger o `recommended` (o default do backend). Trocar para qwen3:8b e ver qwen3.5:9b de volta no
+ * próximo reload era isso.
+ */
+function loadSelectedModel(): string {
+  try {
+    return window.localStorage.getItem(SELECTED_MODEL_KEY) || '';
+  } catch {
+    return '';
+  }
+}
 
 function loadVoiceEnabled(): boolean {
   try {
@@ -708,11 +722,21 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const [isSpatialDesktopOpen, setIsSpatialDesktopOpen] = useState<boolean>(false);
   const isVoiceEnabledRef = useRef<boolean>(isVoiceEnabled);
   const [isMobileOpen, setMobileOpen] = useState<boolean>(false);
-  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>(loadSelectedModel);
   const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
   const [availableImageModels, setAvailableImageModels] = useState<AvailableModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      if (selectedModel) {
+        window.localStorage.setItem(SELECTED_MODEL_KEY, selectedModel);
+      }
+    } catch {
+      // localStorage indisponível (modo privado): a escolha só não sobrevive ao reload.
+    }
+  }, [selectedModel]);
+
   const selectedModelInfo = useMemo(
     () => availableModels.find(model => model.name === selectedModel) || null,
     [availableModels, selectedModel]
@@ -2066,9 +2090,11 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
         availableModels.find(model => model.vision && !model.heavy) ||
         availableModels.find(model => model.vision);
       if (visionModel) {
+        // Só esta requisição usa o modelo visual. Antes isso chamava setSelectedModel e a escolha
+        // do usuário ficava trocada para sempre depois de uma única imagem — e é redundante: o
+        // backend já troca sozinho em resolveChatModel quando a conversa tem imagem.
         responseModel = visionModel.name;
-        setSelectedModel(visionModel.name);
-        showTemporaryNotice(`Modelo visual ${visionModel.name} selecionado para analisar a imagem.`);
+        showTemporaryNotice(`Modelo visual ${visionModel.name} usado para analisar a imagem.`);
       }
     }
 

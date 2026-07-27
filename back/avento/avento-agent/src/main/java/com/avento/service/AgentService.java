@@ -2630,7 +2630,36 @@ public class AgentService implements AgentExecutionEngine {
         if (remote && message.contains("404")) {
             sink.next(contentChunk(availableModelsHint(state.userId)));
         }
+        if (remote && message.contains("429")) {
+            sink.next(contentChunk(quotaHint(message, model)));
+        }
         sink.complete();
+    }
+
+    /**
+     * Resume um 429 do provedor.
+     *
+     * <p>O corpo vem como um muro de JSON com violacoes repetidas e links; o que importa e se a cota
+     * e ZERO (modelo fora do plano, e esperar nao resolve) ou se e limite temporario, e em quanto
+     * tempo tentar de novo.
+     */
+    static String quotaHint(String message, String model) {
+        boolean semCota = message.contains("limit: 0");
+        String espera = "";
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\"retryDelay\"\\s*:\\s*\"(\\d+)s\"")
+                .matcher(message);
+        if (matcher.find()) {
+            espera = matcher.group(1);
+        }
+
+        if (semCota) {
+            return "\n> ⚠️ O modelo `" + model + "` tem cota **zero** no seu plano — nao e limite"
+                    + " atingido, e modelo indisponivel na conta. Habilite faturamento no Google ou"
+                    + " escolha outro modelo em Configuracoes > Modelos & Provedores.\n";
+        }
+        return "\n> ⚠️ Limite de uso do provedor atingido"
+                + (espera.isBlank() ? "" : "; tente de novo em " + espera + "s")
+                + ".\n";
     }
 
     /** Lista os modelos que o provedor realmente oferece, para o 404 virar instrucao. */

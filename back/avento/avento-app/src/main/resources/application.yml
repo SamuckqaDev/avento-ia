@@ -51,6 +51,10 @@ avento:
     project-toolkit: ${AVENTO_AGENT_PROJECT_TOOLKIT:directory_tree,read_file,read_document,write_file,edit_file,delete_file,delete_directory,create_directory,search_files,find_symbol,verify_project,terminal_run,terminal_start,terminal_logs}
     max-model-messages: ${AVENTO_AGENT_MAX_MODEL_MESSAGES:10}
     max-message-content-chars: ${AVENTO_AGENT_MAX_MESSAGE_CONTENT_CHARS:6000}
+    # Corte do resultado de ferramenta ANTES de virar histórico. Um fetch devolve a página inteira,
+    # e sem corte ela era relida em toda rodada seguinte: ler prompt custa ~4,4ms/token no M2 Pro,
+    # então três páginas viravam quase um minuto de silêncio antes do primeiro caractere.
+    max-tool-result-chars: ${AVENTO_AGENT_MAX_TOOL_RESULT_CHARS:4000}
     max-total-message-content-chars: ${AVENTO_AGENT_MAX_TOTAL_MESSAGE_CONTENT_CHARS:8000}
     # Executor (chat + rodadas de ferramenta): granite4.1:8b mediu ~3x mais rapido que qwen3.5:9b
     # no tool calling desta maquina (3.9s vs 11.4s por resposta), com tabela e tool calling OK.

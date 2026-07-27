@@ -154,6 +154,7 @@ public class AgentService implements AgentExecutionEngine {
     private static final int PROJECT_TOOLKIT_EXTRA_LIMIT = 6;
     private final int maxModelMessages;
     private final int maxMessageContentChars;
+    private final int maxToolResultChars;
     private final int maxTotalMessageContentChars;
 
     @Value("${avento.agent.policy-mode:maximum}")
@@ -257,6 +258,7 @@ public class AgentService implements AgentExecutionEngine {
                     String projectToolkit,
             @Value("${avento.agent.max-model-messages:10}") int maxModelMessages,
             @Value("${avento.agent.max-message-content-chars:6000}") int maxMessageContentChars,
+            @Value("${avento.agent.max-tool-result-chars:4000}") int maxToolResultChars,
             @Value("${avento.agent.max-total-message-content-chars:14000}") int maxTotalMessageContentChars,
             @Value("${avento.agent.default-model:granite4.1:8b}") String defaultChatModel,
             @Value("${avento.agent.thinking-capable-models:qwen3,qwen3.5,gemma4,deepseek}")
@@ -295,6 +297,7 @@ public class AgentService implements AgentExecutionEngine {
                 .toList());
         this.maxModelMessages = Math.max(2, maxModelMessages);
         this.maxMessageContentChars = Math.max(500, maxMessageContentChars);
+        this.maxToolResultChars = Math.max(500, maxToolResultChars);
         this.maxTotalMessageContentChars = Math.max(this.maxMessageContentChars, maxTotalMessageContentChars);
         this.defaultChatModel = defaultChatModel;
         this.defaultVisionModel = defaultVisionModel;
@@ -3944,6 +3947,28 @@ public class AgentService implements AgentExecutionEngine {
         }
     }
 
+    /**
+     * Corta o resultado da ferramenta antes de ele virar histórico.
+     *
+     * <p>Ia inteiro. Um {@code fetch} devolve a página web completa — 20 mil caracteres viram ~5 mil
+     * tokens que ficam no prompt e são RELIDOS em toda rodada seguinte. Numa pesquisa com três
+     * páginas, a rodada 3 chegava a 10-15 mil tokens só de contexto, e ler prompt custa ~4,4ms por
+     * token nesta máquina: um minuto de silêncio antes do primeiro caractere sair. O sintoma
+     * aparecia como "ficou pensando muito tempo", mas não era raciocínio — era releitura.
+     *
+     * <p>O marcador no fim é deliberado: sem ele o modelo trata o texto cortado como o documento
+     * inteiro e responde com confiança sobre o que não leu.
+     */
+    static String truncateToolResultForHistory(String content, int maxChars) {
+        if (content == null || content.length() <= maxChars) {
+            return content;
+        }
+        return content.substring(0, maxChars)
+                + "\n\n[...truncado pelo Avento: o resultado tinha " + content.length()
+                + " caracteres. Se precisar do trecho que faltou, chame a ferramenta de novo com um"
+                + " filtro mais específico em vez de supor o conteúdo.]";
+    }
+
     private JsonNode executeToolCall(ArrayNode messages, FluxSink<String> sink, ToolCall toolCall, String runId) {
         JsonNode visibleArguments = permissionArguments(toolCall);
         timelineService.record(runId, "tool.started", toolCall.name(), compactJson(visibleArguments), visibleArguments);
@@ -3958,7 +3983,7 @@ public class AgentService implements AgentExecutionEngine {
             Map<String, Object> argsMap =
                     mapper.convertValue(toolCall.arguments(), new TypeReference<Map<String, Object>>() {});
             JsonNode toolResult = toolGateway.execute(toolCall.name(), argsMap);
-            toolMsg.put("content", toolResult.toString());
+            toolMsg.put("content", truncateToolResultForHistory(toolResult.toString(), maxToolResultChars));
             messages.add(toolMsg);
             if (toolResult.has("error")) {
                 String error = toolResult.get("error").asText();

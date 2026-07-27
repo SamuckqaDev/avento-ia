@@ -97,6 +97,7 @@ class AgentServiceDirectAutomationTest {
             "directory_tree,read_file,write_file,edit_file,delete_file,terminal_run",
             10,
             6000,
+            4000,
             14000,
             "qwen3:8b",
             "qwen3,qwen3.5,gemma4,deepseek",

@@ -2604,9 +2604,43 @@ public class AgentService implements AgentExecutionEngine {
             message = error.getMessage();
         }
 
-        sink.next(eventChunk("agent.error", "Falha no modelo local", message));
-        sink.next(contentChunk("\n> Erro ao chamar o modelo local `" + model + "`: " + message + "\n"));
+        // "local" era mentira quando o provedor e remoto — e mandava o usuario procurar o problema
+        // no Ollama enquanto ele estava no Gemini.
+        boolean remote = modelProviderService != null && modelProviderService.remoteProviderReady(state.userId);
+        String origem = remote ? modelProviderService.activeKind(state.userId).name() : "local";
+
+        sink.next(eventChunk("agent.error", "Falha no modelo " + origem, message));
+        sink.next(contentChunk("\n> Erro ao chamar o modelo " + origem + " `" + model + "`: " + message + "\n"));
+        // Um 404 aqui quer dizer que o modelo nao existe (ou foi aposentado) para esta conta, e a
+        // mensagem sozinha nao diz qual usar. Perguntar ao provedor transforma o beco num caminho.
+        if (remote && message.contains("404")) {
+            sink.next(contentChunk(availableModelsHint(state.userId)));
+        }
         sink.complete();
+    }
+
+    /** Lista os modelos que o provedor realmente oferece, para o 404 virar instrucao. */
+    private String availableModelsHint(UUID userId) {
+        try {
+            JsonNode listing = modelProviderService.listAvailableModels(userId);
+            List<String> names = new ArrayList<>();
+            for (JsonNode model : listing.path("data")) {
+                String id = model.path("id").asText("");
+                if (!id.isBlank()) {
+                    names.add(id);
+                }
+            }
+            if (names.isEmpty()) {
+                return "\n> Nao consegui listar os modelos disponiveis. Verifique a chave em"
+                        + " Configuracoes > Modelos & Provedores.\n";
+            }
+            return "\n> Modelos disponiveis nesta conta: "
+                    + String.join(", ", names.subList(0, Math.min(8, names.size())))
+                    + (names.size() > 8 ? ", e mais " + (names.size() - 8) : "")
+                    + ".\n> Escolha um deles em Configuracoes > Modelos & Provedores.\n";
+        } catch (RuntimeException exception) {
+            return "";
+        }
     }
 
     private boolean isToolsUnsupportedError(Throwable error) {

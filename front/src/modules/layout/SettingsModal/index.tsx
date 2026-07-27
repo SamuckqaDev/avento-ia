@@ -113,6 +113,9 @@ export function SettingsModal({
     apiKeyInput: '',
   });
   const [providerModels, setProviderModels] = useState<string[]>([]);
+  // Chave ja salva fica guardada e mascarada; editar e um ato deliberado. Campo de senha sempre
+  // aberto convida a colar por cima sem querer, e apagar uma chave valida por engano e caro.
+  const [editingApiKey, setEditingApiKey] = useState(false);
   const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [testLanStatus, setTestLanStatus] = useState<{ success?: boolean; message?: string; loading?: boolean }>({});
   
@@ -319,6 +322,22 @@ export function SettingsModal({
       }
     } catch {
       setTestLanStatus({ success: false, message: 'Falha ao testar o provedor.', loading: false });
+    }
+  };
+
+  const handleDisconnectProvider = async () => {
+    setIsSaving(true);
+    try {
+      await api.delete('/api/ai/providers');
+      setProviderModels([]);
+      setEditingApiKey(false);
+      setTestLanStatus({ success: true, message: 'Provedor removido — voltando ao modelo local.', loading: false });
+      await loadProviders();
+    } catch (error) {
+      console.error('Erro ao remover provedor', error);
+      setTestLanStatus({ success: false, message: 'Falha ao remover o provedor.', loading: false });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -921,6 +940,11 @@ export function SettingsModal({
   // O modelo salvo entra na lista mesmo que a consulta ao provedor tenha falhado. Sem isso, o
   // <select> fica com um value que nao casa com nenhuma <option>: o navegador mostra a primeira,
   // o estado guarda outra, e salvar regravava o modelo antigo sem a pessoa perceber.
+  // Remoto de verdade: tipo nao-local E, quando exige chave, com chave gravada. So o tipo nao basta
+  // — sem chave nada funciona, e mostrar "em uso" ali seria a mesma mentira que perseguimos hoje.
+  const providerIsRemote =
+    activeKind.kind !== 'OLLAMA' && (!activeKind.key || Boolean(providerSettings.apiKeyMasked));
+
   const modelOptions = providerSettings.selectedModel && !providerModels.includes(providerSettings.selectedModel)
     ? [providerSettings.selectedModel, ...providerModels]
     : providerModels;
@@ -935,6 +959,30 @@ export function SettingsModal({
             <h4>Provedor de IA</h4>
             {activeKind.key ? <BadgePrivate>Privado do Seu Login</BadgePrivate> : <BadgeShared>Rede / Local</BadgeShared>}
           </ProviderSectionTitle>
+
+          {/* Estado ativo em destaque: sem isto, quem configurou nao tinha como saber de onde a
+              resposta vinha — foi a confusao que custou horas de depuracao. */}
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              background: providerIsRemote ? 'rgba(79, 209, 180, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+              border: `1px solid ${providerIsRemote ? 'rgba(79, 209, 180, 0.4)' : 'rgba(255, 255, 255, 0.12)'}`,
+              borderRadius: '10px', padding: '10px 14px', margin: '0 0 14px',
+            }}
+          >
+            <span style={{ fontSize: '1.05rem' }}>{providerIsRemote ? '☁️' : '🖥️'}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: providerIsRemote ? '#4FD1B4' : '#F2FFFB' }}>
+                Em uso: {activeKind.title}
+                {providerSettings.selectedModel ? ` · ${providerSettings.selectedModel}` : ''}
+              </div>
+              <div style={{ fontSize: '0.76rem', color: '#9FB8B1' }}>
+                {providerIsRemote
+                  ? 'As conversas saem desta máquina e vão para o provedor.'
+                  : 'Tudo roda nesta máquina; nada sai daqui.'}
+              </div>
+            </div>
+          </div>
 
           <p style={{ color: '#9FB8B1', fontSize: '0.8rem', margin: '0 0 12px' }}>
             Escolha de onde vêm as respostas. O sistema passa a listar os modelos desse provedor e a
@@ -973,7 +1021,37 @@ export function SettingsModal({
             </AgentField>
           </SettingRow>
 
-          {activeKind.key && (
+          {activeKind.key && providerSettings.apiKeyMasked && !editingApiKey && (
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+                background: 'rgba(79, 209, 180, 0.10)',
+                border: '1px solid rgba(79, 209, 180, 0.35)',
+                borderRadius: '10px', padding: '12px 14px', margin: '8px 0',
+              }}
+            >
+              <span style={{ fontSize: '1.1rem' }}>🔒</span>
+              <div style={{ flex: 1, minWidth: '180px' }}>
+                <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#4FD1B4' }}>
+                  Conectado a {activeKind.title}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#9FB8B1', fontFamily: 'ui-monospace, monospace' }}>
+                  {providerSettings.apiKeyMasked}
+                </div>
+              </div>
+              <TestButton type="button" onClick={() => setEditingApiKey(true)}>Editar chave</TestButton>
+              <TestButton
+                type="button"
+                onClick={handleDisconnectProvider}
+                disabled={isSaving}
+                style={{ borderColor: 'rgba(244, 130, 130, 0.5)', color: '#F48282' }}
+              >
+                Remover
+              </TestButton>
+            </div>
+          )}
+
+          {activeKind.key && (!providerSettings.apiKeyMasked || editingApiKey) && (
             <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
               <AgentField style={{ flex: 1 }}>
                 <span>Chave de API</span>
@@ -982,12 +1060,13 @@ export function SettingsModal({
                   value={providerSettings.apiKeyInput}
                   onChange={e => setProviderSettings({ ...providerSettings, apiKeyInput: e.target.value })}
                   placeholder={providerSettings.apiKeyMasked || 'Cole sua chave de API aqui...'}
+                  autoFocus={editingApiKey}
                 />
-                {providerSettings.apiKeyMasked && !providerSettings.apiKeyInput && (
-                  <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '4px' }}>
-                    Chave já salva ({providerSettings.apiKeyMasked}). Deixe em branco para mantê-la.
-                  </span>
-                )}
+                <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '4px' }}>
+                  {editingApiKey
+                    ? 'Deixe em branco e salve para manter a chave atual.'
+                    : 'A chave fica guardada cifrada e nunca volta para a tela.'}
+                </span>
               </AgentField>
             </SettingRow>
           )}

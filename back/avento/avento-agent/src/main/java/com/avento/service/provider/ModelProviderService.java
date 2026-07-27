@@ -239,6 +239,36 @@ public class ModelProviderService {
         return getSettings(userId);
     }
 
+    /**
+     * Desconecta o provedor remoto: apaga a chave e volta para o local.
+     *
+     * <p>Existe para a tela ter o par completo — conectar e desconectar. Sem isso, tirar uma chave
+     * exigiria mexer no banco, e quem usa o produto nao deveria precisar disso.
+     */
+    public ProviderSettingsResponse disconnect(UUID userId) {
+        if (userId == null || repository == null) {
+            return getSettings(userId);
+        }
+        try {
+            repository.findById(userId).ifPresent(stored -> {
+                stored.setProviderKind(ProviderKind.OLLAMA.name());
+                stored.setCloudApiKeyEncrypted(null);
+                stored.setCloudModel(null);
+                stored.setVisionModel(null);
+                stored.setImageModel(null);
+                stored.setBaseUrl(null);
+                stored.setUsePersonalCloud(false);
+                stored.setCloudProvider(ProviderKind.OLLAMA.name());
+                repository.save(stored);
+            });
+            contextLimitCache.clear();
+        } catch (RuntimeException exception) {
+            logger.warn(
+                    "Falha ao desconectar o provedor: {}", exception.getClass().getSimpleName());
+        }
+        return getSettings(userId);
+    }
+
     /** Falso para vazio e para o valor mascarado que a própria tela devolve. */
     static boolean isRealApiKey(String candidate) {
         return candidate != null && !candidate.isBlank() && !candidate.contains("•");

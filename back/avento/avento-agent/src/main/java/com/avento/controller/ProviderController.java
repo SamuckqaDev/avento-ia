@@ -10,6 +10,7 @@ import com.avento.auth.security.AuthPrincipal;
 import com.avento.service.provider.ModelProviderService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -40,6 +41,12 @@ public class ProviderController {
         ProviderSettingsResponse settings =
                 providerService.updateSettings(principal != null ? principal.userId() : null, request);
         return ApiResponses.ok(settings);
+    }
+
+    @DeleteMapping
+    public ResponseEntity<BaseResponse<ProviderSettingsResponse>> disconnectProvider(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponses.ok(providerService.disconnect(principal != null ? principal.userId() : null));
     }
 
     @PostMapping("/test")

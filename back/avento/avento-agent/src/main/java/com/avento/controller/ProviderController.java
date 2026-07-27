@@ -8,6 +8,7 @@ import com.avento.api.dto.ProviderTestRequest;
 import com.avento.api.dto.ProviderTestResponse;
 import com.avento.auth.security.AuthPrincipal;
 import com.avento.service.provider.ModelProviderService;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,6 +34,18 @@ public class ProviderController {
             @AuthenticationPrincipal AuthPrincipal principal) {
         ProviderSettingsResponse settings = providerService.getSettings(principal != null ? principal.userId() : null);
         return ApiResponses.ok(settings);
+    }
+
+    /**
+     * Modelos que o PROVEDOR ATIVO oferece — Gemini, Anthropic, um DGX ou o Ollama local.
+     *
+     * <p>Vivia num {@code OllamaController} mapeado em {@code /api/models}. O nome mentia: a classe
+     * so delegava para o servico de provedor, entao a rota nunca teve relacao com o Ollama. Achar
+     * "ollama" no log ao depurar um problema de Gemini mandava procurar no lugar errado.
+     */
+    @GetMapping("/models")
+    public ResponseEntity<BaseResponse<JsonNode>> getProviderModels(@AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponses.ok(providerService.listAvailableModels(principal != null ? principal.userId() : null));
     }
 
     @PutMapping

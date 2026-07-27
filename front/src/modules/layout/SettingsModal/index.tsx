@@ -285,10 +285,10 @@ export function SettingsModal({
       // Modelos que o provedor REALMENTE tem, para o campo de modelo sugerir em vez de exigir que a
       // pessoa acerte o nome de cabeca.
       try {
-        // /api/models, nao /api/ollama/models: o controller esta mapeado em @RequestMapping("/api").
-        // A URL errada devolvia 404 e o catch zerava a lista em silencio — o seletor abria vazio e
-        // nao havia como escolher modelo nenhum.
-        const models = await api.get<{ data?: { id: string }[] }>('/api/models');
+        // Modelos do PROVEDOR ATIVO — Gemini, Anthropic, DGX ou Ollama local. A rota antiga
+        // (/api/ollama/models) nao existia: 404 em toda abertura, catch zerando a lista em silencio,
+        // seletor vazio e nenhum modelo para escolher.
+        const models = await api.get<{ data?: { id: string }[] }>('/api/ai/providers/models');
         setProviderModels((models.data?.data || []).map(model => model.id).filter(Boolean));
       } catch (error) {
         console.error('Erro ao listar modelos do provedor', error);

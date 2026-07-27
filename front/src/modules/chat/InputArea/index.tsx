@@ -182,6 +182,14 @@ export function InputArea({
         <TextArea
           placeholder="Envie uma mensagem..."
           value={inputValue}
+          // Corretor VISUAL do navegador: sublinha o erro e deixa você corrigir. Nada é reescrito
+          // automaticamente de propósito — esta caixa carrega caminho de arquivo, nome de modelo
+          // (qwen3.5:9b) e comando, e autocorreção silenciosa quebraria o pedido. A tolerância a
+          // typo que importa para o roteamento vive no backend (IntentRouter.withinOneEdit).
+          spellCheck
+          lang="pt-BR"
+          autoCorrect="off"
+          autoCapitalize="sentences"
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => {
             if (skillSuggestions.length > 0) {

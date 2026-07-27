@@ -28,6 +28,9 @@ public class IntentRouter {
     // Para voltar a somar sempre os dois sinais: AVENTO_AGENT_INTENT_EMBEDDING_FALLBACK_ONLY=false.
     private final boolean embeddingFallbackOnly;
 
+    /** Abaixo disto, uma edicao muda o sentido da palavra em vez de corrigir digitacao. */
+    private static final int MIN_FUZZY_LENGTH = 6;
+
     public IntentRouter(
             ToolCapabilityRegistry toolRegistry,
             IntentEmbeddingClassifier embeddingClassifier,
@@ -135,6 +138,66 @@ public class IntentRouter {
                 return true;
             }
         }
+        return containsAnyApproximately(text, needles);
+    }
+
+    /**
+     * Segunda passada tolerante a UMA letra errada, trocada, faltando ou sobrando.
+     *
+     * <p>Existe para o matcher parar de depender de digitação perfeita. Caso real: "Pode pesquisr
+     * sobre" — uma letra a menos — deixou a rodada sem a ferramenta de web, e o modelo respondeu
+     * prometendo uma busca que nunca aconteceu. A alternativa seria catalogar cada variação de
+     * pergunta, o que cresce sem fim.
+     *
+     * <p>Corrigir o texto do usuário seria pior: numa conversa de desenvolvimento ele contém caminho
+     * de arquivo, nome de modelo e comando, e reescrever isso em silêncio quebra o pedido. Aqui o
+     * texto original segue intacto para o modelo; a tolerância vive só na decisão de qual ferramenta
+     * expor.
+     */
+    private boolean containsAnyApproximately(String text, List<String> needles) {
+        String[] words = text.split(" ");
+        for (String needle : needles) {
+            // Palavra curta com 1 erro vira outra palavra ("cor" -> "cot"): so vale a partir de 6.
+            if (needle.length() < MIN_FUZZY_LENGTH || needle.indexOf(' ') >= 0) {
+                continue;
+            }
+            for (String word : words) {
+                if (Math.abs(word.length() - needle.length()) <= 1 && withinOneEdit(word, needle)) {
+                    return true;
+                }
+            }
+        }
         return false;
+    }
+
+    /** Levenshtein com corte em 1: para assim que passa de uma edição, sem montar a matriz toda. */
+    static boolean withinOneEdit(String left, String right) {
+        if (left.equals(right)) {
+            return true;
+        }
+        int lengthDifference = left.length() - right.length();
+        if (Math.abs(lengthDifference) > 1) {
+            return false;
+        }
+
+        String longer = lengthDifference >= 0 ? left : right;
+        String shorter = lengthDifference >= 0 ? right : left;
+
+        int i = 0;
+        while (i < shorter.length() && longer.charAt(i) == shorter.charAt(i)) {
+            i++;
+        }
+        if (i == shorter.length()) {
+            // Sobrou no maximo um caractere no fim.
+            return longer.length() - shorter.length() <= 1;
+        }
+
+        int end = 0;
+        while (end < shorter.length() - i
+                && longer.charAt(longer.length() - 1 - end) == shorter.charAt(shorter.length() - 1 - end)) {
+            end++;
+        }
+        return i + end >= shorter.length() - (longer.length() == shorter.length() ? 1 : 0)
+                && i + end >= longer.length() - 1;
     }
 }

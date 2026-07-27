@@ -374,6 +374,24 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     public Mono<List<LocalModelInfo>> getModelDetails() {
+        return getModelDetails(null);
+    }
+
+    /**
+     * Lista os modelos oferecidos ao seletor.
+     *
+     * <p>Com provedor de nuvem ativo, precisa listar os modelos DA NUVEM: mostrar os modelos locais
+     * enquanto a conversa vai para o Gemini faz o usuario escolher um nome que nao tem efeito e
+     * concluir, com razao, que a escolha de provedor foi ignorada.
+     *
+     * <p>O endpoint /api/ollama/models ja fazia isso via ModelProviderService, mas a interface chama
+     * /api/ai/models/details, que consultava o Ollama direto e nao conhecia provedor nenhum.
+     */
+    public Mono<List<LocalModelInfo>> getModelDetails(UUID userId) {
+        List<LocalModelInfo> cloudModels = cloudModelsFor(userId);
+        if (!cloudModels.isEmpty()) {
+            return Mono.just(cloudModels);
+        }
         return webClient
                 .get()
                 .uri("/api/tags")
@@ -511,6 +529,42 @@ public class AgentService implements AgentExecutionEngine {
                     false));
         }
         return models;
+    }
+
+    /** Modelos do provedor de nuvem ativo, ou lista vazia quando o fluxo e local. */
+    private List<LocalModelInfo> cloudModelsFor(UUID userId) {
+        if (modelProviderService == null || !modelProviderService.cloudProviderSelected(userId)) {
+            return List.of();
+        }
+        try {
+            JsonNode listing = modelProviderService.listAvailableModels(userId);
+            List<LocalModelInfo> models = new ArrayList<>();
+            String selected = modelProviderService.cloudModelName(userId);
+            for (JsonNode model : listing.path("data")) {
+                String name = model.path("id").asText(model.path("name").asText(""));
+                if (name.isBlank()) {
+                    continue;
+                }
+                models.add(new LocalModelInfo(
+                        name,
+                        0L,
+                        "nuvem",
+                        "",
+                        "cloud",
+                        name.equalsIgnoreCase(selected),
+                        false,
+                        // Gemini e multimodal; marcar como vision evita a UI trocar para um modelo
+                        // local de visao quando o usuario anexa imagem estando na nuvem.
+                        true,
+                        false));
+            }
+            return models;
+        } catch (RuntimeException exception) {
+            logger.warn(
+                    "Falha ao listar modelos do provedor de nuvem: {}",
+                    exception.getClass().getSimpleName());
+            return List.of();
+        }
     }
 
     private List<LocalModelInfo> sortModels(List<LocalModelInfo> models) {

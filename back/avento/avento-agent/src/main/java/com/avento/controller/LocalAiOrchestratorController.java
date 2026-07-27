@@ -83,8 +83,13 @@ public class LocalAiOrchestratorController {
     }
 
     @GetMapping(value = "/models/details", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ResponseEntity<BaseResponse<List<LocalModelInfo>>>> getModelDetails() {
-        return agentService.getModelDetails().map(ApiResponses::ok);
+    public Mono<ResponseEntity<BaseResponse<List<LocalModelInfo>>>> getModelDetails(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        // O usuario e necessario aqui: a configuracao de provedor e por usuario, e sem ela a lista
+        // volta a mostrar modelos locais mesmo com a nuvem ativa.
+        return agentService
+                .getModelDetails(principal == null ? null : principal.userId())
+                .map(ApiResponses::ok);
     }
 
     @GetMapping(value = "/models/images", produces = MediaType.APPLICATION_JSON_VALUE)

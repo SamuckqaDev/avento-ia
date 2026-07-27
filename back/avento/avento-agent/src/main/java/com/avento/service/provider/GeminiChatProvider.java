@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -55,6 +56,16 @@ public class GeminiChatProvider implements CloudChatProvider {
                 .baseUrl(baseUrl)
                 // Respostas longas estouram o buffer padrão de 256KB do WebClient.
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(8 * 1024 * 1024))
+                // Resolvedor de DNS da JVM, não o nativo do Netty.
+                //
+                // O nativo do Netty para macOS só é publicado com o classificador osx-x86_64; num
+                // Apple Silicon ele não carrega ("Unable to load
+                // MacOSDnsServerAddressStreamProvider, fallback to system defaults") e a resolução
+                // sai errada — a chamada morre com "Can't assign requested address" antes de
+                // chegar ao provedor. O sintoma enganava: listar modelos funcionava, porque aquele
+                // caminho usa o HttpClient da JDK, que já resolve pela JVM.
+                .clientConnector(new ReactorClientHttpConnector(reactor.netty.http.client.HttpClient.create()
+                        .resolver(io.netty.resolver.DefaultAddressResolverGroup.INSTANCE)))
                 .build();
     }
 

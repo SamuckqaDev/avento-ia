@@ -247,6 +247,29 @@ public class ModelProviderService {
         return model == null || model.isBlank() ? provider : provider + " (" + model + ")";
     }
 
+    /**
+     * Chave crua do provedor de nuvem, para uso SERVIDOR-A-SERVIDOR apenas.
+     *
+     * <p>O DTO de settings expõe só a versão mascarada, e é assim que deve continuar: esta aqui não
+     * pode voltar para o cliente nem entrar em log. Existe porque a chamada ao provedor precisa dela.
+     */
+    public String rawCloudApiKey(UUID userId) {
+        if (userId == null || redisTemplate == null) {
+            return "";
+        }
+        try {
+            Object raw = redisTemplate.opsForHash().get(userKey(userId), "cloudApiKey");
+            return raw == null ? "" : raw.toString();
+        } catch (RuntimeException exception) {
+            return "";
+        }
+    }
+
+    /** Modelo de nuvem escolhido, ex.: {@code gemini-2.5-flash}. */
+    public String cloudModelName(UUID userId) {
+        return getSettings(userId).personalCloudModel();
+    }
+
     public String resolveActiveModelUrl(UUID userId) {
         ProviderSettingsResponse settings = getSettings(userId);
         if (settings.usePersonalCloud() && !settings.personalCloudApiKeyMasked().isBlank()) {

@@ -174,6 +174,9 @@ public class AgentService implements AgentExecutionEngine {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.avento.service.provider.ModelProviderService modelProviderService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.avento.service.provider.CloudChatProvider cloudChatProvider;
+
     // Progressive tool discovery (activate_tools persists per run in Redis). Optional for the same
     // reason as the field above: tests build AgentService through the constructor.
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -793,9 +796,37 @@ public class AgentService implements AgentExecutionEngine {
         state.userId = userId;
         // O aviso vai ANTES da resposta: se o usuario escolheu nuvem e recebe o modelo local sem
         // saber, ele julga a qualidade do Gemini olhando para a saida de um 9B local.
+        if (shouldUseCloudProvider(userId)) {
+            return streamThroughCloudProvider(messages, userId);
+        }
+        // Nuvem escolhida mas sem implementacao disponivel: cair no local calado seria a mentira que
+        // esse aviso existe para impedir.
         String cloudNotice = cloudProviderNotice(userId, chatModel);
         Flux<String> turn = runTurn(chatModel, messages, state, 1);
         return cloudNotice.isEmpty() ? turn : Flux.concat(Flux.just(contentChunk(cloudNotice)), turn);
+    }
+
+    private boolean shouldUseCloudProvider(UUID userId) {
+        return cloudChatProvider != null
+                && modelProviderService != null
+                && modelProviderService.cloudProviderSelected(userId);
+    }
+
+    /**
+     * Caminho de nuvem: conversa apenas, SEM ferramentas.
+     *
+     * <p>Desvia antes do laço de rodadas de propósito. O laço monta toolset, interpreta tool_call e
+     * reexecuta — tudo no formato do Ollama. Reaproveitá-lo com um provedor que devolve
+     * {@code functionCall} dentro de {@code parts} daria erro silencioso; ferramentas na nuvem são a
+     * etapa seguinte, sobre esta base já validada.
+     */
+    private Flux<String> streamThroughCloudProvider(ArrayNode messages, UUID userId) {
+        String cloudModel = modelProviderService.cloudModelName(userId);
+        String apiKey = modelProviderService.rawCloudApiKey(userId);
+        String aviso = "\n> ☁️ Respondendo por **" + cloudChatProvider.providerName() + " (" + cloudModel
+                + ")**. Neste modo as ferramentas locais ficam indisponíveis — para usá-las, desmarque"
+                + " o provedor de nuvem nas configurações.\n\n";
+        return Flux.concat(Flux.just(contentChunk(aviso)), cloudChatProvider.streamChat(messages, cloudModel, apiKey));
     }
 
     /**
@@ -809,6 +840,9 @@ public class AgentService implements AgentExecutionEngine {
     String cloudProviderNotice(UUID userId, String modelUsed) {
         if (modelProviderService == null || !modelProviderService.cloudProviderSelected(userId)) {
             return "";
+        }
+        if (cloudChatProvider != null) {
+            return ""; // ha implementacao: a resposta vem da nuvem e o aviso nao se aplica.
         }
         String selected = modelProviderService.selectedCloudProviderName(userId);
         return "\n> ⚠️ Você selecionou **" + selected + "**, mas o fluxo de conversa ainda fala apenas"

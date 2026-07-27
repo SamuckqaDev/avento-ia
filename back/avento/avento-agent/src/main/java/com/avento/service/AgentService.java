@@ -848,10 +848,24 @@ public class AgentService implements AgentExecutionEngine {
         return streamChatResolved(chatModel, messages, workspaceRoots, imageModel, imageOptions, runId, chatId, userId);
     }
 
+    /**
+     * Nome com cara de modelo local do Ollama ({@code familia:tag}), que um provedor de nuvem nao
+     * conhece. Mandar {@code qwen3.5:9b} para o Gemini foi o que gerou o primeiro 404.
+     */
+    static boolean isLocalModelName(String model) {
+        return model != null && model.contains(":") && !model.startsWith("http");
+    }
+
     private String resolveChatModel(String requestedModel, ArrayNode messages, UUID userId) {
-        // Provedor remoto ativo: o modelo e o configurado NELE. Mandar o nome de um modelo local
-        // para o Gemini foi o que gerou 404 na primeira mensagem.
+        // Provedor remoto ativo: o modelo PEDIDO manda. Este trecho antes devolvia sempre o valor
+        // gravado, entao escolher outro modelo no chat nao tinha efeito nenhum — o log mostrava
+        // "starting for chat X with model gemini-3.1-pro-preview" seguido de "round 1 ... model
+        // gemini-2.5-flash". O gravado so entra quando o pedido vem sem modelo, ou traz um nome
+        // local que o provedor remoto nao conhece.
         if (transportFor(userId) != null) {
+            if (requestedModel != null && !requestedModel.isBlank() && !isLocalModelName(requestedModel)) {
+                return requestedModel;
+            }
             String remoteModel = modelProviderService.activeModelName(userId);
             if (!remoteModel.isBlank()) {
                 return remoteModel;
@@ -2585,7 +2599,7 @@ public class AgentService implements AgentExecutionEngine {
             return;
         }
 
-        logger.warn("Ollama stream failed for model {}", model, error);
+        logger.warn("Model stream failed for {}", model, error);
 
         String message = "Falha ao conversar com a IA.";
         if (error instanceof TimeoutException) {

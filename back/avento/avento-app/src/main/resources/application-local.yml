@@ -30,12 +30,12 @@ avento:
     # do que já foi lido, então rodada a mais custa tempo, não a resposta inteira.
     max-tool-rounds: 15
     max-tool-calls: 16
-    # 8192, nao 16384: medido nesta maquina, o qwen3.5:9b @ 16384 levava 34-46s por pedido SIMPLES
-    # (a maquina paginava o KV cache); granite4.1:8b @ 8192 responde em ~2.8s em regime. 8192 e o teto.
-    # 16384 com KV cache quantizado (dev-up.sh) custa ~ o mesmo que 8192 sem quantizacao.
-    # Se o Ollama comecar a morrer sob pressao de memoria (ComfyUI + Postgres + Redis juntos),
-    # volte para 8192 via AVENTO_AGENT_NUM_CTX sem editar este arquivo.
-    num-ctx: ${AVENTO_AGENT_NUM_CTX:16384}
+    # 32768 e HEADROOM contra o descarte silencioso: acima do num_ctx o llama.cpp joga fora o COMECO
+    # do prompt sem avisar, e era ali que ficavam as paginas buscadas pelo fetch — o modelo perdia a
+    # pesquisa e inventava. O que mantem o prompt pequeno e max-tool-result-chars, nao a janela.
+    # Custo real medido: ~4,4ms por token de leitura e KV cache alocado no load (7GB de swap com
+    # ComfyUI+Postgres+Redis juntos). Se o tok/s cair ou o Ollama morrer: AVENTO_AGENT_NUM_CTX=16384.
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:32768}
     num-predict: ${AVENTO_AGENT_NUM_PREDICT:4096}
     # ESTE e o arquivo que vale no profile local (sobrescreve application.yml). Um modelo so, sem troca.
     # qwen3.5:9b existe tanto aqui quanto na maquina de inferencia da rede, entao trocar de uma para

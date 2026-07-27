@@ -24,13 +24,21 @@ avento:
       password: ${AVENTO_AUTH_ROOT_PASSWORD:}
       display-name: ${AVENTO_AUTH_ROOT_DISPLAY_NAME:Avento Root}
   agent:
-    auto-approve-all: ${AVENTO_AGENT_AUTO_APPROVE_ALL:true}
+    # Interruptor GLOBAL: true aprova tudo antes de qualquer outra regra — ignora a preferência do
+    # usuário E a distinção entre execução autônoma e conversa. Estava true, o que tornava inerte
+    # todo o mecanismo de aprovação. Só ligue para depurar, nunca no uso normal.
+    auto-approve-all: ${AVENTO_AGENT_AUTO_APPROVE_ALL:false}
     max-tool-rounds: ${AVENTO_AGENT_MAX_TOOL_ROUNDS:60}
     max-tool-calls: ${AVENTO_AGENT_MAX_TOOL_CALLS:100}
-    # 8192 e o teto seguro para os 16GB desta maquina: acima disso o KV cache soma com
-    # ComfyUI/Postgres/Redis e a pressao de memoria derruba o tok/s (e ja matou o Ollama uma vez).
-    # O que faz esse orcamento caber e o par max-tools-per-request:12 + max-total-message-content-chars.
-    num-ctx: ${AVENTO_AGENT_NUM_CTX:16384}
+    # 32768 e HEADROOM, nao alvo. Acima do num_ctx o llama.cpp descarta o COMECO do prompt em
+    # silencio — foi assim que as paginas buscadas sumiam do contexto e o modelo inventava os dados
+    # (medido: prompt de 49k tokens -> prompt_eval_count 8194). O que mantem o prompt pequeno e o
+    # corte de resultado de ferramenta, nao a janela.
+    # Custo medido nesta maquina de 16GB: ler custa ~4,4ms/token, entao encher a janela seria ~150s
+    # de silencio; e o KV cache e alocado no load, somando com ComfyUI/Postgres/Redis (7GB de swap
+    # em uso durante o teste). Se o Ollama morrer sob pressao ou o tok/s cair:
+    # AVENTO_AGENT_NUM_CTX=16384 sem editar este arquivo.
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:32768}
     num-predict: ${AVENTO_AGENT_NUM_PREDICT:4096}
     temperature: ${AVENTO_AGENT_TEMPERATURE:0.15}
     top-p: ${AVENTO_AGENT_TOP_P:0.9}
@@ -89,10 +97,10 @@ avento:
       run-inactivity-timeout: ${AVENTO_REDIS_RUN_INACTIVITY_TIMEOUT:6m}
       event-ttl: ${AVENTO_REDIS_EVENT_TTL:24h}
       context-ttl: ${AVENTO_REDIS_CONTEXT_TTL:24h}
-      # 30 mensagens de histórico cabem agora que num_ctx subiu para 16384. Se o modelo começar a
-      # perder ferramentas de vista (histórico empurrando os schemas para fora da janela), baixe
-      # aqui — nunca com um piso fixo no código, que ignora esta propriedade.
-      context-message-limit: ${AVENTO_REDIS_CONTEXT_MESSAGE_LIMIT:30}
+      # 20, nao 30: com pesquisa web cada rodada carrega resultado de ferramenta, e historico longo
+      # multiplica isso — as rodadas de 130-168s medidas tinham ~25k tokens de prompt. Prompt curto
+      # vale mais que historico longo aqui, porque ler custa ~4,4ms/token.
+      context-message-limit: ${AVENTO_REDIS_CONTEXT_MESSAGE_LIMIT:20}
   image:
     provider: ${AVENTO_IMAGE_PROVIDER:comfyui}
     default-model: ${AVENTO_IMAGE_DEFAULT_MODEL:comfyui:RealVisXL_V5.0_fp16.safetensors}

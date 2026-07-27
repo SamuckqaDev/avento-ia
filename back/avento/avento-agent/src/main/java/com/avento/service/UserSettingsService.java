@@ -25,12 +25,17 @@ public class UserSettingsService {
         this.redisTemplate = redisTemplateProvider.getIfAvailable();
     }
 
+    /**
+     * Padrões de quem nunca escolheu. Todos false: thinking e auto-aprovação são OPT-IN pelo menu.
+     * Com true aqui, a tela abria mostrando "ligado" sem que o usuário tivesse ligado nada — e como
+     * o Redis de desenvolvimento não persiste, todo restart voltava a esse estado.
+     */
     public UserSettingsResponse get(UUID userId) {
         UUID owner = requireUser(userId);
         return new UserSettingsResponse(
                 readFlag(owner, TTS_FIELD, false),
-                readFlag(owner, THINKING_FIELD, true),
-                readFlag(owner, AUTO_APPROVE_FIELD, true));
+                readFlag(owner, THINKING_FIELD, false),
+                readFlag(owner, AUTO_APPROVE_FIELD, false));
     }
 
     public UserSettingsResponse update(UUID userId, UserSettingsRequest request) {

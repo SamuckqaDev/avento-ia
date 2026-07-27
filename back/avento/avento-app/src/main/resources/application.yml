@@ -36,7 +36,12 @@ avento:
     top-p: ${AVENTO_AGENT_TOP_P:0.9}
     top-k: ${AVENTO_AGENT_TOP_K:30}
     repeat-penalty: ${AVENTO_AGENT_REPEAT_PENALTY:1.08}
-    enable-thinking: ${AVENTO_AGENT_ENABLE_THINKING:true}
+    # Thinking e OPT-IN pelo menu de preferencias. Este valor e o padrao de quem nunca escolheu, e
+    # por isso e false: com true, desligar no menu nao tinha efeito nenhum se a preferencia ainda
+    # nao estivesse gravada (Redis de dev nao persiste, entao todo restart voltava a ligar). O
+    # custo nao era so conceitual — qwen3.5 gasta o orcamento de num_predict inteiro raciocinando
+    # antes de emitir texto visivel, entao "ligado sem querer" aparece como lentidao.
+    enable-thinking: ${AVENTO_AGENT_ENABLE_THINKING:false}
     keep-alive: ${AVENTO_AGENT_KEEP_ALIVE:30m}
     max-tools-per-request: ${AVENTO_AGENT_MAX_TOOLS_PER_REQUEST:12}
     # true: entrega TODAS as ferramentas ao modelo, sem triagem por intencao (nao esconde terminal_run,

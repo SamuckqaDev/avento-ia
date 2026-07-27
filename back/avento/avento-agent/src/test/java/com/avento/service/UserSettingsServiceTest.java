@@ -33,14 +33,21 @@ class UserSettingsServiceTest {
         verify(hashes).put(key, "thinkingEnabled", "false");
     }
 
+    /**
+     * O teste chamava "safe defaults" mas afirmava thinking ligado — e ligado não é o padrão seguro:
+     * thinking e auto-aprovação são opt-in pelo menu. Como o Redis de desenvolvimento não persiste,
+     * a chave some a cada restart e o padrão vira o estado real; com true, desligar no menu não
+     * tinha efeito e o modelo seguia gastando o orçamento de tokens raciocinando.
+     */
     @Test
-    void usesSafeDefaultsWhenRedisIsUnavailable() {
+    void optInSettingsDefaultToOffWhenRedisIsUnavailable() {
         @SuppressWarnings("unchecked")
         ObjectProvider<StringRedisTemplate> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(null);
         UserSettingsService service = new UserSettingsService(provider);
 
         assertThat(service.get(UUID.randomUUID()).ttsEnabled()).isFalse();
-        assertThat(service.get(UUID.randomUUID()).thinkingEnabled()).isTrue();
+        assertThat(service.get(UUID.randomUUID()).thinkingEnabled()).isFalse();
+        assertThat(service.get(UUID.randomUUID()).autoApproveAll()).isFalse();
     }
 }

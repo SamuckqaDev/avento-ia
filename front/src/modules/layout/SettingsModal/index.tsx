@@ -90,7 +90,10 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<'conta' | 'uso' | 'preferencias' | 'provedores' | 'memoria' | 'agentes'>('conta');
   const [ttsEnabled, setTtsEnabled] = useState(false);
-  const [thinkingEnabled, setThinkingEnabled] = useState(true);
+  // Thinking é opt-in: o padrão acompanha o backend (avento.agent.enable-thinking = false). Com
+  // `true` aqui, o menu mostrava "ligado" antes de a preferência real chegar, e desligar não tinha
+  // efeito enquanto nada estivesse gravado.
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -134,7 +137,7 @@ export function SettingsModal({
         try {
           const { data } = await api.get<{ ttsEnabled: boolean; thinkingEnabled: boolean }>('/api/settings');
           setTtsEnabled(data.ttsEnabled || false);
-          setThinkingEnabled(data.thinkingEnabled ?? true);
+          setThinkingEnabled(data.thinkingEnabled ?? false);
         } catch (error) {
           console.error("Erro ao carregar configurações", error);
         } finally {

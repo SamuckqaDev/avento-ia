@@ -87,9 +87,32 @@ public class AgentOrchestrator {
                 .doOnComplete(() -> {
                     logger.info("Agent run {} completed", runId);
                     runRegistry.finish(runId);
+                    // O evento terminal precisa sair SEMPRE que o fluxo acaba. Antes so saia com
+                    // status exatamente COMPLETED, e finish() preserva FAILED/CANCELLED — entao uma
+                    // run que terminou por falha repetida de ferramenta completava sem erro, sem
+                    // status COMPLETED e sem publicar nada. Como o SSE so fecha em
+                    // agent.run.completed|failed|cancelled (ver RunEventStreamService), o navegador
+                    // ficava girando para sempre enquanto o servidor ja tinha terminado. O log dizia
+                    // "completed" porque a linha acima e incondicional, o que escondia o problema.
                     runRegistry.find(runId).ifPresent(snapshot -> {
-                        if (snapshot.status() == AgentRunRegistry.AgentRunStatus.COMPLETED) {
-                            eventPublisher.publish(runId, userId, chatId, runCompletedEvent(runId));
+                        switch (snapshot.status()) {
+                            case FAILED ->
+                                eventPublisher.publish(
+                                        runId,
+                                        userId,
+                                        chatId,
+                                        lifecycleEvent(
+                                                "agent.run.failed", "Execução encerrada após falha", runId, runId));
+                            case CANCELLED ->
+                                eventPublisher.publish(
+                                        runId,
+                                        userId,
+                                        chatId,
+                                        lifecycleEvent("agent.run.cancelled", "Execução cancelada", runId, runId));
+                            // AWAITING_APPROVAL nao publica: tool.approval.required ja fechou o
+                            // stream, e o cliente reabre depois de responder.
+                            case AWAITING_APPROVAL -> {}
+                            default -> eventPublisher.publish(runId, userId, chatId, runCompletedEvent(runId));
                         }
                     });
                 })

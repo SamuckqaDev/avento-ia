@@ -40,6 +40,69 @@ class AgentOrchestratorTest {
                 registry.find(agentService.runId).orElseThrow().status());
     }
 
+    /**
+     * A run que termina em falha de ferramenta completa o fluxo SEM erro e com status FAILED. O
+     * evento terminal so era publicado quando o status era exatamente COMPLETED, entao nada saia — e
+     * como o SSE so fecha em agent.run.completed|failed|cancelled, o navegador ficava girando para
+     * sempre com o servidor ja parado. O log dizia "completed" porque aquela linha e incondicional,
+     * o que escondia o problema de quem olhasse so o log.
+     */
+    @Test
+    void alwaysPublishesATerminalEventWhenTheStreamEnds() {
+        List<String> published = new java.util.ArrayList<>();
+        AgentRunRegistry registry = new AgentRunRegistry(mapper);
+        FailingToolEngine engine = new FailingToolEngine(registry);
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+                engine,
+                registry,
+                mapper,
+                new com.avento.service.AgentTimelineService(java.util.Optional.empty()),
+                (runId, userId, chatId, raw) -> published.add(raw));
+        ArrayNode messages = mapper.createArrayNode();
+        messages.addObject().put("role", "user").put("content", "pesquisa isso pra mim");
+
+        orchestrator.stream("qwen3.5:9b", messages, List.of(), "", ImageGenerationOptions.defaults(), 9L, null)
+                .collectList()
+                .block();
+
+        assertTrue(
+                published.stream().anyMatch(event -> event.contains("agent.run.failed")),
+                "sem evento terminal o SSE nunca fecha e a interface trava: " + published);
+    }
+
+    /** Emite falha de ferramenta e encerra sem erro — o caminho que travava. */
+    private static class FailingToolEngine implements AgentExecutionEngine {
+        private final AgentRunRegistry registry;
+
+        FailingToolEngine(AgentRunRegistry registry) {
+            this.registry = registry;
+        }
+
+        @Override
+        public Flux<String> streamChat(
+                String model,
+                ArrayNode messages,
+                List<String> workspaceRoots,
+                String imageModel,
+                ImageGenerationOptions imageOptions,
+                String runId,
+                Long chatId,
+                UUID userId) {
+            return Flux.just("{\"avento_event\":{\"type\":\"agent.tool.repeated_failure\"}}")
+                    .doOnNext(chunk -> registry.fail(runId));
+        }
+
+        @Override
+        public Flux<String> approveTool(String approvalId, String comment) {
+            return Flux.empty();
+        }
+
+        @Override
+        public Flux<String> rejectTool(String approvalId, String comment) {
+            return Flux.empty();
+        }
+    }
+
     private static class FakeAgentExecutionEngine implements AgentExecutionEngine {
         private String runId;
 

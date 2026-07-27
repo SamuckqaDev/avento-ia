@@ -235,12 +235,26 @@ public class ProviderModelCatalog {
                     if (!supportsGeneration(model)) {
                         continue;
                     }
+                    // A listagem inclui modelo que a API recusa na hora de usar: o gemini-2.5-flash
+                    // aparece aqui e devolve 404 dizendo "no longer available to new users". Oferecer
+                    // no seletor um nome que so falha depois e pior que nao oferecer.
+                    if (isRetired(model)) {
+                        continue;
+                    }
                     // Vem como "models/gemini-2.5-flash"; o resto da API espera o nome puro.
                     addIfPresent(models, model.path("name").asText("").replaceFirst("^models/", ""));
                 }
             }
         }
         return models;
+    }
+
+    /** O Google marca o modelo aposentado na propria descricao antes de recusa-lo. */
+    static boolean isRetired(JsonNode model) {
+        String description = model.path("description").asText("").toLowerCase(java.util.Locale.ROOT);
+        return description.contains("no longer available")
+                || description.contains("deprecated")
+                || description.contains("has been retired");
     }
 
     private static boolean supportsGeneration(JsonNode model) {

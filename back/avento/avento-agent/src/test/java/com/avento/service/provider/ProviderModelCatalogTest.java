@@ -56,6 +56,19 @@ class ProviderModelCatalogTest {
         assertThat(ProviderModelCatalog.parseModels(ProviderKind.GEMINI, body)).containsExactly("gemini-2.5-flash");
     }
 
+    // A listagem inclui modelo que a API recusa ao usar — o gemini-2.5-flash aparece e devolve 404
+    // dizendo "no longer available to new users". Oferecer no seletor um nome que so falha depois e
+    // pior que nao oferecer.
+    @Test
+    void hidesModelsTheProviderMarksAsRetired() throws Exception {
+        JsonNode body = json("{\"models\":["
+                + "{\"name\":\"models/gemini-2.5-flash\",\"description\":\"This model is no longer available"
+                + " to new users.\",\"supportedGenerationMethods\":[\"generateContent\"]},"
+                + "{\"name\":\"models/gemini-2.0-flash\",\"supportedGenerationMethods\":[\"generateContent\"]}]}");
+
+        assertThat(ProviderModelCatalog.parseModels(ProviderKind.GEMINI, body)).containsExactly("gemini-2.0-flash");
+    }
+
     @Test
     void doesNotFilterWhenGeminiOmitsTheMethods() throws Exception {
         JsonNode body = json("{\"models\":[{\"name\":\"models/gemini-novo\"}]}");

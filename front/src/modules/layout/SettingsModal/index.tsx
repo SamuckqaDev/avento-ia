@@ -341,6 +341,29 @@ export function SettingsModal({
     }
   };
 
+  /**
+   * Grava so o modelo, na hora em que ele e escolhido.
+   *
+   * O select mudava apenas o estado local e exigia apertar "Salvar provedor" depois. Quem troca num
+   * dropdown espera que valha — e nao valia: a conversa seguia com o modelo antigo sem nenhum aviso.
+   */
+  const persistSelectedModel = async (model: string) => {
+    setProviderSettings(prev => ({ ...prev, selectedModel: model }));
+    if (!model) return;
+    try {
+      await api.put('/api/ai/providers', { providerKind: providerSettings.providerKind, selectedModel: model });
+      const { data } = await api.get<{ selectedModel: string }>('/api/ai/providers');
+      setTestLanStatus(
+        data?.selectedModel === model
+          ? { success: true, message: `Modelo ativo: ${model}`, loading: false }
+          : { success: false, message: `O backend manteve "${data?.selectedModel}" em vez de "${model}".`, loading: false }
+      );
+    } catch (error) {
+      console.error('Erro ao salvar o modelo', error);
+      setTestLanStatus({ success: false, message: `Falha ao salvar o modelo ${model}.`, loading: false });
+    }
+  };
+
   const handleSaveProviders = async () => {
     setIsSaving(true);
     try {
@@ -1078,7 +1101,7 @@ export function SettingsModal({
                   digitar de cabeca foi como um nome inexistente acabou salvo e deu 404. */}
               <select
                 value={providerSettings.selectedModel}
-                onChange={e => setProviderSettings({ ...providerSettings, selectedModel: e.target.value })}
+                onChange={e => persistSelectedModel(e.target.value)}
                 disabled={modelOptions.length === 0}
                 style={{ ...selectStyle, color: modelOptions.length === 0 ? '#6F8A83' : '#F2FFFB' }}
               >

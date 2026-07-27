@@ -52,8 +52,8 @@ public class GeminiChatProvider implements CloudChatProvider {
     }
 
     @Override
-    public String providerName() {
-        return "GEMINI";
+    public ProviderKind kind() {
+        return ProviderKind.GEMINI;
     }
 
     @Override

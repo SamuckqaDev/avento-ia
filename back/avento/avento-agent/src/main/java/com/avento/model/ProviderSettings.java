@@ -29,6 +29,17 @@ public class ProviderSettings {
     @Column(name = "use_personal_cloud", nullable = false)
     private boolean usePersonalCloud;
 
+    /**
+     * Tipo do provedor: OLLAMA, OPENAI_COMPATIBLE, GEMINI, ANTHROPIC. E ele que dirige listagem de
+     * modelos, roteamento de chat e capacidades — nao um par de flags.
+     */
+    @Column(name = "provider_kind")
+    private String providerKind;
+
+    /** Endereco do provedor. Cobre Ollama noutra maquina, DGX, vLLM e nuvem com endpoint proprio. */
+    @Column(name = "base_url", columnDefinition = "TEXT")
+    private String baseUrl;
+
     @Column(name = "cloud_provider")
     private String cloudProvider;
 
@@ -63,6 +74,22 @@ public class ProviderSettings {
 
     public void setUsePersonalCloud(boolean usePersonalCloud) {
         this.usePersonalCloud = usePersonalCloud;
+    }
+
+    public String getProviderKind() {
+        return providerKind;
+    }
+
+    public void setProviderKind(String providerKind) {
+        this.providerKind = providerKind;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
     }
 
     public String getCloudProvider() {

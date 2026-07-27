@@ -25,7 +25,7 @@ class AgentServiceCloudNoticeTest {
     @Test
     void warnsWhenACloudProviderIsSelected() throws Exception {
         ModelProviderService provider = mock(ModelProviderService.class);
-        when(provider.cloudProviderSelected(USER_ID)).thenReturn(true);
+        when(provider.remoteProviderReady(USER_ID)).thenReturn(true);
         when(provider.selectedCloudProviderName(USER_ID)).thenReturn("GEMINI (gemini-2.5-flash)");
 
         String notice = serviceWith(provider).cloudProviderNotice(USER_ID, "qwen3.5:9b");
@@ -38,7 +38,7 @@ class AgentServiceCloudNoticeTest {
     @Test
     void staysSilentWhenNoCloudProviderIsSelected() throws Exception {
         ModelProviderService provider = mock(ModelProviderService.class);
-        when(provider.cloudProviderSelected(USER_ID)).thenReturn(false);
+        when(provider.remoteProviderReady(USER_ID)).thenReturn(false);
 
         assertThat(serviceWith(provider).cloudProviderNotice(USER_ID, "qwen3.5:9b"))
                 .isEmpty();
@@ -53,7 +53,7 @@ class AgentServiceCloudNoticeTest {
     @Test
     void staysSilentForAnonymousUser() throws Exception {
         ModelProviderService provider = mock(ModelProviderService.class);
-        when(provider.cloudProviderSelected(null)).thenReturn(false);
+        when(provider.remoteProviderReady(null)).thenReturn(false);
 
         assertThat(serviceWith(provider).cloudProviderNotice(null, "qwen3.5:9b"))
                 .isEmpty();

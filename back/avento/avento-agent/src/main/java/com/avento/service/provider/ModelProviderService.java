@@ -10,183 +10,274 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+/**
+ * Configuração de provedor: um provedor ativo por usuário, com o TIPO dirigindo o comportamento.
+ *
+ * <p>Antes havia uma divisão binária — "servidor do sistema" contra "nuvem pessoal" — com os nomes
+ * dos modelos de nuvem escritos no código. Isso não descreve a realidade: um Ollama na máquina da
+ * rede, um DGX com endpoint compatível com OpenAI e o Gemini são o mesmo conceito com endereço,
+ * formato e chave diferentes. Agora o usuário escolhe o tipo, informa endereço e chave, e o sistema
+ * reage: lista os modelos que aquele provedor realmente tem e roteia a conversa para ele.
+ *
+ * <p>Postgres é a verdade; o Redis só guarda a configuração de sistema herdada.
+ */
 @Service
 public class ModelProviderService {
 
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ModelProviderService.class);
-
+    private static final Logger logger = LoggerFactory.getLogger(ModelProviderService.class);
     private static final String SYS_KEY = "avento:system:ai_server";
 
     private final StringRedisTemplate redisTemplate;
     private final String defaultOllamaUrl;
-    private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
-    // Postgres e a verdade; o Redis fica como cache na frente. A chave de API vivia so no Redis, que
-    // nao persiste — o usuario tinha de reconfigura-la a cada restart do container.
     private final ProviderSettingsRepository repository;
     private final SecretCipher cipher;
+    private final ProviderModelCatalog modelCatalog;
 
     public ModelProviderService(
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
             @Value("${spring.ai.ollama.base-url:http://127.0.0.1:11434}") String defaultOllamaUrl,
             ObjectMapper objectMapper,
             ObjectProvider<ProviderSettingsRepository> repositoryProvider,
-            ObjectProvider<SecretCipher> cipherProvider) {
+            ObjectProvider<SecretCipher> cipherProvider,
+            ObjectProvider<ProviderModelCatalog> modelCatalogProvider) {
         this.redisTemplate = redisTemplateProvider.getIfAvailable();
         this.defaultOllamaUrl = defaultOllamaUrl;
         this.objectMapper = objectMapper;
         this.repository = repositoryProvider == null ? null : repositoryProvider.getIfAvailable();
         this.cipher = cipherProvider == null ? null : cipherProvider.getIfAvailable();
-        this.httpClient =
-                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        this.modelCatalog = modelCatalogProvider == null ? null : modelCatalogProvider.getIfAvailable();
     }
 
-    public ProviderSettingsResponse getSettings(UUID userId) {
-        String systemUrl = readSystemField("serverUrl", defaultOllamaUrl);
-        String systemType = readSystemField("serverType", "OLLAMA");
-        String systemModel = readSystemField("defaultModel", "qwen3.5:9b");
+    // ---------------------------------------------------------------- leitura
 
-        boolean usePersonalCloud = false;
-        String cloudProvider = "GEMINI";
-        String cloudApiKeyMasked = "";
-        String cloudModel = "gemini-2.5-flash";
-
+    /** Tipo do provedor ativo. Sem configuração, OLLAMA — o modo local. */
+    public ProviderKind activeKind(UUID userId) {
         ProviderSettings stored = findStored(userId);
-        if (stored != null) {
-            usePersonalCloud = stored.isUsePersonalCloud();
-            if (stored.getCloudProvider() != null && !stored.getCloudProvider().isBlank()) {
-                cloudProvider = stored.getCloudProvider();
-            }
-            if (stored.getCloudModel() != null && !stored.getCloudModel().isBlank()) {
-                cloudModel = stored.getCloudModel();
-            }
-            String plainKey = decryptedKey(stored);
-            if (!plainKey.isBlank()) {
-                cloudApiKeyMasked = maskApiKey(plainKey);
-            }
-        }
-
-        return new ProviderSettingsResponse(
-                systemUrl, systemType, systemModel, usePersonalCloud, cloudProvider, cloudApiKeyMasked, cloudModel);
+        return stored == null ? ProviderKind.OLLAMA : ProviderKind.from(stored.getProviderKind());
     }
 
-    public ProviderSettingsResponse updateSettings(UUID userId, ProviderSettingsUpdateRequest request) {
-        if (request == null) {
-            return getSettings(userId);
+    /** Endereço do provedor ativo, já com o padrão do tipo quando não informado. */
+    public String activeBaseUrl(UUID userId) {
+        ProviderSettings stored = findStored(userId);
+        if (stored != null
+                && stored.getBaseUrl() != null
+                && !stored.getBaseUrl().isBlank()) {
+            return stored.getBaseUrl();
         }
-
-        if (redisTemplate != null) {
-            // Update shared system LAN server if provided
-            if (request.systemServerUrl() != null && !request.systemServerUrl().isBlank()) {
-                redisTemplate
-                        .opsForHash()
-                        .put(SYS_KEY, "serverUrl", request.systemServerUrl().trim());
-            }
-            if (request.systemServerType() != null
-                    && !request.systemServerType().isBlank()) {
-                redisTemplate
-                        .opsForHash()
-                        .put(SYS_KEY, "serverType", request.systemServerType().trim());
-            }
-            if (request.systemDefaultModel() != null
-                    && !request.systemDefaultModel().isBlank()) {
-                redisTemplate
-                        .opsForHash()
-                        .put(
-                                SYS_KEY,
-                                "defaultModel",
-                                request.systemDefaultModel().trim());
-            }
-        }
-
-        persistCloudSettings(userId, request);
-
-        return getSettings(userId);
+        ProviderKind kind = stored == null ? ProviderKind.OLLAMA : ProviderKind.from(stored.getProviderKind());
+        return kind == ProviderKind.OLLAMA ? defaultOllamaUrl : kind.defaultBaseUrl();
     }
 
-    public ProviderTestResponse testConnection(ProviderTestRequest request) {
-        if (request == null) {
-            return new ProviderTestResponse(false, "Parâmetros de teste inválidos.", 0);
+    /** Modelo escolhido no provedor ativo. */
+    public String activeModelName(UUID userId) {
+        ProviderSettings stored = findStored(userId);
+        if (stored != null
+                && stored.getCloudModel() != null
+                && !stored.getCloudModel().isBlank()) {
+            return stored.getCloudModel();
         }
-
-        long start = System.currentTimeMillis();
-
-        if ("SYSTEM_LAN".equalsIgnoreCase(request.targetType())) {
-            String url = request.serverUrl() != null && !request.serverUrl().isBlank()
-                    ? request.serverUrl().trim()
-                    : defaultOllamaUrl;
-            return testLanServer(url, request.serverType(), start);
-        } else if ("PERSONAL_CLOUD".equalsIgnoreCase(request.targetType())) {
-            return testCloudApi(request.serverUrl(), request.apiKey(), request.modelName(), start);
-        }
-
-        return new ProviderTestResponse(false, "Tipo de destino não reconhecido.", 0);
+        return readSystemField("defaultModel", "qwen3.5:9b");
     }
 
-    public JsonNode listAvailableModels(UUID userId) {
-        ProviderSettingsResponse settings = getSettings(userId);
-        if (settings.usePersonalCloud() && !settings.personalCloudApiKeyMasked().isBlank()) {
-            ArrayNode models = objectMapper.createArrayNode();
-            if ("GEMINI".equalsIgnoreCase(settings.personalCloudProvider())) {
-                models.add(createModelNode("gemini-2.5-flash", "Google Gemini 2.5 Flash (Cloud)"));
-                models.add(createModelNode("gemini-2.5-pro", "Google Gemini 2.5 Pro (Cloud)"));
-                models.add(createModelNode("gemini-1.5-pro", "Google Gemini 1.5 Pro (Cloud)"));
-            } else {
-                models.add(createModelNode("gpt-4o", "OpenAI GPT-4o (Cloud)"));
-                models.add(createModelNode("gpt-4o-mini", "OpenAI GPT-4o Mini (Cloud)"));
-                models.add(createModelNode("o3-mini", "OpenAI o3 Mini (Cloud)"));
-            }
-            ObjectNode root = objectMapper.createObjectNode();
-            root.set("data", models);
-            return root;
-        }
-
-        String activeUrl = settings.systemServerUrl().replaceAll("/+$", "");
-        try {
-            String endpoint = "OPENAI_COMPATIBLE".equalsIgnoreCase(settings.systemServerType())
-                    ? activeUrl + "/v1/models"
-                    : activeUrl + "/api/tags";
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint))
-                    .GET()
-                    .timeout(Duration.ofSeconds(4))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                return objectMapper.readTree(response.body());
-            }
-        } catch (Exception exception) {
-            // Fallback
-        }
-
-        ObjectNode root = objectMapper.createObjectNode();
-        ArrayNode fallback = objectMapper.createArrayNode();
-        fallback.add(
-                createModelNode(settings.systemDefaultModel(), settings.systemDefaultModel() + " (" + activeUrl + ")"));
-        root.set("data", fallback);
-        return root;
+    /** Chave crua, para uso SERVIDOR-A-SERVIDOR apenas. Nunca volta ao cliente nem para log. */
+    public String rawApiKey(UUID userId) {
+        return decryptedKey(findStored(userId));
     }
 
     /**
-     * Verdadeiro quando o usuario escolheu um provedor de nuvem na tela de configuracao.
+     * Verdadeiro quando o provedor ativo não é o local E está pronto para uso.
      *
-     * <p>Existe para o agente poder AVISAR: o fluxo de chat fala direto com o Ollama
-     * ({@code /api/chat}, corpo no formato nativo), entao escolher Gemini nao muda para onde a
-     * requisicao vai — e sem aviso o usuario recebe o modelo local achando que falou com a nuvem.
+     * <p>Um tipo que exige chave sem chave configurada não conta como pronto: rotear para ele daria
+     * erro de autenticação em toda mensagem, e o usuário não saberia que faltou a chave.
      */
+    public boolean remoteProviderReady(UUID userId) {
+        ProviderKind kind = activeKind(userId);
+        if (kind == ProviderKind.OLLAMA) {
+            return false;
+        }
+        return !kind.requiresApiKey() || !rawApiKey(userId).isBlank();
+    }
+
+    /** Rótulo para mensagens ao usuário, ex.: {@code GEMINI (gemini-2.5-flash)}. */
+    public String activeProviderLabel(UUID userId) {
+        String model = activeModelName(userId);
+        String kind = activeKind(userId).name();
+        return model == null || model.isBlank() ? kind : kind + " (" + model + ")";
+    }
+
+    public ProviderSettingsResponse getSettings(UUID userId) {
+        ProviderSettings stored = findStored(userId);
+        ProviderKind kind = stored == null ? ProviderKind.OLLAMA : ProviderKind.from(stored.getProviderKind());
+        String baseUrl = activeBaseUrl(userId);
+        String model = activeModelName(userId);
+        String plainKey = decryptedKey(stored);
+        String maskedKey = plainKey.isBlank() ? "" : maskApiKey(plainKey);
+        boolean remote = kind != ProviderKind.OLLAMA;
+
+        return new ProviderSettingsResponse(
+                kind.name(),
+                baseUrl,
+                model,
+                maskedKey,
+                // Campos herdados, mantidos enquanto a tela migra: descrevem a MESMA configuracao,
+                // nao dois provedores paralelos como antes.
+                baseUrl,
+                kind.name(),
+                model,
+                remote,
+                kind.name(),
+                maskedKey,
+                model);
+    }
+
+    // ---------------------------------------------------------------- escrita
+
+    public ProviderSettingsResponse updateSettings(UUID userId, ProviderSettingsUpdateRequest request) {
+        if (request == null || userId == null || repository == null) {
+            return getSettings(userId);
+        }
+        try {
+            ProviderSettings stored = repository.findById(userId).orElseGet(() -> new ProviderSettings(userId));
+
+            String kind = firstPresent(request.providerKind(), request.systemServerType(), legacyKind(request));
+            if (kind != null) {
+                stored.setProviderKind(ProviderKind.from(kind).name());
+            }
+            String baseUrl = firstPresent(request.baseUrl(), request.systemServerUrl());
+            if (baseUrl != null) {
+                stored.setBaseUrl(baseUrl.trim());
+            }
+            String model =
+                    firstPresent(request.selectedModel(), request.personalCloudModel(), request.systemDefaultModel());
+            if (model != null) {
+                stored.setCloudModel(model.trim());
+            }
+            String apiKey = firstPresent(request.apiKey(), request.personalCloudApiKey());
+            if (isRealApiKey(apiKey) && cipher != null) {
+                stored.setCloudApiKeyEncrypted(cipher.encrypt(apiKey.trim()));
+            }
+            // Derivados, nao fonte de verdade: existem para a tela antiga continuar lendo.
+            stored.setUsePersonalCloud(ProviderKind.from(stored.getProviderKind()) != ProviderKind.OLLAMA);
+            stored.setCloudProvider(stored.getProviderKind());
+            repository.save(stored);
+        } catch (RuntimeException exception) {
+            // Nunca inclui a chave na mensagem.
+            logger.warn(
+                    "Falha ao gravar a configuracao de provedor: {}",
+                    exception.getClass().getSimpleName());
+        }
+        return getSettings(userId);
+    }
+
+    /** Falso para vazio e para o valor mascarado que a própria tela devolve. */
+    static boolean isRealApiKey(String candidate) {
+        return candidate != null && !candidate.isBlank() && !candidate.contains("•");
+    }
+
+    // ------------------------------------------------------------------ modelos
+
+    /**
+     * Modelos que o provedor ativo realmente oferece, consultando a API dele.
+     *
+     * <p>Lista escrita no código envelhece e mostra modelo que talvez não exista na conta — o
+     * usuário escolhe um nome que a API vai recusar, sem entender por quê.
+     */
+    public JsonNode listAvailableModels(UUID userId) {
+        ProviderKind kind = activeKind(userId);
+        List<String> names = modelCatalog == null
+                ? List.of()
+                : modelCatalog.listModels(kind, activeBaseUrl(userId), rawApiKey(userId));
+
+        ObjectNode root = objectMapper.createObjectNode();
+        ArrayNode data = root.putArray("data");
+        for (String name : names) {
+            data.add(createModelNode(name, name));
+        }
+        if (data.isEmpty()) {
+            // Sem resposta do provedor, oferece ao menos o modelo configurado — e diz que nao foi
+            // confirmado, para o usuario perceber que a consulta falhou em vez de achar que nao ha
+            // modelos.
+            String configured = activeModelName(userId);
+            if (configured != null && !configured.isBlank()) {
+                data.add(createModelNode(configured, configured + " (nao confirmado pelo provedor)"));
+            }
+        }
+        return root;
+    }
+
+    // ------------------------------------------------------------------ conexao
+
+    /**
+     * Testa a configuração listando modelos no provedor — se a listagem funciona, endereço, formato
+     * e chave estão certos.
+     *
+     * <p>A versão anterior mandava a chave na query string ({@code ?key=...}), que entra em log de
+     * proxy e de servidor. O catálogo usa cabeçalho.
+     */
+    public ProviderTestResponse testConnection(ProviderTestRequest request) {
+        long start = System.currentTimeMillis();
+        if (request == null) {
+            return new ProviderTestResponse(false, "Parametros de teste invalidos.", 0);
+        }
+        ProviderKind kind = ProviderKind.from(request.serverType());
+        String baseUrl = request.serverUrl() == null || request.serverUrl().isBlank()
+                ? kind.defaultBaseUrl()
+                : request.serverUrl().trim();
+
+        if (kind.requiresApiKey()
+                && (request.apiKey() == null || request.apiKey().isBlank())) {
+            return new ProviderTestResponse(false, "Chave de API nao informada para " + kind + ".", 0);
+        }
+
+        List<String> models =
+                modelCatalog == null ? List.of() : modelCatalog.listModels(kind, baseUrl, request.apiKey());
+        long latency = System.currentTimeMillis() - start;
+        if (models.isEmpty()) {
+            return new ProviderTestResponse(
+                    false, "Nao foi possivel listar modelos em " + kind + ". Verifique endereco e chave.", latency);
+        }
+        return new ProviderTestResponse(
+                true, "Conectado a " + kind + ": " + models.size() + " modelo(s) (" + latency + "ms)", latency);
+    }
+
+    // --------------------------------------------------- compatibilidade herdada
+
+    public boolean cloudProviderSelected(UUID userId) {
+        return remoteProviderReady(userId);
+    }
+
+    public String selectedCloudProviderName(UUID userId) {
+        return remoteProviderReady(userId) ? activeProviderLabel(userId) : "";
+    }
+
+    public String rawCloudApiKey(UUID userId) {
+        return rawApiKey(userId);
+    }
+
+    public String cloudModelName(UUID userId) {
+        return activeModelName(userId);
+    }
+
+    public String resolveActiveModelUrl(UUID userId) {
+        return activeBaseUrl(userId);
+    }
+
+    public String resolveActiveModelName(UUID userId) {
+        return activeModelName(userId);
+    }
+
+    // ------------------------------------------------------------------ internos
+
     private ProviderSettings findStored(UUID userId) {
         if (userId == null || repository == null) {
             return null;
@@ -205,155 +296,24 @@ public class ModelProviderService {
         return cipher.decrypt(stored.getCloudApiKeyEncrypted());
     }
 
-    /**
-     * Grava a configuracao de nuvem no banco. Campo nulo significa "nao mexi": manter o que estava e
-     * o que permite salvar so o modelo sem apagar a chave.
-     *
-     * <p>O valor mascarado que a tela devolve (com marcadores) nunca e regravado como chave — senao
-     * um "salvar" sem editar a chave a destruiria.
-     */
-    private void persistCloudSettings(UUID userId, ProviderSettingsUpdateRequest request) {
-        if (userId == null || repository == null || request == null) {
-            return;
+    /** Deriva o tipo do campo antigo, que só distinguia nuvem de local. */
+    private String legacyKind(ProviderSettingsUpdateRequest request) {
+        if (Boolean.TRUE.equals(request.usePersonalCloud()) && request.personalCloudProvider() != null) {
+            return request.personalCloudProvider();
         }
-        try {
-            ProviderSettings stored = repository.findById(userId).orElseGet(() -> new ProviderSettings(userId));
-            if (request.usePersonalCloud() != null) {
-                stored.setUsePersonalCloud(request.usePersonalCloud());
+        if (Boolean.FALSE.equals(request.usePersonalCloud())) {
+            return ProviderKind.OLLAMA.name();
+        }
+        return null;
+    }
+
+    private static String firstPresent(String... candidates) {
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank()) {
+                return candidate;
             }
-            if (request.personalCloudProvider() != null) {
-                stored.setCloudProvider(request.personalCloudProvider().trim());
-            }
-            if (request.personalCloudModel() != null) {
-                stored.setCloudModel(request.personalCloudModel().trim());
-            }
-            if (isRealApiKey(request.personalCloudApiKey()) && cipher != null) {
-                stored.setCloudApiKeyEncrypted(
-                        cipher.encrypt(request.personalCloudApiKey().trim()));
-            }
-            repository.save(stored);
-        } catch (RuntimeException exception) {
-            // Nunca inclui a chave na mensagem.
-            logger.warn(
-                    "Falha ao gravar a configuracao de provedor: {}",
-                    exception.getClass().getSimpleName());
         }
-    }
-
-    /** Falso para vazio e para o valor mascarado que a propria tela devolve. */
-    static boolean isRealApiKey(String candidate) {
-        return candidate != null && !candidate.isBlank() && !candidate.contains("\u2022");
-    }
-
-    public boolean cloudProviderSelected(UUID userId) {
-        if (userId == null) {
-            return false;
-        }
-        try {
-            ProviderSettingsResponse settings = getSettings(userId);
-            return settings.usePersonalCloud()
-                    && settings.personalCloudApiKeyMasked() != null
-                    && !settings.personalCloudApiKeyMasked().isBlank();
-        } catch (RuntimeException exception) {
-            return false;
-        }
-    }
-
-    /** Nome do provedor de nuvem escolhido (ex.: GEMINI), vazio quando nao ha. */
-    public String selectedCloudProviderName(UUID userId) {
-        if (!cloudProviderSelected(userId)) {
-            return "";
-        }
-        ProviderSettingsResponse settings = getSettings(userId);
-        String provider = settings.personalCloudProvider();
-        String model = settings.personalCloudModel();
-        return model == null || model.isBlank() ? provider : provider + " (" + model + ")";
-    }
-
-    /**
-     * Chave crua do provedor de nuvem, para uso SERVIDOR-A-SERVIDOR apenas.
-     *
-     * <p>O DTO de settings expõe só a versão mascarada, e é assim que deve continuar: esta aqui não
-     * pode voltar para o cliente nem entrar em log. Existe porque a chamada ao provedor precisa dela.
-     */
-    public String rawCloudApiKey(UUID userId) {
-        return decryptedKey(findStored(userId));
-    }
-
-    /** Modelo de nuvem escolhido, ex.: {@code gemini-2.5-flash}. */
-    public String cloudModelName(UUID userId) {
-        return getSettings(userId).personalCloudModel();
-    }
-
-    public String resolveActiveModelUrl(UUID userId) {
-        ProviderSettingsResponse settings = getSettings(userId);
-        if (settings.usePersonalCloud() && !settings.personalCloudApiKeyMasked().isBlank()) {
-            return "https://generativelanguage.googleapis.com";
-        }
-        return settings.systemServerUrl();
-    }
-
-    public String resolveActiveModelName(UUID userId) {
-        ProviderSettingsResponse settings = getSettings(userId);
-        if (settings.usePersonalCloud() && !settings.personalCloudApiKeyMasked().isBlank()) {
-            return settings.personalCloudModel();
-        }
-        return settings.systemDefaultModel();
-    }
-
-    private ProviderTestResponse testLanServer(String baseUrl, String serverType, long startTimeMs) {
-        try {
-            String endpoint = baseUrl.replaceAll("/+$", "")
-                    + ("OPENAI_COMPATIBLE".equalsIgnoreCase(serverType) ? "/v1/models" : "/api/tags");
-
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint))
-                    .GET()
-                    .timeout(Duration.ofSeconds(4))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            long latency = System.currentTimeMillis() - startTimeMs;
-
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                return new ProviderTestResponse(
-                        true, "Conectado ao servidor da rede local (" + latency + "ms)", latency);
-            } else {
-                return new ProviderTestResponse(
-                        false, "Servidor respondeu com código HTTP " + response.statusCode(), latency);
-            }
-        } catch (Exception exception) {
-            long latency = System.currentTimeMillis() - startTimeMs;
-            return new ProviderTestResponse(false, "Falha ao conectar: " + exception.getMessage(), latency);
-        }
-    }
-
-    private ProviderTestResponse testCloudApi(String provider, String apiKey, String modelName, long startTimeMs) {
-        if (apiKey == null || apiKey.isBlank()) {
-            return new ProviderTestResponse(false, "Chave de API não informada.", 0);
-        }
-
-        try {
-            String endpoint = "https://generativelanguage.googleapis.com/v1beta/models?key=" + apiKey.trim();
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint))
-                    .GET()
-                    .timeout(Duration.ofSeconds(5))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            long latency = System.currentTimeMillis() - startTimeMs;
-
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                return new ProviderTestResponse(true, "Chave de API autenticada na Nuvem (" + latency + "ms)", latency);
-            } else {
-                return new ProviderTestResponse(false, "Chave recusada (HTTP " + response.statusCode() + ")", latency);
-            }
-        } catch (Exception exception) {
-            long latency = System.currentTimeMillis() - startTimeMs;
-            return new ProviderTestResponse(
-                    false, "Erro de rede ao validar chave Cloud: " + exception.getMessage(), latency);
-        }
+        return null;
     }
 
     private ObjectNode createModelNode(String id, String name) {

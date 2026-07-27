@@ -174,8 +174,10 @@ public class AgentService implements AgentExecutionEngine {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.avento.service.provider.ModelProviderService modelProviderService;
 
+    // Lista, nao um unico bean: o despacho escolhe pelo TIPO do provedor ativo. Com um so, um
+    // usuario em OPENAI_COMPATIBLE seria atendido pela implementacao do Gemini.
     @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.avento.service.provider.CloudChatProvider cloudChatProvider;
+    private java.util.List<com.avento.service.provider.CloudChatProvider> cloudChatProviders;
 
     // Progressive tool discovery (activate_tools persists per run in Redis). Optional for the same
     // reason as the field above: tests build AgentService through the constructor.
@@ -850,8 +852,9 @@ public class AgentService implements AgentExecutionEngine {
         state.userId = userId;
         // O aviso vai ANTES da resposta: se o usuario escolheu nuvem e recebe o modelo local sem
         // saber, ele julga a qualidade do Gemini olhando para a saida de um 9B local.
-        if (shouldUseCloudProvider(userId)) {
-            return streamThroughCloudProvider(messages, userId);
+        com.avento.service.provider.CloudChatProvider provider = providerForActiveKind(userId);
+        if (provider != null) {
+            return streamThroughCloudProvider(provider, messages, userId);
         }
         // Nuvem escolhida mas sem implementacao disponivel: cair no local calado seria a mentira que
         // esse aviso existe para impedir.
@@ -860,10 +863,19 @@ public class AgentService implements AgentExecutionEngine {
         return cloudNotice.isEmpty() ? turn : Flux.concat(Flux.just(contentChunk(cloudNotice)), turn);
     }
 
-    private boolean shouldUseCloudProvider(UUID userId) {
-        return cloudChatProvider != null
-                && modelProviderService != null
-                && modelProviderService.cloudProviderSelected(userId);
+    /** Implementacao que atende o tipo ativo, ou null quando ainda nao existe uma. */
+    private com.avento.service.provider.CloudChatProvider providerForActiveKind(UUID userId) {
+        if (cloudChatProviders == null || modelProviderService == null) {
+            return null;
+        }
+        if (!modelProviderService.remoteProviderReady(userId)) {
+            return null;
+        }
+        com.avento.service.provider.ProviderKind kind = modelProviderService.activeKind(userId);
+        return cloudChatProviders.stream()
+                .filter(provider -> provider.kind() == kind)
+                .findFirst()
+                .orElse(null);
     }
 
     /**
@@ -874,13 +886,14 @@ public class AgentService implements AgentExecutionEngine {
      * {@code functionCall} dentro de {@code parts} daria erro silencioso; ferramentas na nuvem são a
      * etapa seguinte, sobre esta base já validada.
      */
-    private Flux<String> streamThroughCloudProvider(ArrayNode messages, UUID userId) {
-        String cloudModel = modelProviderService.cloudModelName(userId);
-        String apiKey = modelProviderService.rawCloudApiKey(userId);
-        String aviso = "\n> ☁️ Respondendo por **" + cloudChatProvider.providerName() + " (" + cloudModel
-                + ")**. Neste modo as ferramentas locais ficam indisponíveis — para usá-las, desmarque"
-                + " o provedor de nuvem nas configurações.\n\n";
-        return Flux.concat(Flux.just(contentChunk(aviso)), cloudChatProvider.streamChat(messages, cloudModel, apiKey));
+    private Flux<String> streamThroughCloudProvider(
+            com.avento.service.provider.CloudChatProvider provider, ArrayNode messages, UUID userId) {
+        String model = modelProviderService.activeModelName(userId);
+        String apiKey = modelProviderService.rawApiKey(userId);
+        String aviso = "\n> ☁️ Respondendo por **" + provider.providerName() + " (" + model
+                + ")**. Neste modo as ferramentas locais ficam indisponíveis — para usá-las, selecione"
+                + " o provedor local nas configurações.\n\n";
+        return Flux.concat(Flux.just(contentChunk(aviso)), provider.streamChat(messages, model, apiKey));
     }
 
     /**
@@ -892,11 +905,11 @@ public class AgentService implements AgentExecutionEngine {
      * nunca foram chamados por ninguem. Ate a camada de provedor existir, o minimo honesto e dizer.
      */
     String cloudProviderNotice(UUID userId, String modelUsed) {
-        if (modelProviderService == null || !modelProviderService.cloudProviderSelected(userId)) {
+        if (modelProviderService == null || !modelProviderService.remoteProviderReady(userId)) {
             return "";
         }
-        if (cloudChatProvider != null) {
-            return ""; // ha implementacao: a resposta vem da nuvem e o aviso nao se aplica.
+        if (providerForActiveKind(userId) != null) {
+            return ""; // ha implementacao para este tipo: a resposta vem de la.
         }
         String selected = modelProviderService.selectedCloudProviderName(userId);
         return "\n> ⚠️ Você selecionou **" + selected + "**, mas o fluxo de conversa ainda fala apenas"

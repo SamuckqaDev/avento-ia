@@ -17,8 +17,13 @@ import reactor.core.publisher.Flux;
  */
 public interface CloudChatProvider {
 
-    /** Nome do provedor como gravado na configuração, ex.: {@code GEMINI}. */
-    String providerName();
+    /** Tipo que esta implementação atende. É por ele que o despacho escolhe. */
+    ProviderKind kind();
+
+    /** Nome legível para mensagens ao usuário. */
+    default String providerName() {
+        return kind().name();
+    }
 
     /**
      * Envia a conversa e devolve chunks no formato que o Avento já consome

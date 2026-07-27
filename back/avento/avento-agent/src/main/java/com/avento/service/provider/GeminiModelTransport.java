@@ -1,0 +1,295 @@
+package com.avento.service.provider;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.netty.resolver.DefaultAddressResolverGroup;
+import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
+
+/**
+ * Transporte do Gemini: traduz a requisição canônica do agente e devolve a resposta no formato
+ * interno, ferramentas incluídas.
+ *
+ * <p>É o que permite o Gemini usar arquivo, terminal, MCP e RAG: o laço de rodadas continua o mesmo,
+ * montando toolset, pedindo aprovação e executando — só o dialeto da chamada muda aqui.
+ *
+ * <p>Diferenças traduzidas:
+ *
+ * <ul>
+ *   <li>papel {@code assistant} → {@code model};
+ *   <li>prompt de sistema sai das mensagens e vai para {@code systemInstruction};
+ *   <li>ferramentas: {@code tools[].function} → {@code tools[0].functionDeclarations[]};
+ *   <li>resultado de ferramenta: mensagem {@code role=tool} → {@code functionResponse};
+ *   <li>chamada de ferramenta: {@code functionCall} em {@code parts} → {@code tool_calls}.
+ * </ul>
+ */
+@Service
+public class GeminiModelTransport implements ModelTransport {
+
+    private static final Logger logger = LoggerFactory.getLogger(GeminiModelTransport.class);
+
+    private final ObjectMapper mapper;
+    private final WebClient webClient;
+    private final Duration timeout;
+
+    public GeminiModelTransport(
+            ObjectMapper mapper, @Value("${avento.provider.gemini.timeout-seconds:300}") long timeoutSeconds) {
+        this.mapper = mapper;
+        this.timeout = Duration.ofSeconds(timeoutSeconds);
+        this.webClient = WebClient.builder()
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(8 * 1024 * 1024))
+                // Resolvedor da JVM: o nativo do Netty para macOS só existe para x86_64 e num Apple
+                // Silicon a chamada morre com "Can't assign requested address" antes de sair.
+                .clientConnector(new ReactorClientHttpConnector(
+                        reactor.netty.http.client.HttpClient.create().resolver(DefaultAddressResolverGroup.INSTANCE)))
+                .build();
+    }
+
+    @Override
+    public ProviderKind kind() {
+        return ProviderKind.GEMINI;
+    }
+
+    @Override
+    public Flux<String> stream(ObjectNode canonicalRequest, String baseUrl, String apiKey) {
+        String model = canonicalRequest.path("model").asText("");
+        ObjectNode geminiRequest = toGeminiRequest(canonicalRequest, mapper);
+        String url = (baseUrl == null || baseUrl.isBlank() ? ProviderKind.GEMINI.defaultBaseUrl() : baseUrl)
+                        .replaceAll("/+$", "")
+                + "/v1beta/models/" + model.trim() + ":streamGenerateContent?alt=sse";
+
+        return webClient
+                .post()
+                .uri(url)
+                // Chave em HEADER, nunca em query string: URL entra em log de proxy e de servidor.
+                .header("x-goog-api-key", apiKey == null ? "" : apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(geminiRequest.toString())
+                .retrieve()
+                .bodyToFlux(String.class)
+                .timeout(timeout)
+                .mapNotNull(event -> toInternalChunk(event, mapper));
+    }
+
+    // ------------------------------------------------------------------ ida
+
+    /** Converte a requisição canônica do Avento para o corpo do Gemini. */
+    static ObjectNode toGeminiRequest(ObjectNode canonical, ObjectMapper mapper) {
+        ObjectNode request = mapper.createObjectNode();
+        ArrayNode contents = request.putArray("contents");
+        StringBuilder systemText = new StringBuilder();
+
+        for (JsonNode message : canonical.path("messages")) {
+            String role = message.path("role").asText("");
+            String content = message.path("content").asText("");
+            switch (role) {
+                case "system" -> {
+                    if (!content.isBlank()) {
+                        if (systemText.length() > 0) {
+                            systemText.append("\n\n");
+                        }
+                        systemText.append(content);
+                    }
+                }
+                case "user" -> addTextContent(contents, "user", content, mapper);
+                case "assistant" -> addAssistantContent(contents, message, content, mapper);
+                // Resultado de ferramenta: o Gemini espera functionResponse, nao texto solto.
+                case "tool" -> addFunctionResponse(contents, message, mapper);
+                default -> {}
+            }
+        }
+
+        if (systemText.length() > 0) {
+            request.putObject("systemInstruction").putArray("parts").addObject().put("text", systemText.toString());
+        }
+
+        ArrayNode declarations = toFunctionDeclarations(canonical.path("tools"), mapper);
+        if (!declarations.isEmpty()) {
+            request.putArray("tools").addObject().set("functionDeclarations", declarations);
+        }
+
+        JsonNode options = canonical.path("options");
+        if (options.isObject()) {
+            ObjectNode generation = request.putObject("generationConfig");
+            if (options.has("temperature"))
+                generation.put("temperature", options.path("temperature").asDouble());
+            if (options.has("top_p"))
+                generation.put("topP", options.path("top_p").asDouble());
+            if (options.has("top_k"))
+                generation.put("topK", options.path("top_k").asInt());
+            if (options.has("num_predict")) {
+                generation.put("maxOutputTokens", options.path("num_predict").asInt());
+            }
+        }
+        return request;
+    }
+
+    /** {@code tools[].function} do formato interno vira {@code functionDeclarations} do Gemini. */
+    static ArrayNode toFunctionDeclarations(JsonNode tools, ObjectMapper mapper) {
+        ArrayNode declarations = mapper.createArrayNode();
+        for (JsonNode tool : tools) {
+            JsonNode function = tool.path("function");
+            String name = function.path("name").asText("");
+            if (name.isBlank()) {
+                continue;
+            }
+            ObjectNode declaration = declarations.addObject();
+            declaration.put("name", name);
+            declaration.put("description", function.path("description").asText(""));
+            JsonNode parameters = function.path("parameters");
+            if (parameters.isObject()) {
+                declaration.set("parameters", sanitizeSchema(parameters, mapper));
+            }
+        }
+        return declarations;
+    }
+
+    /**
+     * O Gemini recusa o schema inteiro se encontrar campo que nao conhece.
+     *
+     * <p>Os schemas internos carregam {@code $schema}, {@code additionalProperties} e afins, herdados
+     * do JSON Schema. Um campo desses derruba TODAS as ferramentas da rodada, nao so a que o trouxe.
+     */
+    static JsonNode sanitizeSchema(JsonNode schema, ObjectMapper mapper) {
+        if (schema.isArray()) {
+            ArrayNode cleaned = mapper.createArrayNode();
+            schema.forEach(item -> cleaned.add(sanitizeSchema(item, mapper)));
+            return cleaned;
+        }
+        if (!schema.isObject()) {
+            return schema;
+        }
+        ObjectNode cleaned = mapper.createObjectNode();
+        schema.fields().forEachRemaining(entry -> {
+            String field = entry.getKey();
+            if (field.startsWith("$") || "additionalProperties".equals(field) || "default".equals(field)) {
+                return;
+            }
+            cleaned.set(field, sanitizeSchema(entry.getValue(), mapper));
+        });
+        return cleaned;
+    }
+
+    private static void addTextContent(ArrayNode contents, String role, String text, ObjectMapper mapper) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        ObjectNode entry = contents.addObject();
+        entry.put("role", role);
+        entry.putArray("parts").addObject().put("text", text);
+    }
+
+    /** Mensagem do assistente pode carregar texto E a chamada de ferramenta que ele fez. */
+    private static void addAssistantContent(ArrayNode contents, JsonNode message, String content, ObjectMapper mapper) {
+        ArrayNode parts = mapper.createArrayNode();
+        if (content != null && !content.isBlank()) {
+            parts.addObject().put("text", content);
+        }
+        for (JsonNode call : message.path("tool_calls")) {
+            JsonNode function = call.path("function");
+            String name = function.path("name").asText("");
+            if (name.isBlank()) {
+                continue;
+            }
+            ObjectNode functionCall = parts.addObject().putObject("functionCall");
+            functionCall.put("name", name);
+            functionCall.set("args", parseArguments(function.path("arguments"), mapper));
+        }
+        if (parts.isEmpty()) {
+            return;
+        }
+        ObjectNode entry = contents.addObject();
+        entry.put("role", "model");
+        entry.set("parts", parts);
+    }
+
+    private static void addFunctionResponse(ArrayNode contents, JsonNode message, ObjectMapper mapper) {
+        String name = message.path("name").asText("");
+        if (name.isBlank()) {
+            return;
+        }
+        ObjectNode response = mapper.createObjectNode();
+        response.put("name", name);
+        ObjectNode payload = response.putObject("response");
+        // O conteudo interno e string; o Gemini espera objeto.
+        payload.put("result", message.path("content").asText(""));
+
+        ObjectNode entry = contents.addObject();
+        entry.put("role", "user");
+        entry.putArray("parts").addObject().set("functionResponse", response);
+    }
+
+    private static JsonNode parseArguments(JsonNode arguments, ObjectMapper mapper) {
+        if (arguments.isObject()) {
+            return arguments;
+        }
+        try {
+            return mapper.readTree(arguments.asText("{}"));
+        } catch (Exception exception) {
+            return mapper.createObjectNode();
+        }
+    }
+
+    // ---------------------------------------------------------------- volta
+
+    /**
+     * Converte um evento SSE do Gemini numa linha no formato interno.
+     *
+     * <p>Devolve null quando o evento nao carrega nem texto nem chamada (keep-alive, metadados de
+     * seguranca, contagem de tokens), para o agente nao processar linha vazia.
+     */
+    static String toInternalChunk(String rawEvent, ObjectMapper mapper) {
+        if (rawEvent == null || rawEvent.isBlank() || "[DONE]".equals(rawEvent.trim())) {
+            return null;
+        }
+        try {
+            JsonNode root = mapper.readTree(rawEvent);
+            JsonNode parts = root.path("candidates").path(0).path("content").path("parts");
+            if (!parts.isArray() || parts.isEmpty()) {
+                return null;
+            }
+
+            StringBuilder text = new StringBuilder();
+            ArrayNode toolCalls = mapper.createArrayNode();
+            for (JsonNode part : parts) {
+                if (part.has("text")) {
+                    text.append(part.path("text").asText(""));
+                }
+                JsonNode functionCall = part.path("functionCall");
+                if (functionCall.isObject() && functionCall.has("name")) {
+                    ObjectNode call = toolCalls.addObject();
+                    ObjectNode function = call.putObject("function");
+                    function.put("name", functionCall.path("name").asText());
+                    // O agente le arguments como STRING JSON (mesmo contrato do Ollama).
+                    function.put("arguments", functionCall.path("args").toString());
+                }
+            }
+
+            if (text.length() == 0 && toolCalls.isEmpty()) {
+                return null;
+            }
+
+            ObjectNode line = mapper.createObjectNode();
+            ObjectNode message = line.putObject("message");
+            message.put("role", "assistant");
+            message.put("content", text.toString());
+            if (!toolCalls.isEmpty()) {
+                message.set("tool_calls", toolCalls);
+            }
+            line.put("done", false);
+            return line.toString();
+        } catch (Exception exception) {
+            logger.debug("Evento do Gemini ignorado: {}", exception.getClass().getSimpleName());
+            return null;
+        }
+    }
+}

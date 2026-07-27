@@ -179,6 +179,12 @@ public class AgentService implements AgentExecutionEngine {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private java.util.List<com.avento.service.provider.CloudChatProvider> cloudChatProviders;
 
+    // Transportes de modelo. Quem tem as ferramentas e o AGENTE: o laco de rodadas monta o toolset,
+    // pede aprovacao, prende ao sandbox e executa — igual para todo provedor. O transporte so
+    // traduz o dialeto da chamada, e por isso o Gemini passa a enxergar arquivo, terminal, MCP e RAG.
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private java.util.List<com.avento.service.provider.ModelTransport> modelTransports;
+
     // Progressive tool discovery (activate_tools persists per run in Redis). Optional for the same
     // reason as the field above: tests build AgentService through the constructor.
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -843,6 +849,14 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private String resolveChatModel(String requestedModel, ArrayNode messages, UUID userId) {
+        // Provedor remoto ativo: o modelo e o configurado NELE. Mandar o nome de um modelo local
+        // para o Gemini foi o que gerou 404 na primeira mensagem.
+        if (transportFor(userId) != null) {
+            String remoteModel = modelProviderService.activeModelName(userId);
+            if (!remoteModel.isBlank()) {
+                return remoteModel;
+            }
+        }
         String selectedModel = normalizeChatModel(requestedModel);
         if (!conversationHasImages(messages) || isVisionModel(selectedModel, inferFamily(selectedModel))) {
             return selectedModel;
@@ -929,12 +943,10 @@ public class AgentService implements AgentExecutionEngine {
         state.userId = userId;
         // O aviso vai ANTES da resposta: se o usuario escolheu nuvem e recebe o modelo local sem
         // saber, ele julga a qualidade do Gemini olhando para a saida de um 9B local.
-        com.avento.service.provider.CloudChatProvider provider = providerForActiveKind(userId);
-        if (provider != null) {
-            return streamThroughCloudProvider(provider, messages, userId);
-        }
-        // Nuvem escolhida mas sem implementacao disponivel: cair no local calado seria a mentira que
-        // esse aviso existe para impedir.
+        // Sem desvio: o provedor remoto entra pelo MESMO laco de rodadas, via ModelTransport. E o que
+        // faz o Gemini enxergar ferramenta, RAG e memoria — o agente e quem as tem, o modelo so
+        // processa. Enquanto nao houver transporte para o tipo ativo, o aviso evita a mentira de
+        // responder pelo local em silencio.
         String cloudNotice = cloudProviderNotice(userId, chatModel);
         Flux<String> turn = runTurn(chatModel, messages, state, 1);
         return cloudNotice.isEmpty() ? turn : Flux.concat(Flux.just(contentChunk(cloudNotice)), turn);
@@ -985,8 +997,8 @@ public class AgentService implements AgentExecutionEngine {
         if (modelProviderService == null || !modelProviderService.remoteProviderReady(userId)) {
             return "";
         }
-        if (providerForActiveKind(userId) != null) {
-            return ""; // ha implementacao para este tipo: a resposta vem de la.
+        if (transportFor(userId) != null) {
+            return ""; // ha transporte para este tipo: a resposta vem de la, com ferramentas.
         }
         String selected = modelProviderService.selectedCloudProviderName(userId);
         return "\n> ⚠️ Você selecionou **" + selected + "**, mas o fluxo de conversa ainda fala apenas"
@@ -1202,13 +1214,7 @@ public class AgentService implements AgentExecutionEngine {
                     "Rodada " + round + " iniciada",
                     "Enviando contexto ao modelo " + model + "."));
 
-            Disposable modelStream = webClient
-                    .post()
-                    .uri("/api/chat")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(ollamaRequest)
-                    .retrieve()
-                    .bodyToFlux(String.class)
+            Disposable modelStream = streamFromProvider(ollamaRequest, state.userId)
                     // Nada aqui limitava quanto tempo esperar por um novo pedaco do Ollama. Se o
                     // modelo travar gerando (contexto grande, maquina sobrecarregada), o pedido
                     // ficava pendurado pra sempre: sem erro, sem aviso, sem fim de stream. Esse
@@ -2365,6 +2371,42 @@ public class AgentService implements AgentExecutionEngine {
     // whether a
     // given chunk is a whole line, a fragment of one, or several lines glued
     // together.
+    /**
+     * Envia a requisicao canonica pelo transporte do provedor ativo.
+     *
+     * <p>Sem transporte para o tipo ativo, cai no Ollama — que e o caminho local e o padrao.
+     */
+    private Flux<String> streamFromProvider(ObjectNode canonicalRequest, UUID userId) {
+        com.avento.service.provider.ModelTransport transport = transportFor(userId);
+        if (transport != null) {
+            return transport.stream(
+                    canonicalRequest,
+                    modelProviderService.activeBaseUrl(userId),
+                    modelProviderService.rawApiKey(userId));
+        }
+        return webClient
+                .post()
+                .uri("/api/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(canonicalRequest)
+                .retrieve()
+                .bodyToFlux(String.class);
+    }
+
+    private com.avento.service.provider.ModelTransport transportFor(UUID userId) {
+        if (modelTransports == null || modelProviderService == null) {
+            return null;
+        }
+        if (!modelProviderService.remoteProviderReady(userId)) {
+            return null;
+        }
+        com.avento.service.provider.ProviderKind kind = modelProviderService.activeKind(userId);
+        return modelTransports.stream()
+                .filter(transport -> transport.kind() == kind)
+                .findFirst()
+                .orElse(null);
+    }
+
     private void handleModelChunk(
             String chunk, FluxSink<String> sink, TurnCapture capture, AgentRunState state, String model) {
         if (chunk == null || chunk.isEmpty()) {

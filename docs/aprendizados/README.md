@@ -28,6 +28,14 @@ Segue o OS no claro/escuro.
   nunca em paralelo), as quatro mudanças exatas, e como a triagem de ferramentas por intenção
   evita alucinação — incluindo o bug que deixa o PDF invisível pro modelo.
 
+- **[03 — Controle por gesto: por que parecia impreciso](03-controle-por-gesto-da-mao.html)** —
+  a suavização não era o problema. Um toque rápido gerava *dois* cliques (o release do arrasto já
+  era um clique, e o código mandava outro por cima), o limiar da pinça dependia de quão longe você
+  sentava da câmera, o eixo Z do MediaPipe injetava ruído, e clique esquerdo/direito disparavam
+  juntos porque os dedos não se movem isolados. Inclui a extração do `GestureEngine` — a lógica
+  saiu do componente React para um módulo puro com 12 testes — e por que essa fronteira é
+  exatamente onde a versão remota (tela compartilhada + vetores pela rede) vai se encaixar.
+
 ## Convenção
 
 - **Visão geral / onboarding:** numeração baixa, explicação de conceito amplo (ex.: `00-visao-geral`).

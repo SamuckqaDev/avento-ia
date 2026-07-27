@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { api } from '../../services/apiClient';
+import { GestureEngine, type GestureEvent } from './gestureEngine';
 import { FloatingWidget, HolographicCursor, ClickRipple } from './HandSpatialControl.styles';
 import { X, Hand, Camera, CheckCircle } from '@phosphor-icons/react';
 
@@ -23,44 +24,63 @@ export function HandSpatialControl({ isActive, onClose }: HandSpatialControlProp
   const [ripples, setRipples] = useState<RippleEffect[]>([]);
   const [statusMessage, setStatusMessage] = useState('Iniciando Câmera...');
 
-  const lastClickTimeRef = useRef(0);
   const lastMoveTimeRef = useRef(0);
-  const isLeftHoldingPinchRef = useRef(false);
-  const isRightHoldingPinchRef = useRef(false);
-  const wasLeftPinchingRef = useRef(false);
-  const wasRightPinchingRef = useRef(false);
-  const pinchStartTimeRef = useRef(0);
-  const smoothedPosRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+  // Toda a lógica de gesto vive no motor: histerese, arbitragem entre pinças, toque vs arrasto.
+  // O componente só traduz os eventos dele em chamadas de API e em pixels para o cursor visual.
+  const engineRef = useRef(new GestureEngine());
 
-  const triggerSpatialClick = useCallback((x: number, y: number, isRight = false) => {
-    const now = Date.now();
-    if (now - lastClickTimeRef.current < 350) return;
-    lastClickTimeRef.current = now;
-
-    // Criar efeito visual de onda de clique
-    const rippleId = now;
+  /** Onda visual no ponto do clique. Puramente cosmético. */
+  const showRipple = useCallback((x: number, y: number) => {
+    const rippleId = Date.now();
     setRipples(prev => [...prev.slice(-3), { id: rippleId, x, y }]);
     setTimeout(() => {
       setRipples(prev => prev.filter(r => r.id !== rippleId));
     }, 550);
-
-    const xRatio = Math.max(0, Math.min(1, x / window.innerWidth));
-    const yRatio = Math.max(0, Math.min(1, y / window.innerHeight));
-
-    // 1. Enviar para o backend hardware do Mac
-    api.post('/api/v1/spatial/click', { xRatio, yRatio, isDouble: false, isRight }).catch(() => {});
-
-    // 2. Disparar clique local no elemento DOM sob o cursor
-    const element = document.elementFromPoint(x, y) as HTMLElement | null;
-    if (element) {
-      if (isRight) {
-        element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }));
-      } else {
-        element.click();
-        element.focus?.();
-      }
-    }
   }, []);
+
+  /**
+   * Aplica um evento do motor. Só o caminho do sistema operacional é usado: o clique do Robot já
+   * cai sobre a janela do Avento e aciona o elemento, então o `element.click()` sintético que
+   * existia aqui fazia cada botão receber o evento duas vezes.
+   */
+  const applyGestureEvent = useCallback((event: GestureEvent) => {
+    const xRatio = event.x;
+    const yRatio = event.y;
+
+    switch (event.type) {
+      case 'move': {
+        const now = Date.now();
+        if (now - lastMoveTimeRef.current <= 40) return;
+        lastMoveTimeRef.current = now;
+        api.post('/api/v1/spatial/move', { xRatio, yRatio }).catch(() => {});
+        return;
+      }
+      case 'down':
+        setStatusMessage(event.button === 'left' ? '👌 Segurando / Arrastando...' : '🤏 Clique Direito');
+        if (event.button === 'left') {
+          api.post('/api/v1/spatial/drag', { xRatio, yRatio, isDown: true }).catch(() => {});
+        }
+        return;
+      case 'up':
+        setStatusMessage('✋ Mão Rastreada');
+        if (event.button === 'left') {
+          api.post('/api/v1/spatial/drag', { xRatio, yRatio, isDown: false }).catch(() => {});
+        }
+        return;
+      case 'click':
+        showRipple(xRatio * window.innerWidth, yRatio * window.innerHeight);
+        setStatusMessage(event.button === 'left' ? '👆 Clique' : '🤏 Clique Direito');
+        api
+          .post('/api/v1/spatial/click', {
+            xRatio,
+            yRatio,
+            isDouble: false,
+            isRight: event.button === 'right',
+          })
+          .catch(() => {});
+        return;
+    }
+  }, [showRipple]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -136,96 +156,18 @@ export function HandSpatialControl({ isActive, onClose }: HandSpatialControlProp
             windowAny.drawLandmarks(canvasCtx, landmarks, { color: '#10b981', lineWidth: 1, radius: 3 });
           }
 
-          const indexTip = landmarks[8];
-          const middleTip = landmarks[12];
-          const thumbTip = landmarks[4];
+          // O motor devolve eventos já resolvidos (move/down/up/click) em coordenadas 0..1.
+          const events = engineRef.current.update(landmarks, Date.now());
+          events.forEach(applyGestureEvent);
 
-          // Cursor alinhado 100% EXATAMENTE na ponta do indicador (Landmark 8)
-          const targetX = (1 - indexTip.x) * window.innerWidth;
-          const targetY = indexTip.y * window.innerHeight;
-
-          const deltaDist = Math.hypot(targetX - smoothedPosRef.current.x, targetY - smoothedPosRef.current.y);
-          const alpha = deltaDist > 25 ? 0.60 : 0.35;
-
-          const smoothedX = smoothedPosRef.current.x + (targetX - smoothedPosRef.current.x) * alpha;
-          const smoothedY = smoothedPosRef.current.y + (targetY - smoothedPosRef.current.y) * alpha;
-          smoothedPosRef.current = { x: smoothedX, y: smoothedY };
-          setCursorPos({ x: smoothedX, y: smoothedY });
-
-          // Transmitir posição contínua do mouse para o backend a cada 40ms
-          const nowMove = Date.now();
-          if (nowMove - lastMoveTimeRef.current > 40) {
-            lastMoveTimeRef.current = nowMove;
-            const xRatio = Math.max(0, Math.min(1, smoothedX / window.innerWidth));
-            const yRatio = Math.max(0, Math.min(1, smoothedY / window.innerHeight));
-            api.post('/api/v1/spatial/move', { xRatio, yRatio }).catch(() => {});
+          const position = engineRef.current.position;
+          if (position) {
+            setCursorPos({ x: position.x * window.innerWidth, y: position.y * window.innerHeight });
           }
-
-          // 1. PINÇA ESQUERDA (INDICADOR + POLEGAR)
-          const dxIndex = indexTip.x - thumbTip.x;
-          const dyIndex = indexTip.y - thumbTip.y;
-          const dzIndex = indexTip.z - thumbTip.z;
-          const indexPinchDist = Math.hypot(dxIndex, dyIndex, dzIndex);
-
-          // Histerese Anti-Soltura: entra com < 0.042, só sai se abrir > 0.066
-          if (isLeftHoldingPinchRef.current) {
-            if (indexPinchDist > 0.066) {
-              isLeftHoldingPinchRef.current = false;
-            }
-          } else {
-            if (indexPinchDist < 0.042) {
-              isLeftHoldingPinchRef.current = true;
-            }
-          }
-          const isLeftPinching = isLeftHoldingPinchRef.current;
-
-          // 2. PINÇA DIREITA (DEDO MÉDIO + POLEGAR)
-          const dxMiddle = middleTip.x - thumbTip.x;
-          const dyMiddle = middleTip.y - thumbTip.y;
-          const dzMiddle = middleTip.z - thumbTip.z;
-          const middlePinchDist = Math.hypot(dxMiddle, dyMiddle, dzMiddle);
-
-          if (isRightHoldingPinchRef.current) {
-            if (middlePinchDist > 0.066) {
-              isRightHoldingPinchRef.current = false;
-            }
-          } else {
-            if (middlePinchDist < 0.042) {
-              isRightHoldingPinchRef.current = true;
-            }
-          }
-          const isRightPinching = isRightHoldingPinchRef.current;
-
-          setIsPinching(isLeftPinching || isRightPinching);
-
-          const xRatio = Math.max(0, Math.min(1, smoothedX / window.innerWidth));
-          const yRatio = Math.max(0, Math.min(1, smoothedY / window.innerHeight));
-
-          // 1. MANUSEIO CLIQUE DIREITO (MÉDIO)
-          if (isRightPinching && !wasRightPinchingRef.current) {
-            setStatusMessage('🤏 Clique Direito');
-            triggerSpatialClick(smoothedX, smoothedY, true);
-          }
-          wasRightPinchingRef.current = isRightPinching;
-
-          // 2. MANUSEIO CLIQUE ESQUERDO / ARRASTAR (INDICADOR)
-          if (isLeftPinching && !wasLeftPinchingRef.current) {
-            pinchStartTimeRef.current = Date.now();
-            setStatusMessage('👌 Segurando / Arrastando...');
-            api.post('/api/v1/spatial/drag', { xRatio, yRatio, isDown: true }).catch(() => {});
-          } else if (isLeftPinching && wasLeftPinchingRef.current) {
-            setStatusMessage('👌 Segurando / Arrastando...');
-          } else if (!isLeftPinching && wasLeftPinchingRef.current) {
-            const duration = Date.now() - pinchStartTimeRef.current;
-            api.post('/api/v1/spatial/drag', { xRatio, yRatio, isDown: false }).catch(() => {});
-
-            if (duration < 280) {
-              triggerSpatialClick(smoothedX, smoothedY, false);
-            }
-            setStatusMessage('✋ Mão Rastreada');
-          }
-          wasLeftPinchingRef.current = isLeftPinching;
+          setIsPinching(engineRef.current.activeButton !== null);
         } else {
+          // Sem isso o botão fica pressionado quando a mão sai do frame no meio de um arrasto.
+          engineRef.current.update(null, Date.now()).forEach(applyGestureEvent);
           setHasHand(false);
           setIsPinching(false);
           setStatusMessage('📷 Aguardando Mão na Câmera');
@@ -255,7 +197,7 @@ export function HandSpatialControl({ isActive, onClose }: HandSpatialControlProp
       if (cameraInstance) cameraInstance.stop();
       if (handsInstance) handsInstance.close();
     };
-  }, [isActive, triggerSpatialClick]);
+  }, [isActive, applyGestureEvent]);
 
   if (!isActive) return null;
 

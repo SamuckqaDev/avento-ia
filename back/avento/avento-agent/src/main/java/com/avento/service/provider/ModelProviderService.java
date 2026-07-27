@@ -42,6 +42,7 @@ public class ModelProviderService {
     private final ProviderSettingsRepository repository;
     private final SecretCipher cipher;
     private final ProviderModelCatalog modelCatalog;
+    private final java.util.Map<String, Integer> contextLimitCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ModelProviderService(
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
@@ -280,6 +281,28 @@ public class ModelProviderService {
             return List.of();
         }
         return modelCatalog.listImageModels(activeKind(userId), activeBaseUrl(userId), rawApiKey(userId));
+    }
+
+    /**
+     * Contexto que o provedor declara para o modelo ativo, em tokens. Zero quando nao se sabe.
+     *
+     * <p>Cache simples por (tipo, modelo): a resposta nao muda enquanto a escolha nao muda, e sem
+     * isso seria uma chamada de rede por rodada.
+     */
+    public int activeContextLimit(UUID userId) {
+        if (modelCatalog == null) {
+            return 0;
+        }
+        ProviderKind kind = activeKind(userId);
+        String model = activeModelName(userId);
+        String cacheKey = kind + ":" + model;
+        Integer cached = contextLimitCache.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+        int limit = modelCatalog.contextLimit(kind, activeBaseUrl(userId), rawApiKey(userId), model);
+        contextLimitCache.put(cacheKey, limit);
+        return limit;
     }
 
     // ------------------------------------------------------------------ conexao

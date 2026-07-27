@@ -128,6 +128,79 @@ public class ProviderModelCatalog {
         return false;
     }
 
+    /**
+     * Limite de contexto que o PROVEDOR declara para o modelo, em tokens. Zero quando nao da para
+     * descobrir.
+     *
+     * <p>Chutar esse numero e o que fazia o Avento truncar demais num modelo de janela grande e
+     * estourar num de janela pequena. Os dois lados informam: o Ollama em {@code /api/show}
+     * ({@code model_info.*.context_length}) e o Gemini em {@code inputTokenLimit} da propria
+     * listagem de modelos.
+     */
+    public int contextLimit(ProviderKind kind, String baseUrl, String apiKey, String model) {
+        if (model == null || model.isBlank()) {
+            return 0;
+        }
+        String base = (baseUrl == null || baseUrl.isBlank() ? kind.defaultBaseUrl() : baseUrl).replaceAll("/+$", "");
+        try {
+            if (kind == ProviderKind.OLLAMA) {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(base + "/api/show"))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString("{\"model\":\"" + model + "\"}"))
+                        .timeout(Duration.ofSeconds(8))
+                        .build();
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                return response.statusCode() / 100 == 2 ? ollamaContextLength(mapper.readTree(response.body())) : 0;
+            }
+
+            HttpRequest.Builder request = HttpRequest.newBuilder()
+                    .uri(URI.create(base + kind.modelsPath()))
+                    .GET()
+                    .timeout(Duration.ofSeconds(8));
+            applyAuth(request, kind, apiKey);
+            HttpResponse<String> response = httpClient.send(request.build(), HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() / 100 == 2 ? declaredInputLimit(mapper.readTree(response.body()), model) : 0;
+        } catch (Exception exception) {
+            logger.warn(
+                    "Falha ao descobrir o contexto de {} em {}: {}",
+                    model,
+                    kind,
+                    exception.getClass().getSimpleName());
+            return 0;
+        }
+    }
+
+    /** O Ollama prefixa a chave com a familia do modelo (ex.: {@code qwen35.context_length}). */
+    static int ollamaContextLength(JsonNode body) {
+        JsonNode info = body.path("model_info");
+        var fields = info.fields();
+        while (fields.hasNext()) {
+            var entry = fields.next();
+            if (entry.getKey().endsWith(".context_length") || "context_length".equals(entry.getKey())) {
+                return entry.getValue().asInt(0);
+            }
+        }
+        return 0;
+    }
+
+    /** Gemini expoe inputTokenLimit por modelo na mesma listagem. */
+    static int declaredInputLimit(JsonNode body, String model) {
+        for (JsonNode entry : body.path("models")) {
+            String name = entry.path("name").asText("").replaceFirst("^models/", "");
+            if (name.equalsIgnoreCase(model)) {
+                return entry.path("inputTokenLimit").asInt(0);
+            }
+        }
+        for (JsonNode entry : body.path("data")) {
+            if (entry.path("id").asText("").equalsIgnoreCase(model)) {
+                return entry.path("context_length")
+                        .asInt(entry.path("max_context_length").asInt(0));
+            }
+        }
+        return 0;
+    }
+
     private void applyAuth(HttpRequest.Builder request, ProviderKind kind, String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
             return;

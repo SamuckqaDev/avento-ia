@@ -1286,7 +1286,7 @@ public class AgentService implements AgentExecutionEngine {
         ollamaRequest.put("think", thinkingEnabledForRequest(state.userId, model));
         ollamaRequest.put("keep_alive", keepAlive);
         ObjectNode options = ollamaRequest.putObject("options");
-        options.put("num_ctx", numCtx);
+        options.put("num_ctx", effectiveContextTokens(state.userId));
         options.put("num_predict", numPredict);
         options.put("temperature", temperature);
         options.put("top_p", topP);
@@ -2376,6 +2376,38 @@ public class AgentService implements AgentExecutionEngine {
      *
      * <p>Sem transporte para o tipo ativo, cai no Ollama — que e o caminho local e o padrao.
      */
+    /**
+     * Contexto efetivo, em tokens, para a rodada.
+     *
+     * <p>O valor configurado deixa de ser chute: o provedor declara quanto o modelo aguenta (o
+     * Ollama em {@code /api/show}, o Gemini em {@code inputTokenLimit}). Num modelo de janela grande
+     * a gente truncava demais; num de janela pequena, estourava.
+     *
+     * <p>No LOCAL o declarado e teto, nao alvo: o qwen3.5:9b declara 262144, mas o KV cache disso
+     * nao cabe nos 16GB desta maquina — quem manda continua sendo a configuracao. Na NUVEM quem
+     * paga a memoria e o provedor, entao vale o que ele declara.
+     */
+    /** Orcamento de corte do resultado de ferramenta, proporcional a janela do modelo ativo. */
+    int toolResultBudget(UUID userId) {
+        int tokens = effectiveContextTokens(userId);
+        // ~4 chars por token; no maximo um oitavo da janela para UM resultado, para nao engolir o
+        // historico e os schemas.
+        int proportional = Math.max(maxToolResultChars, tokens / 2);
+        return Math.min(proportional, 40_000);
+    }
+
+    int effectiveContextTokens(UUID userId) {
+        if (modelProviderService == null) {
+            return numCtx;
+        }
+        int declared = modelProviderService.activeContextLimit(userId);
+        if (declared <= 0) {
+            return numCtx;
+        }
+        boolean remote = modelProviderService.remoteProviderReady(userId);
+        return remote ? declared : Math.min(numCtx, declared);
+    }
+
     private Flux<String> streamFromProvider(ObjectNode canonicalRequest, UUID userId) {
         com.avento.service.provider.ModelTransport transport = transportFor(userId);
         if (transport != null) {
@@ -2784,7 +2816,7 @@ public class AgentService implements AgentExecutionEngine {
                                     : "Permissao salva aplicada automaticamente.",
                             toolCall.arguments());
                     state.executedToolCalls++;
-                    JsonNode toolResult = executeToolCall(messages, sink, toolCall, state.runId);
+                    JsonNode toolResult = executeToolCall(messages, sink, toolCall, state.runId, state.userId);
                     recordToolOutcome(state, toolCall, toolResult);
                     emitGeneratedMediaCompletion(toolCall, toolResult, sink);
                     if (isMediaGenerationTool(toolCall)) {
@@ -2800,7 +2832,7 @@ public class AgentService implements AgentExecutionEngine {
             }
 
             state.executedToolCalls++;
-            JsonNode toolResult = executeToolCall(messages, sink, toolCall, state.runId);
+            JsonNode toolResult = executeToolCall(messages, sink, toolCall, state.runId, state.userId);
             recordToolOutcome(state, toolCall, toolResult);
             emitGeneratedMediaCompletion(toolCall, toolResult, sink);
             if (isMediaGenerationTool(toolCall)) {
@@ -3231,7 +3263,7 @@ public class AgentService implements AgentExecutionEngine {
 
     private Flux<String> executeDirectTool(ArrayNode messages, ToolCall toolCall, String runId) {
         return Flux.create(sink -> {
-            JsonNode toolResult = executeToolCall(messages, sink, toolCall, runId);
+            JsonNode toolResult = executeToolCall(messages, sink, toolCall, runId, null);
             sink.next(contentChunk(directToolCompletionMessage(toolCall, toolResult)));
             sink.complete();
         });
@@ -3330,7 +3362,8 @@ public class AgentService implements AgentExecutionEngine {
             String pendingUserId =
                     pending.toolCall().arguments().path("_userId").asText("");
             state.userId = pendingUserId.isBlank() ? null : UUID.fromString(pendingUserId);
-            JsonNode toolResult = executeToolCall(pending.messages(), sink, pending.toolCall(), pending.runId());
+            JsonNode toolResult =
+                    executeToolCall(pending.messages(), sink, pending.toolCall(), pending.runId(), state.userId);
             appendApprovalComment(pending.messages(), comment);
 
             if (!pending.continueAfterTool()) {
@@ -4263,7 +4296,8 @@ public class AgentService implements AgentExecutionEngine {
                 + " filtro mais específico em vez de supor o conteúdo.]";
     }
 
-    private JsonNode executeToolCall(ArrayNode messages, FluxSink<String> sink, ToolCall toolCall, String runId) {
+    private JsonNode executeToolCall(
+            ArrayNode messages, FluxSink<String> sink, ToolCall toolCall, String runId, UUID userId) {
         JsonNode visibleArguments = permissionArguments(toolCall);
         timelineService.record(runId, "tool.started", toolCall.name(), compactJson(visibleArguments), visibleArguments);
         sink.next(eventChunk("tool.started", "Executando " + toolCall.name(), compactJson(visibleArguments)));
@@ -4277,7 +4311,9 @@ public class AgentService implements AgentExecutionEngine {
             Map<String, Object> argsMap =
                     mapper.convertValue(toolCall.arguments(), new TypeReference<Map<String, Object>>() {});
             JsonNode toolResult = toolGateway.execute(toolCall.name(), argsMap);
-            toolMsg.put("content", truncateToolResultForHistory(toolResult.toString(), maxToolResultChars));
+            // O corte acompanha a janela: com 1M de contexto, cortar em 4000 chars joga fora
+            // pesquisa que caberia; com 8k, 4000 ja e demais.
+            toolMsg.put("content", truncateToolResultForHistory(toolResult.toString(), toolResultBudget(userId)));
             messages.add(toolMsg);
             if (toolResult.has("error")) {
                 String error = toolResult.get("error").asText();

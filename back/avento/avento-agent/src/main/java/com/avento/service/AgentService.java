@@ -2620,12 +2620,8 @@ public class AgentService implements AgentExecutionEngine {
                     + " conversa ou a máquina sobrecarregada — tente numa conversa nova ou com um pedido"
                     + " mais simples.";
         } else if (error instanceof WebClientResponseException responseException) {
-            String body = responseException.getResponseBodyAsString();
-            message = "O provedor retornou HTTP "
-                    + responseException.getStatusCode().value();
-            if (body != null && !body.isBlank()) {
-                message += ": " + body;
-            }
+            message = describeProviderError(
+                    responseException.getStatusCode().value(), responseException.getResponseBodyAsString());
         } else if (error.getMessage() != null && !error.getMessage().isBlank()) {
             message = error.getMessage();
         }
@@ -2659,6 +2655,34 @@ public class AgentService implements AgentExecutionEngine {
      * e ZERO (modelo fora do plano, e esperar nao resolve) ou se e limite temporario, e em quanto
      * tempo tentar de novo.
      */
+    /**
+     * Descreve um erro HTTP do provedor em uma linha.
+     *
+     * <p>O corpo vem como JSON aninhado com a mesma violacao repetida, links de documentacao e
+     * metadados. Despejar isso na conversa esconde a unica frase que importa dentro de um paragrafo
+     * de chaves — o usuario precisa garimpar para descobrir o que fazer.
+     */
+    static String describeProviderError(int status, String body) {
+        String resumo = "O provedor retornou HTTP " + status;
+        if (body == null || body.isBlank()) {
+            return resumo + ".";
+        }
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
+                        "\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
+                .matcher(body);
+        if (!matcher.find()) {
+            return resumo + ": " + (body.length() > 300 ? body.substring(0, 300) + "…" : body);
+        }
+        String detalhe =
+                matcher.group(1).replace("\\n", " ").replaceAll("\\s+", " ").trim();
+        // A mesma violacao costuma vir repetida; corta antes da repeticao.
+        int repeticao = detalhe.indexOf("Invalid JSON payload received.", 1);
+        if (repeticao > 0) {
+            detalhe = detalhe.substring(0, repeticao).trim();
+        }
+        return resumo + ": " + (detalhe.length() > 400 ? detalhe.substring(0, 400) + "…" : detalhe);
+    }
+
     static String quotaHint(String message, String model) {
         boolean semCota = message.contains("limit: 0");
         String espera = "";

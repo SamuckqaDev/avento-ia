@@ -71,6 +71,55 @@ class GeminiModelTransportTest {
         assertThat(parameters.path("type").asText()).isEqualTo("object");
     }
 
+    /**
+     * O caso real que derrubou uma rodada inteira com HTTP 400: exclusiveMinimum/exclusiveMaximum,
+     * que a lista de proibidos anterior nao previa. Lista de proibidos nunca fecha — o JSON Schema
+     * tem dezenas de palavras que o Gemini nao conhece, e uma so invalida TODAS as ferramentas.
+     */
+    @Test
+    void dropsJsonSchemaFieldsGeminiDoesNotKnow() throws Exception {
+        String tools = "[{\"type\":\"function\",\"function\":{\"name\":\"x\",\"parameters\":{"
+                + "\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"number\","
+                + "\"exclusiveMinimum\":0,\"exclusiveMaximum\":100,\"multipleOf\":2,"
+                + "\"description\":\"quantidade\",\"minimum\":1}}}}}]";
+
+        ObjectNode request = GeminiModelTransport.toGeminiRequest(canonical(tools, "user", "oi"), MAPPER);
+
+        JsonNode n = request.path("tools")
+                .path(0)
+                .path("functionDeclarations")
+                .path(0)
+                .path("parameters")
+                .path("properties")
+                .path("n");
+        assertThat(n.has("exclusiveMinimum")).isFalse();
+        assertThat(n.has("exclusiveMaximum")).isFalse();
+        assertThat(n.has("multipleOf")).isFalse();
+        // O que o Gemini entende continua.
+        assertThat(n.path("type").asText()).isEqualTo("number");
+        assertThat(n.path("description").asText()).isEqualTo("quantidade");
+        assertThat(n.path("minimum").asInt()).isEqualTo(1);
+    }
+
+    // Nome de propriedade e livre: nao pode ser filtrado como se fosse palavra de schema.
+    @Test
+    void keepsPropertyNamesEvenWhenTheyLookLikeSchemaWords() throws Exception {
+        String tools = "[{\"type\":\"function\",\"function\":{\"name\":\"x\",\"parameters\":{"
+                + "\"type\":\"object\",\"properties\":{\"default\":{\"type\":\"string\"},"
+                + "\"multipleOf\":{\"type\":\"string\"}}}}}]";
+
+        ObjectNode request = GeminiModelTransport.toGeminiRequest(canonical(tools, "user", "oi"), MAPPER);
+
+        JsonNode properties = request.path("tools")
+                .path(0)
+                .path("functionDeclarations")
+                .path(0)
+                .path("parameters")
+                .path("properties");
+        assertThat(properties.has("default")).isTrue();
+        assertThat(properties.has("multipleOf")).isTrue();
+    }
+
     @Test
     void renamesAssistantToModelAndLiftsSystemPrompt() throws Exception {
         ObjectNode request = GeminiModelTransport.toGeminiRequest(

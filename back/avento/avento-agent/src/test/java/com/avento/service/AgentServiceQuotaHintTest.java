@@ -43,6 +43,38 @@ class AgentServiceQuotaHintTest {
         assertThat(hint).doesNotContain("faturamento");
     }
 
+    /**
+     * O corpo do 400 do Gemini repete a mesma violacao e vem embrulhado em fieldViolations e links.
+     * Despejar isso na conversa esconde a unica frase util num paragrafo de chaves.
+     */
+    @Test
+    void summarisesTheProviderErrorInsteadOfDumpingJson() {
+        String body = "{ \"error\": { \"code\": 400, \"message\": \"Invalid JSON payload received."
+                + " Unknown name \\\"exclusiveMaximum\\\" at 'tools[0]'.\\nInvalid JSON payload received."
+                + " Unknown name \\\"exclusiveMinimum\\\" at 'tools[0]'.\", \"status\": \"INVALID_ARGUMENT\","
+                + " \"details\": [ { \"fieldViolations\": [] } ] } }";
+
+        String resumo = AgentService.describeProviderError(400, body);
+
+        assertThat(resumo).contains("HTTP 400");
+        assertThat(resumo).contains("exclusiveMaximum");
+        // Sem a repeticao nem os metadados.
+        assertThat(resumo).doesNotContain("exclusiveMinimum");
+        assertThat(resumo).doesNotContain("fieldViolations");
+    }
+
+    @Test
+    void fallsBackToTheRawBodyWhenThereIsNoMessage() {
+        assertThat(AgentService.describeProviderError(503, "servico indisponivel"))
+                .contains("HTTP 503")
+                .contains("servico indisponivel");
+    }
+
+    @Test
+    void handlesAnEmptyBody() {
+        assertThat(AgentService.describeProviderError(500, "")).isEqualTo("O provedor retornou HTTP 500.");
+    }
+
     @Test
     void survivesA429WithoutRetryDelay() {
         String hint = AgentService.quotaHint("O provedor retornou HTTP 429: sem corpo", "gemini-2.0-flash");

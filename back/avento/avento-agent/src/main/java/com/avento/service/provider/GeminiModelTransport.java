@@ -154,11 +154,36 @@ public class GeminiModelTransport implements ModelTransport {
     }
 
     /**
-     * O Gemini recusa o schema inteiro se encontrar campo que nao conhece.
+     * Campos de schema que o Gemini aceita. O resto e removido.
      *
-     * <p>Os schemas internos carregam {@code $schema}, {@code additionalProperties} e afins, herdados
-     * do JSON Schema. Um campo desses derruba TODAS as ferramentas da rodada, nao so a que o trouxe.
+     * <p>A versao anterior usava lista de PROIBIDOS ({@code $schema}, {@code additionalProperties},
+     * {@code default}) e quebrou no primeiro campo que eu nao tinha previsto: {@code
+     * exclusiveMinimum} e {@code exclusiveMaximum} derrubaram a rodada inteira com HTTP 400. Lista
+     * de proibidos nunca fecha — o JSON Schema tem dezenas de palavras que a API do Google nao
+     * conhece, e basta uma para invalidar TODAS as ferramentas, nao so a que a trouxe.
      */
+    private static final java.util.Set<String> GEMINI_SCHEMA_FIELDS = java.util.Set.of(
+            "type",
+            "format",
+            "title",
+            "description",
+            "nullable",
+            "enum",
+            "items",
+            "properties",
+            "required",
+            "minimum",
+            "maximum",
+            "minItems",
+            "maxItems",
+            "minLength",
+            "maxLength",
+            "pattern",
+            "anyOf",
+            "example",
+            "propertyOrdering");
+
+    /** Mantem so o que o Gemini entende; ver {@link #GEMINI_SCHEMA_FIELDS}. */
     static JsonNode sanitizeSchema(JsonNode schema, ObjectMapper mapper) {
         if (schema.isArray()) {
             ArrayNode cleaned = mapper.createArrayNode();
@@ -171,7 +196,17 @@ public class GeminiModelTransport implements ModelTransport {
         ObjectNode cleaned = mapper.createObjectNode();
         schema.fields().forEachRemaining(entry -> {
             String field = entry.getKey();
-            if (field.startsWith("$") || "additionalProperties".equals(field) || "default".equals(field)) {
+            if (!GEMINI_SCHEMA_FIELDS.contains(field)) {
+                return;
+            }
+            // "properties" e um mapa de nome -> schema: os nomes sao livres e nao passam pelo filtro.
+            if ("properties".equals(field) && entry.getValue().isObject()) {
+                ObjectNode properties = mapper.createObjectNode();
+                entry.getValue()
+                        .fields()
+                        .forEachRemaining(property ->
+                                properties.set(property.getKey(), sanitizeSchema(property.getValue(), mapper)));
+                cleaned.set(field, properties);
                 return;
             }
             cleaned.set(field, sanitizeSchema(entry.getValue(), mapper));

@@ -101,7 +101,27 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*", "http://[::1]:*"));
+        // Faixas privadas entram junto de localhost: quem abre a extensao no telefone chega pelo IP
+        // do Mac na rede, e so-localhost devolvia "Invalid CORS request" — erro do Spring Security
+        // que nao diz o que fazer. HTTPS incluido porque o Safari do iOS so libera a camera em
+        // contexto seguro, entao a origem do telefone e sempre https.
+        //
+        // Endereco publico continua de fora: com allowCredentials, aceitar origem arbitraria deixaria
+        // qualquer pagina da internet usar a sessao ja aberta deste usuario.
+        configuration.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",
+                "https://localhost:*",
+                "http://127.0.0.1:*",
+                "https://127.0.0.1:*",
+                "http://[::1]:*",
+                "http://192.168.*:*",
+                "https://192.168.*:*",
+                "http://10.*:*",
+                "https://10.*:*",
+                "http://172.16.*:*",
+                "https://172.16.*:*",
+                "http://*.local:*",
+                "https://*.local:*"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

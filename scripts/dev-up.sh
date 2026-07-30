@@ -16,7 +16,21 @@ fi
 BACKEND_URL_WAS_SET="${AVENTO_BACKEND_URL+x}"
 FRONTEND_URL_WAS_SET="${AVENTO_FRONTEND_URL+x}"
 BACKEND_URL="${AVENTO_BACKEND_URL:-http://127.0.0.1:8000}"
-FRONTEND_URL="${AVENTO_FRONTEND_URL:-http://127.0.0.1:5173}"
+
+# O front sobe em HTTPS por padrao. E o que o iPhone exige para abrir a camera no visor: getUserMedia
+# e bloqueado fora de contexto seguro, e localhost — a unica excecao — nao vale para o telefone, que
+# chega pelo IP da rede. AVENTO_HTTPS=0 volta ao http.
+#
+# O certificado e local (mkcert) ou autoassinado (basic-ssl); em nenhum dos dois casos o curl valida
+# sozinho, entao as sondas deste script usam -k. Isso vale so para loopback, dentro do dev.
+if [ "${AVENTO_HTTPS:-1}" = "0" ]; then
+  FRONTEND_SCHEME='http'
+  CURL_OPTS=(-fsS)
+else
+  FRONTEND_SCHEME='https'
+  CURL_OPTS=(-fsS -k)
+fi
+FRONTEND_URL="${AVENTO_FRONTEND_URL:-$FRONTEND_SCHEME://127.0.0.1:5173}"
 COMFYUI_URL="${AVENTO_COMFYUI_URL:-http://127.0.0.1:8188}"
 COMFYUI_DIR="${AVENTO_COMFYUI_DIR:-$HOME/ComfyUI}"
 COMFYUI_AUTOSTART="${AVENTO_COMFYUI_AUTOSTART:-1}"
@@ -63,7 +77,7 @@ wait_for_url() {
   local consecutive_successes=0
 
   for _ in $(seq 1 "$attempts"); do
-    if curl -fsS "$url" >/dev/null 2>&1; then
+    if curl -fsS -k "$url" >/dev/null 2>&1; then
       consecutive_successes=$((consecutive_successes + 1))
       if [ "$consecutive_successes" -ge 2 ]; then
         info "$label ready at $url"
@@ -587,10 +601,10 @@ fi
 
 if [ "$BACKEND_WAS_AUTOFALLBACK" = "1" ] && [ -z "$FRONTEND_URL_WAS_SET" ]; then
   FRONTEND_PORT="$(find_free_port 5174 5199)"
-  FRONTEND_URL="http://127.0.0.1:$FRONTEND_PORT"
+  FRONTEND_URL="$FRONTEND_SCHEME://127.0.0.1:$FRONTEND_PORT"
 fi
 
-if curl -fsS "$FRONTEND_URL" >/dev/null 2>&1; then
+if curl "${CURL_OPTS[@]}" "$FRONTEND_URL" >/dev/null 2>&1; then
   info "using existing frontend at $FRONTEND_URL"
 else
   if port_in_use "$FRONTEND_PORT"; then
@@ -601,7 +615,7 @@ else
     fi
 
     FRONTEND_PORT="$(find_free_port 5174 5199)"
-    FRONTEND_URL="http://127.0.0.1:$FRONTEND_PORT"
+    FRONTEND_URL="$FRONTEND_SCHEME://127.0.0.1:$FRONTEND_PORT"
     info "port 5173 is busy; using $FRONTEND_URL instead"
   fi
 
@@ -627,7 +641,7 @@ while true; do
     warn "backend stopped; see $LOG_DIR/backend.log"
     exit 1
   fi
-  if ! curl -fsS "$FRONTEND_URL" >/dev/null 2>&1; then
+  if ! curl "${CURL_OPTS[@]}" "$FRONTEND_URL" >/dev/null 2>&1; then
     warn "frontend stopped; see $LOG_DIR/frontend.log"
     exit 1
   fi

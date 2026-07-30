@@ -3,7 +3,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_URL="${AVENTO_BACKEND_URL:-http://127.0.0.1:8000}"
-FRONTEND_URL="${AVENTO_FRONTEND_URL:-http://127.0.0.1:5173}"
+# O front sobe em HTTPS por padrao (ver dev-up.sh). Certificado local ou autoassinado: o curl nao
+# valida sozinho nenhum dos dois, entao a sonda do front usa -k. So loopback, so no dev.
+FRONTEND_URL="${AVENTO_FRONTEND_URL:-https://127.0.0.1:5173}"
 WORKSPACE="${1:-$ROOT}"
 SMOKE_EMAIL="${AVENTO_SMOKE_EMAIL:-admin@avento.local}"
 SMOKE_PASSWORD="${AVENTO_SMOKE_PASSWORD:?Set AVENTO_SMOKE_PASSWORD to the same value used for AVENTO_AUTH_ROOT_PASSWORD}"
@@ -34,7 +36,7 @@ printf 'Running Avento smoke test...\n\n'
 curl -fsS "$BACKEND_URL/api/health" >/dev/null
 ok "backend health"
 
-curl -fsS "$FRONTEND_URL" >/dev/null
+curl -fsS -k "$FRONTEND_URL" >/dev/null
 ok "frontend index"
 
 email_json="$(json_string "$SMOKE_EMAIL")"

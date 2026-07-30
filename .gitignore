@@ -35,10 +35,25 @@ back/avento/src/main/resources/application-local.yml
 *.mp3
 *.mp4
 
+# App nativo (React Native / Expo)
+mobile/node_modules/
+mobile/ios/
+mobile/android/
+mobile/.expo/
+
 # Frontend generated artifacts
 front/node_modules/
 front/dist/
 front/dist-ssr/
+
+# Certificado HTTPS de desenvolvimento (mkcert). Local, por maquina e por rede:
+# gerado por scripts/setup-dev-cert.sh, nunca versionado.
+front/certs/
+
+# Build do front publicado nos estaticos do backend por "npm run build:desktop".
+# docs.html, docs-en.html e avento-logo.svg sao do backend e continuam versionados.
+back/avento/avento-app/src/main/resources/static/index.html
+back/avento/avento-app/src/main/resources/static/assets/
 
 # Playwright MCP runtime captures
 .playwright-mcp/

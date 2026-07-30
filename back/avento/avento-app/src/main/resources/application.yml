@@ -173,7 +173,13 @@ avento:
       auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,memory,sequential-thinking,time,macos-automator,apple,playwright,chrome-devtools,puppeteer}
     sdk:
       enabled: ${AVENTO_MCP_SDK_ENABLED:true}
-      request-timeout: ${AVENTO_MCP_SDK_REQUEST_TIMEOUT:10s}
+      # Vale para a INICIALIZACAO e para cada chamada de ferramenta (McpClientManager usa o mesmo
+      # valor nos dois). Estava em 10s, e 10s nao cobre a partida de um servidor npx: o `npx -y`
+      # baixa o pacote na primeira vez, e a conexao morria com "Did not observe any item or terminal
+      # signal within 10000ms" antes de o servidor sequer subir. Para quem usa, a ferramenta
+      # simplesmente nao conectava. 60s e o valor que o codigo e o application-local.example.yml ja
+      # assumiam.
+      request-timeout: ${AVENTO_MCP_SDK_REQUEST_TIMEOUT:60s}
     filesystem:
       enabled: ${AVENTO_MCP_FILESYSTEM_ENABLED:true}
     desktop-commander:

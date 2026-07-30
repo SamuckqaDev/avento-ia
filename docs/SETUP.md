@@ -417,10 +417,60 @@ e verificada antes de avancar; falhas repetidas pausam o plano para revisao.
 ```sh
 cd front
 npm install
-npm run dev
+npm run dev:web
 ```
 
-Abra a URL do Vite, normalmente `http://localhost:5173`.
+Abra a URL do Vite, normalmente `https://localhost:5173`.
+
+Os modos de desenvolvimento ficam todos sob `dev:`, um por alvo. **Todos sobem em HTTPS** — ver a
+secao do visor logo abaixo. Da raiz do projeto:
+
+| Script | npm equivalente | Sobe |
+|---|---|---|
+| `./scripts/dev-web.sh` | `npm run dev:web` | Vite em HTTPS — navegador no Mac e visor no iPhone |
+| `./scripts/dev-electron.sh` | `npm run dev:electron` | app desktop, que sobe backend, Ollama e Vite |
+| `./scripts/dev-up.sh` | — | tudo sem a janela do Electron |
+| `./scripts/dev-web.sh --http` | `npm run dev:web:http` | sem TLS (o visor nao abre a camera) |
+| `./scripts/dev-electron.sh --http` | `npm run dev:electron:http` | idem, no app desktop |
+
+Os scripts em `scripts/` carregam o `.env` antes de subir e podem ser chamados de qualquer pasta;
+os `npm run` exigem estar em `front/` (ou usar `npm --prefix front`). `npm run dev` continua
+valendo como atalho para `dev:web`, e o empacotamento para os estaticos do backend virou
+`npm run build:desktop`.
+
+### Visor VR no iPhone (por que o HTTPS e o padrao)
+
+A tela `/remote` usa a camera para rastrear a mao. O navegador so libera `getUserMedia` em contexto
+seguro, e `localhost` e a unica excecao ao HTTPS — excecao que nao vale para o iPhone, que chega
+pelo IP da rede local. **Sem HTTPS a tela carrega e a camera nunca liga**, o que parece defeito do
+Avento e e politica do navegador.
+
+Por isso o HTTPS deixou de ser opcional: qualquer `dev:*` ja sobe assim, sem flag. Para voltar ao
+http — que serve so para trabalho no Mac, nunca para o visor — use `--http` no script ou
+`AVENTO_HTTPS=0` no `.env` da raiz. Os scripts em `scripts/` carregam o `.env` antes de subir,
+entao a variavel vale para `dev-web.sh`, `dev-electron.sh` e `dev-up.sh` de uma vez.
+
+Sem certificado local, o Vite usa `@vitejs/plugin-basic-ssl`: funciona, mas o certificado e
+autoassinado. O Safari mostra "conexao nao privada" a cada sessao e o Electron loga
+`handshake failed ... net_error -202` no console. Nenhum dos dois indica falha.
+
+Para eliminar o aviso, emita o certificado pela CA local do macOS:
+
+```sh
+brew install mkcert
+mkcert -install                 # pede a senha do usuario: instala a CA no chaveiro
+./scripts/setup-dev-cert.sh     # emite para localhost, 127.0.0.1 e o IP atual da rede
+```
+
+O `vite.config.js` passa a usar `front/certs/` automaticamente quando o par existe, e volta ao
+autoassinado quando nao existe — quem so usa o Mac nao precisa instalar nada.
+
+Para o iPhone tambem confiar, instale a CA nele uma vez: envie o `rootCA.pem` da pasta que
+`mkcert -CAROOT` informa, aceite em **Ajustes > Geral > VPN e Gerenciamento de Dispositivo**, e
+habilite em **Ajustes > Geral > Sobre > Ajustes de Confianca em Certificados**.
+
+O certificado cobre o IP da rede no momento em que foi emitido. **Trocar de Wi-Fi troca o IP** —
+rode `./scripts/setup-dev-cert.sh` de novo e reinicie o Vite quando isso acontecer.
 
 ## Validacao
 

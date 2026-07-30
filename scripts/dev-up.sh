@@ -615,7 +615,7 @@ else
   fi
 
   info "starting frontend"
-  AVENTO_BACKEND_URL="$BACKEND_URL" npm --prefix "$ROOT/front" run dev -- --host 127.0.0.1 --port "$FRONTEND_PORT" >"$LOG_DIR/frontend.log" 2>&1 &
+  AVENTO_BACKEND_URL="$BACKEND_URL" npm --prefix "$ROOT/front" run dev:web -- --host 127.0.0.1 --port "$FRONTEND_PORT" >"$LOG_DIR/frontend.log" 2>&1 &
   FRONTEND_PID=$!
 
   wait_for_url "$FRONTEND_URL" "frontend" 60

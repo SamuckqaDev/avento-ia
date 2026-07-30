@@ -28,6 +28,13 @@
   <strong>Java 21</strong> · <strong>React 19</strong> · <strong>Ollama</strong> · <strong>MCP</strong> · <strong>ComfyUI</strong> · <strong>Whisper.cpp</strong>
 </p>
 
+<p align="center">
+  <a href="https://github.com/SamuckqaDev/avento-ia/actions/workflows/ci.yml"><img src="https://github.com/SamuckqaDev/avento-ia/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/tests-608%20backend%20%C2%B7%2027%20web-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/Java-21-orange" alt="Java 21">
+  <img src="https://img.shields.io/badge/React-19-61dafb" alt="React 19">
+</p>
+
 > [!IMPORTANT]
 > Avento is under active development and is meant for local use on macOS. The backend, frontend, models, and tools listen only on loopback by default. Review the security section before allowing remote access.
 
@@ -46,36 +53,27 @@ Avento was created and developed by **Samuel Tomimatu, software engineer and sol
 | Project database discovery | Built-in and custom skills | STT with Whisper.cpp and TTS with Piper |
 | Interactive HTML prototypes | Review on desktop, tablet, and phone | Implementation only after approval |
 
-### What already works
+### What is technically interesting
 
-- Persisted conversations, isolated per user.
-- Asynchronous agent execution with PostgreSQL, Outbox, Redis Streams, a worker, and authenticated SSE.
-- Idempotent execution and approval: duplicate Redis entries never repeat tools or re-present decisions that were already resolved.
-- An activity watchdog ends silent runs without leaving the chat or the single local worker stuck indefinitely.
-- Recent context is cached in Redis and rebuildable; PostgreSQL remains the durable source of truth.
-- Per-conversation isolated, recoverable streaming: switching chats or reloading the page restores processing from the run's durable state, without moving Thinking, response, media, or voice into another conversation.
-- Reasoning from hybrid models (qwen3, etc.) is routed explicitly to the interface's Thinking block instead of relying on Ollama's default; the model stays loaded between messages to cut reload latency.
-- A per-run context window with a predictable ceiling: the compacted tool history stays bounded regardless of how many rounds the task takes, avoiding blowing past the model's `num_ctx` on long analyses.
-- A failure to load history when switching chats shows an explicit notice with automatic retry instead of rendering the conversation as empty; the messages remain intact in PostgreSQL.
-- The task panel opens once when a plan appears and respects a manual close for the rest of the execution.
-- Autonomous plans persist ordered tasks per chat, run them one at a time through the durable Redis backbone, verify each workspace, and resume idempotently after a backend restart.
-- Chat model and visual-generation model selection in the header.
-- Token usage tracking per model, day, and chat, with a visual metrics dashboard.
-- Analysis of stack, scripts, entrypoints, and workspace structure.
-- Read, create, edit, search, and delete of authorized files.
-- Direct attachment of PDF, Office, EPUB, ZIP, text, and code in the chat, with local extraction via plain text or MarkItDown and context persisted in the conversation.
-- Action approval through the interface or by voice commands.
-- MCP integration with Git, databases, Docker, filesystem, browser, and macOS.
-- Querying the database discovered in the active project, including inside Docker.
-- Asynchronous image generation via ComfyUI with RealVisXL SDXL, structural or identity reference, pose control, visual review, progress, estimate, cancellation, and parameters adjustable in the frontend.
-- Automatic translation of the prompt to English before SDXL (CLIP only understands English) and per-model generation presets (sampler, steps, CFG, and resolution tuned to each checkpoint), overridable by a local file without recompiling.
-- Video generation via ComfyUI with WAN 2.2 TI2V, animation of the most recent image in the chat, background execution, progress, estimate, and cancellation.
-- Media returned inside the chat, with controls to minimize, expand, and copy; the side section is also collapsible and uses a compact per-conversation list. Each file is linked to the conversation in PostgreSQL and is deleted from disk along with the chat.
-- Markdown tables, visual reports and inline SVG charts rendered in the chat (GFM and `ui-preview` blocks).
-- PDF export from Markdown or HTML, linked to the conversation (`generate_pdf` tool).
-- Internet research synthesized into a table or report with cited sources (`/research` skill).
-- Voice transcription and synthesis with configurable support for Portuguese, English, and Spanish.
-- Permanent deletion of chats, messages, and related generated artifacts.
+Five things worth opening the code for. The full feature list lives in
+[docs/FEATURES.md](docs/FEATURES.md); the architecture, in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+- **An agent loop with a human in it.** Rounds of tool calls where every action can require
+  approval before it runs — by clicking or by voice — and a plan approved once does not
+  re-ask for each step, except for the destructive ones.
+- **Durable execution, not a request that hopes to survive.** PostgreSQL as the source of
+  truth, an Outbox, Redis Streams, a worker and authenticated SSE. Duplicate entries never
+  re-run a tool or re-present a resolved decision, and an activity watchdog ends silent runs
+  instead of leaving the chat stuck.
+- **The agent owns the tools, the provider is only transport.** Ollama, Gemini, Anthropic and
+  any OpenAI-compatible endpoint see the same files, terminal, MCP servers and RAG. Switching
+  provider does not change what the agent can do.
+- **A context budget that holds.** Tool history is compacted with a ceiling, the round's
+  toolset is selected by intent, and the system prompt keeps a stable prefix so Ollama's
+  prompt cache actually hits — a timestamp in that prefix once cost ~50s per response.
+- **Progressive tool discovery.** The model searches for capabilities and activates what it
+  needs, instead of paying for dozens of tool schemas in every request.
 
 ## Ready-Made Skills
 
@@ -405,6 +403,8 @@ Avento is local-first, but it performs real actions on the computer. Before allo
 
 | Guide | Content |
 |---|---|
+| [Feature list](docs/FEATURES.md) | The full inventory of what works today |
+| [Learnings](docs/aprendizados/README.md) | The bugs that cost the most, explained from the symptom to the root cause |
 | [Identity and personality](docs/AVENTO_IDENTITY.md) | Origin, Samuel Tomimatu's authorship, verified services, voice, and behavior |
 | [Current architecture](docs/ARCHITECTURE.md) | Diagram of components, flows, data, voice, media, and MCP |
 | [Evolution plan](docs/IMPLEMENTATION_PLAN.md) | Future phases explained, acceptance criteria, and pending decisions |
@@ -420,7 +420,8 @@ Avento is local-first, but it performs real actions on the computer. Before allo
 
 - The development flow is primarily targeted at macOS.
 - Ollama models, ComfyUI checkpoints, and Piper voices are not distributed in the repository.
-- The main frontend bundle may still emit a size warning during the build.
+- The main frontend bundle is 1.17 MB (327 kB gzipped) and still crosses Vite's 500 kB warning
+  threshold; code splitting has not been done yet.
 - The default configuration should not be exposed directly to the internet.
 
 ---
@@ -449,6 +450,13 @@ Avento is local-first, but it performs real actions on the computer. Before allo
   <strong>Java 21</strong> · <strong>React 19</strong> · <strong>Ollama</strong> · <strong>MCP</strong> · <strong>ComfyUI</strong> · <strong>Whisper.cpp</strong>
 </p>
 
+<p align="center">
+  <a href="https://github.com/SamuckqaDev/avento-ia/actions/workflows/ci.yml"><img src="https://github.com/SamuckqaDev/avento-ia/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/testes-608%20backend%20%C2%B7%2027%20web-brightgreen" alt="Testes">
+  <img src="https://img.shields.io/badge/Java-21-orange" alt="Java 21">
+  <img src="https://img.shields.io/badge/React-19-61dafb" alt="React 19">
+</p>
+
 > [!IMPORTANT]
 > O Avento está em desenvolvimento ativo e foi preparado para uso local no macOS. Backend, frontend, modelos e ferramentas escutam apenas em loopback por padrão. Revise a seção de segurança antes de permitir acesso remoto.
 
@@ -467,36 +475,28 @@ O Avento foi criado e desenvolvido por **Samuel Tomimatu, engenheiro de software
 | Descoberta de bancos do projeto | Skills internas e personalizadas | STT com Whisper.cpp e TTS com Piper |
 | Protótipos HTML interativos | Revisão em desktop, tablet e celular | Implementação somente após aprovação |
 
-### O que já funciona
+### O que é tecnicamente interessante
 
-- Conversas persistidas e isoladas por usuário.
-- Execução assíncrona do agente com PostgreSQL, Outbox, Redis Streams, worker e SSE autenticado.
-- Execução e aprovação idempotentes: entradas Redis duplicadas não repetem ferramentas nem reapresentam decisões já resolvidas.
-- Watchdog de atividade encerra runs silenciosos sem deixar o chat ou o único worker local presos indefinidamente.
-- Contexto recente em cache Redis reconstruível; PostgreSQL continua sendo a fonte durável.
-- Streaming isolado e recuperavel por conversa: trocar de chat ou recarregar a pagina restaura o processamento pelo estado duravel do run, sem mover Thinking, resposta, midia ou voz para outra conversa.
-- Raciocinio de modelos hibridos (qwen3, etc.) roteado de forma explicita para o bloco de Thinking da interface, sem depender do default do Ollama; o modelo permanece carregado entre mensagens para reduzir latencia de recarga.
-- Janela de contexto por execucao com teto previsivel: o historico compactado de ferramentas fica limitado independente de quantas rodadas a tarefa tiver, evitando estourar o `num_ctx` do modelo em analises longas.
-- Falha ao carregar o historico na troca de chat mostra um aviso explicito com nova tentativa automatica, em vez de renderizar a conversa como vazia; as mensagens permanecem integras no PostgreSQL.
-- O painel de tarefas abre uma vez quando um plano surge e respeita o fechamento manual durante o restante da execucao.
-- Planos autonomos persistem tarefas ordenadas por chat, executam uma por vez no backbone duravel com Redis, verificam cada workspace e retomam de forma idempotente apos reiniciar o backend.
-- Seleção de modelo de chat e de geração visual no header.
-- Rastreamento do consumo de tokens por modelo, dia e chat, com dashboard visual de métricas.
-- Análise de stack, scripts, entrypoints e estrutura do workspace.
-- Leitura, criação, edição, busca e exclusão de arquivos autorizados.
-- Anexo direto de PDF, Office, EPUB, ZIP, texto e código no chat, com extração local por texto puro ou MarkItDown e contexto persistido na conversa.
-- Aprovação de ações pela interface ou por comandos de voz.
-- Integração MCP com Git, bancos, Docker, filesystem, navegador e macOS.
-- Consulta ao banco descoberto no projeto ativo, inclusive em Docker.
-- Geração assíncrona de imagens pelo ComfyUI com RealVisXL SDXL, referência estrutural ou de identidade, controle de pose, revisão visual, progresso, estimativa, cancelamento e parâmetros ajustáveis no frontend.
-- Tradução automática do prompt para inglês antes do SDXL (o CLIP só entende inglês) e presets de geração por modelo (sampler, passos, CFG e resolução ajustados a cada checkpoint), sobreponíveis por um arquivo local sem recompilar.
-- Geração de vídeos pelo ComfyUI com WAN 2.2 TI2V, animação da imagem mais recente do chat, execução em background, progresso, estimativa e cancelamento.
-- Retorno das mídias dentro do chat, com controles para minimizar, expandir e copiar; a seção lateral também é recolhível e usa uma lista compacta por conversa. Cada arquivo fica vinculado à conversa no PostgreSQL e é apagado do disco junto com o chat.
-- Tabelas Markdown, relatórios visuais e gráficos SVG renderizados no chat (GFM e blocos `ui-preview`).
-- Exportação de PDF a partir de Markdown ou HTML, vinculada à conversa (ferramenta `generate_pdf`).
-- Pesquisa na internet com síntese em tabela ou relatório e citação de fontes (skill `/research`).
-- Transcrição e síntese de voz com suporte configurável a português, inglês e espanhol.
-- Exclusão permanente de chats, mensagens e artefatos gerados relacionados.
+Cinco coisas que valem abrir o código. A lista completa de funcionalidades está em
+[docs/FEATURES.md](docs/FEATURES.md); a arquitetura, em
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+- **Um laço de agente com gente dentro.** Rodadas de chamada de ferramenta em que cada ação
+  pode exigir aprovação antes de rodar — por clique ou por voz — e um plano aprovado uma vez
+  não volta a perguntar a cada passo, exceto nas ações destrutivas.
+- **Execução durável, não uma requisição torcendo para sobreviver.** PostgreSQL como fonte da
+  verdade, Outbox, Redis Streams, worker e SSE autenticado. Entrada duplicada nunca repete
+  ferramenta nem reapresenta decisão já resolvida, e um watchdog encerra run silenciosa em vez
+  de deixar o chat travado.
+- **O agente é dono das ferramentas; o provedor é só transporte.** Ollama, Gemini, Anthropic e
+  qualquer endpoint compatível com OpenAI enxergam os mesmos arquivos, terminal, servidores MCP
+  e RAG. Trocar de provedor não muda o que o agente consegue fazer.
+- **Um orçamento de contexto que se sustenta.** O histórico de ferramentas é compactado com
+  teto, o toolset da rodada é escolhido por intenção, e o system prompt mantém prefixo estável
+  para o cache de prompt do Ollama realmente acertar — um timestamp nesse prefixo já custou
+  ~50s por resposta.
+- **Descoberta progressiva de ferramentas.** O modelo procura capacidades e ativa o que
+  precisa, em vez de pagar por dezenas de schemas em toda requisição.
 
 ## Skills Prontas
 
@@ -834,6 +834,8 @@ O Avento é local-first, mas executa ações reais no computador. Antes de permi
 
 | Guia | Conteúdo |
 |---|---|
+| [Lista de funcionalidades](docs/FEATURES.md) | O inventário completo do que funciona hoje |
+| [Aprendizados](docs/aprendizados/README.md) | Os bugs que custaram mais caro, do sintoma à causa raiz |
 | [Identidade e personalidade](docs/AVENTO_IDENTITY.md) | Origem, autoria de Samuel Tomimatu, serviços verificados, voz e comportamento |
 | [Arquitetura atual](docs/ARCHITECTURE.md) | Diagrama dos componentes, fluxos, dados, voz, mídia e MCP |
 | [Plano de evolução](docs/IMPLEMENTATION_PLAN.md) | Fases futuras explicadas, critérios de aceite e decisões pendentes |
@@ -849,7 +851,8 @@ O Avento é local-first, mas executa ações reais no computador. Antes de permi
 
 - O fluxo de desenvolvimento é voltado principalmente ao macOS.
 - Modelos Ollama, checkpoints do ComfyUI e vozes Piper não são distribuídos no repositório.
-- O bundle principal do frontend ainda pode emitir aviso de tamanho durante o build.
+- O bundle principal do frontend tem 1,17 MB (327 kB gzipado) e ainda cruza o limite de aviso de
+  500 kB do Vite; o code splitting não foi feito.
 - A configuração padrão não deve ser exposta diretamente à internet.
 
 ---

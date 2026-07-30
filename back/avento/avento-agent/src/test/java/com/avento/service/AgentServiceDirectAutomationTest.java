@@ -14,6 +14,7 @@ import com.avento.service.intent.IntentEmbeddingClassifier;
 import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
 import com.avento.service.intent.VisualIntentClassifier;
+import com.avento.service.support.ModelNames;
 import com.avento.service.support.SkillRegistry;
 import com.avento.service.tools.ToolCapabilityRegistry;
 import com.avento.service.tools.ToolExecutionContext;
@@ -690,14 +691,14 @@ class AgentServiceDirectAutomationTest {
                 toolCall, "generate_image", "prompt", "Gera uma imagem de um pitbull em estilo cartoon.");
     }
 
+    // Era um teste por reflexao num metodo privado do AgentService. A regra virou funcao pura em
+    // ModelNames, entao a chamada e direta — o caso continua aqui porque o defeito que o gerou foi
+    // um modelo de imagem escolhido para conversar, e e nesse arquivo que esse defeito e procurado.
     @Test
-    void imageGenerationModelsAreNotUsedAsChatModels() throws Exception {
-        Method method = AgentService.class.getDeclaredMethod("normalizeChatModel", String.class);
-        method.setAccessible(true);
-
-        assertEquals("qwen3:8b", method.invoke(service, "x/flux2-klein:4b"));
-        assertEquals("qwen3:8b", method.invoke(service, "x/z-image-turbo:latest"));
-        assertEquals("qwen3:8b", method.invoke(service, "qwen3:8b"));
+    void imageGenerationModelsAreNotUsedAsChatModels() {
+        assertEquals("qwen3:8b", ModelNames.normalizeChatModel("x/flux2-klein:4b", "qwen3:8b"));
+        assertEquals("qwen3:8b", ModelNames.normalizeChatModel("x/z-image-turbo:latest", "qwen3:8b"));
+        assertEquals("qwen3:8b", ModelNames.normalizeChatModel("qwen3:8b", "qwen3:8b"));
     }
 
     @Test

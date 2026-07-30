@@ -14,6 +14,7 @@ import com.avento.service.intent.IntentRouter;
 import com.avento.service.intent.VisualIntentClassifier;
 import com.avento.service.orchestration.AgentExecutionEngine;
 import com.avento.service.support.HeuristicWordLists;
+import com.avento.service.support.ModelNames;
 import com.avento.service.support.SkillRegistry;
 import com.avento.service.tools.ToolCapabilityRegistry;
 import com.avento.service.tools.ToolExecutionGateway;
@@ -77,7 +78,6 @@ public class AgentService implements AgentExecutionEngine {
     private final String defaultVisionModel;
     // Prefixos de modelos que suportam o campo dedicado de thinking; ver thinkingEnabledForRequest.
     private final Set<String> thinkingCapableModels;
-    private static final long HEAVY_MODEL_BYTES = 4_000_000_000L;
     private static final Pattern TEXTUAL_FUNCTION_PATTERN =
             Pattern.compile("\\{\\s*function\\s+<([A-Za-z0-9_-]+)>\\s+(\\{.*})\\s*}", Pattern.DOTALL);
     // The model-facing instructions live in editable resource files rather than a
@@ -342,7 +342,7 @@ public class AgentService implements AgentExecutionEngine {
     /** Executa uma conclusão textual isolada, sem identidade, heurísticas ou ferramentas do agente. */
     public Mono<String> completeTextOnly(String model, ArrayNode messages, int maxNewTokens) {
         ObjectNode request = mapper.createObjectNode();
-        request.put("model", normalizeChatModel(model));
+        request.put("model", ModelNames.normalizeChatModel(model, defaultChatModel));
         request.set("messages", messages == null ? mapper.createArrayNode() : messages);
         request.put("stream", false);
         request.put("think", false);
@@ -462,17 +462,17 @@ public class AgentService implements AgentExecutionEngine {
                     if (json.path("data").isArray()) {
                         for (JsonNode model : json.path("data")) {
                             String name = model.path("id").asText("");
-                            if (!name.isBlank() && isChatModel(name)) {
+                            if (!name.isBlank() && ModelNames.isChatModel(name)) {
                                 models.add(new LocalModelInfo(
                                         name,
                                         0L,
                                         "",
-                                        inferParameterSize(name),
-                                        inferFamily(name),
-                                        isRecommendedModel(name),
-                                        isHeavyModel(name, 0L, inferParameterSize(name)),
-                                        isVisionModel(name, inferFamily(name)),
-                                        isPreferredVisionModel(name)));
+                                        ModelNames.inferParameterSize(name),
+                                        ModelNames.inferFamily(name),
+                                        ModelNames.isRecommendedModel(name, defaultChatModel),
+                                        ModelNames.isHeavyModel(name, 0L, ModelNames.inferParameterSize(name)),
+                                        ModelNames.isVisionModel(name, ModelNames.inferFamily(name)),
+                                        ModelNames.isPreferredVisionModel(name, defaultVisionModel)));
                             }
                         }
                     }
@@ -492,15 +492,15 @@ public class AgentService implements AgentExecutionEngine {
                     if (json.path("data").isArray()) {
                         for (JsonNode model : json.path("data")) {
                             String name = model.path("id").asText("");
-                            if (!name.isBlank() && isImageModel(name)) {
+                            if (!name.isBlank() && ModelNames.isImageModel(name)) {
                                 models.add(new LocalModelInfo(
                                         name,
                                         0L,
                                         "",
-                                        inferParameterSize(name),
-                                        inferFamily(name),
+                                        ModelNames.inferParameterSize(name),
+                                        ModelNames.inferFamily(name),
                                         name.equals(defaultImageModel),
-                                        isHeavyModel(name, 0L, inferParameterSize(name)),
+                                        ModelNames.isHeavyModel(name, 0L, ModelNames.inferParameterSize(name)),
                                         false,
                                         false));
                             }
@@ -519,14 +519,15 @@ public class AgentService implements AgentExecutionEngine {
 
         for (JsonNode model : json.path("models")) {
             String name = model.path("name").asText(model.path("model").asText(""));
-            if (name.isBlank() || !isChatModel(name)) {
+            if (name.isBlank() || !ModelNames.isChatModel(name)) {
                 continue;
             }
 
             long sizeBytes = model.path("size").asLong(0L);
-            String parameterSize =
-                    firstNonBlank(model.path("details").path("parameter_size").asText(""), inferParameterSize(name));
-            String family = firstNonBlank(model.path("details").path("family").asText(""), inferFamily(name));
+            String parameterSize = ModelNames.firstNonBlank(
+                    model.path("details").path("parameter_size").asText(""), ModelNames.inferParameterSize(name));
+            String family = ModelNames.firstNonBlank(
+                    model.path("details").path("family").asText(""), ModelNames.inferFamily(name));
 
             models.add(new LocalModelInfo(
                     name,
@@ -534,10 +535,10 @@ public class AgentService implements AgentExecutionEngine {
                     formatSize(sizeBytes),
                     parameterSize,
                     family,
-                    isRecommendedModel(name),
-                    isHeavyModel(name, sizeBytes, parameterSize),
-                    isVisionModel(name, family),
-                    isPreferredVisionModel(name)));
+                    ModelNames.isRecommendedModel(name, defaultChatModel),
+                    ModelNames.isHeavyModel(name, sizeBytes, parameterSize),
+                    ModelNames.isVisionModel(name, family),
+                    ModelNames.isPreferredVisionModel(name, defaultVisionModel)));
         }
         return models;
     }
@@ -549,20 +550,21 @@ public class AgentService implements AgentExecutionEngine {
         }
         for (JsonNode model : json.path("models")) {
             String name = model.path("name").asText(model.path("model").asText(""));
-            if (name.isBlank() || !isImageModel(name)) {
+            if (name.isBlank() || !ModelNames.isImageModel(name)) {
                 continue;
             }
             long sizeBytes = model.path("size").asLong(0L);
-            String parameterSize =
-                    firstNonBlank(model.path("details").path("parameter_size").asText(""), inferParameterSize(name));
+            String parameterSize = ModelNames.firstNonBlank(
+                    model.path("details").path("parameter_size").asText(""), ModelNames.inferParameterSize(name));
             models.add(new LocalModelInfo(
                     name,
                     sizeBytes,
                     formatSize(sizeBytes),
                     parameterSize,
-                    firstNonBlank(model.path("details").path("family").asText(""), inferFamily(name)),
+                    ModelNames.firstNonBlank(
+                            model.path("details").path("family").asText(""), ModelNames.inferFamily(name)),
                     name.equals(defaultImageModel),
-                    isHeavyModel(name, sizeBytes, parameterSize),
+                    ModelNames.isHeavyModel(name, sizeBytes, parameterSize),
                     false,
                     false));
         }
@@ -657,21 +659,6 @@ public class AgentService implements AgentExecutionEngine {
         return models;
     }
 
-    private boolean isRecommendedModel(String modelName) {
-        String normalized = modelName.toLowerCase(Locale.ROOT);
-        String defaultNormalized = defaultChatModel.toLowerCase(Locale.ROOT);
-        String defaultFamily = defaultNormalized.contains(":")
-                ? defaultNormalized.substring(0, defaultNormalized.indexOf(':'))
-                : defaultNormalized;
-        return normalized.equals(defaultNormalized)
-                || normalized.equals(defaultFamily)
-                || normalized.startsWith(defaultFamily + ":");
-    }
-
-    private boolean isPreferredVisionModel(String modelName) {
-        return modelName != null && modelName.equalsIgnoreCase(defaultVisionModel);
-    }
-
     /** Modelo de imagem configurado na tela, ou o padrao de configuracao. */
     public String imageModelFor(UUID userId) {
         if (modelProviderService != null) {
@@ -681,96 +668,6 @@ public class AgentService implements AgentExecutionEngine {
             }
         }
         return defaultImageModel;
-    }
-
-    private boolean isVisionModel(String modelName, String family) {
-        String normalizedName = modelName == null ? "" : modelName.toLowerCase(Locale.ROOT);
-        String normalizedFamily = family == null ? "" : family.toLowerCase(Locale.ROOT);
-        return normalizedName.contains("vision")
-                || normalizedName.contains("llava")
-                || normalizedName.contains("bakllava")
-                || normalizedName.contains("moondream")
-                || normalizedName.contains("minicpm-v")
-                || normalizedName.matches(".*qwen[^:]*vl.*")
-                || normalizedFamily.contains("mllama")
-                || normalizedFamily.contains("qwen25vl")
-                || normalizedFamily.contains("qwen2vl")
-                || normalizedFamily.contains("llava")
-                || normalizedFamily.contains("gemma3");
-    }
-
-    private String normalizeChatModel(String modelName) {
-        if (modelName == null || modelName.isBlank() || !isChatModel(modelName)) {
-            return defaultChatModel;
-        }
-        return modelName;
-    }
-
-    private boolean isChatModel(String modelName) {
-        if (modelName == null || modelName.isBlank()) {
-            return false;
-        }
-        String normalized = modelName.toLowerCase(Locale.ROOT);
-        return !normalized.contains("embed")
-                && !normalized.contains("flux")
-                && !normalized.contains("stable-diffusion")
-                && !normalized.contains("sdxl")
-                && !normalized.contains("image-turbo")
-                && !normalized.contains("z-image")
-                && !normalized.contains("text-to-image");
-    }
-
-    private boolean isImageModel(String modelName) {
-        if (modelName == null || modelName.isBlank()) {
-            return false;
-        }
-        String normalized = modelName.toLowerCase(Locale.ROOT);
-        return normalized.contains("flux")
-                || normalized.contains("stable-diffusion")
-                || normalized.contains("sdxl")
-                || normalized.contains("image-turbo")
-                || normalized.contains("z-image")
-                || normalized.contains("text-to-image")
-                || normalized.contains("diffusion");
-    }
-
-    private boolean isHeavyModel(String modelName, long sizeBytes, String parameterSize) {
-        if (sizeBytes >= HEAVY_MODEL_BYTES) {
-            return true;
-        }
-
-        String normalizedName = modelName.toLowerCase(Locale.ROOT);
-        if (normalizedName.contains("70b")
-                || normalizedName.contains("32b")
-                || normalizedName.contains("14b")
-                || normalizedName.contains("13b")
-                || normalizedName.contains("8b")
-                || normalizedName.contains("7b")) {
-            return true;
-        }
-
-        String normalizedParams = parameterSize == null ? "" : parameterSize.toLowerCase(Locale.ROOT);
-        return normalizedParams.matches(".*\\b([7-9]|[1-9][0-9]+)b\\b.*");
-    }
-
-    private String inferFamily(String modelName) {
-        String normalized = modelName.toLowerCase(Locale.ROOT);
-        if (normalized.contains("llama")) return "llama";
-        if (normalized.contains("qwen")) return "qwen";
-        if (normalized.contains("mistral")) return "mistral";
-        if (normalized.contains("gemma")) return "gemma";
-        if (normalized.contains("deepseek")) return "deepseek";
-        if (normalized.contains("glm") || normalized.contains("chatglm")) return "glm";
-        return "local";
-    }
-
-    private String inferParameterSize(String modelName) {
-        Matcher matcher = Pattern.compile("(?i)(\\d+(?:\\.\\d+)?b)").matcher(modelName);
-        return matcher.find() ? matcher.group(1).toUpperCase(Locale.ROOT) : "";
-    }
-
-    private String firstNonBlank(String first, String second) {
-        return first != null && !first.isBlank() ? first : second == null ? "" : second;
     }
 
     public Flux<String> streamChat(String model, ArrayNode messages) {
@@ -863,25 +760,17 @@ public class AgentService implements AgentExecutionEngine {
         return streamChatResolved(chatModel, messages, workspaceRoots, imageModel, imageOptions, runId, chatId, userId);
     }
 
-    /**
-     * Nome com cara de modelo local do Ollama ({@code familia:tag}), que um provedor de nuvem nao
-     * conhece. Mandar {@code qwen3.5:9b} para o Gemini foi o que gerou o primeiro 404.
-     */
-    static boolean isLocalModelName(String model) {
-        return model != null && model.contains(":") && !model.startsWith("http");
-    }
-
     private String resolveChatModel(String requestedModel, ArrayNode messages, UUID userId) {
         String configuredModel = modelProviderService != null ? modelProviderService.activeModelName(userId) : "";
 
         String targetModel;
         if (transportFor(userId) != null) {
-            if (requestedModel != null && !requestedModel.isBlank() && !isLocalModelName(requestedModel)) {
+            if (requestedModel != null && !requestedModel.isBlank() && !ModelNames.isLocalModelName(requestedModel)) {
                 targetModel = requestedModel;
             } else if (!configuredModel.isBlank()) {
                 targetModel = configuredModel;
             } else {
-                targetModel = normalizeChatModel(requestedModel);
+                targetModel = ModelNames.normalizeChatModel(requestedModel, defaultChatModel);
             }
         } else {
             // Se o usuário configurou um modelo na tela de Provedores (front), usa o modelo ativo
@@ -892,14 +781,15 @@ public class AgentService implements AgentExecutionEngine {
                             || requestedModel.equalsIgnoreCase(defaultChatModel))) {
                 targetModel = configuredModel;
             } else {
-                targetModel = normalizeChatModel(requestedModel);
+                targetModel = ModelNames.normalizeChatModel(requestedModel, defaultChatModel);
             }
         }
 
-        if (!conversationHasImages(messages) || isVisionModel(targetModel, inferFamily(targetModel))) {
+        if (!conversationHasImages(messages)
+                || ModelNames.isVisionModel(targetModel, ModelNames.inferFamily(targetModel))) {
             return targetModel;
         }
-        return normalizeChatModel(visionModelFor(userId));
+        return ModelNames.normalizeChatModel(visionModelFor(userId), defaultChatModel);
     }
 
     /**

@@ -47,7 +47,7 @@ avento:
     # ESTE e o arquivo que vale no profile local (sobrescreve application.yml). Um modelo so, sem troca.
     # qwen3.5:9b existe tanto aqui quanto na maquina de inferencia da rede, entao trocar de uma para
     # a outra nao exige mexer no modelo. Para voltar ao granite: AVENTO_AGENT_DEFAULT_MODEL=granite4.1:8b
-    default-model: ${AVENTO_AGENT_DEFAULT_MODEL:qwen3.5:9b}
+    default-model: ${AVENTO_AGENT_DEFAULT_MODEL:granite4.1:8b}
     planner-model: ${AVENTO_AGENT_PLANNER_MODEL:qwen3.5:9b}
     # DESLIGADO desde 24/07/2026: com todos os servidores MCP conectados isso mandava 124 schemas
     # por rodada — modelo 8B nao escolhe ferramenta nesse mar (rodadas de 40-60s terminando sem

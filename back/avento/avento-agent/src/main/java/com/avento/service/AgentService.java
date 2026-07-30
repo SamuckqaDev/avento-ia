@@ -17,6 +17,7 @@ import com.avento.service.support.HeuristicWordLists;
 import com.avento.service.support.ModelNames;
 import com.avento.service.support.ProviderErrorTranslator;
 import com.avento.service.support.SkillRegistry;
+import com.avento.service.support.TextualToolCallParser;
 import com.avento.service.tools.ToolCapabilityRegistry;
 import com.avento.service.tools.ToolExecutionGateway;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -2844,14 +2845,6 @@ public class AgentService implements AgentExecutionEngine {
         return detectedTools;
     }
 
-    // Marca o INICIO de um objeto JSON que parece uma chamada de ferramenta escrita como texto.
-    // O objeto completo (com aninhamento) e extraido por contagem de chaves em
-    // extractBalancedJson — uma regex nao fecha chaves aninhadas: o padrao antigo ([^}]+\})
-    // parava na PRIMEIRA '}', truncando {"tool":"fetch","argument":{"url":...}} e descartando
-    // silenciosamente exatamente as chamadas que o modelo pequeno mais produz.
-    private static final Pattern PSEUDO_JSON_TOOL_START =
-            Pattern.compile("\\{\\s*\"(?:tool|name|action|function)\"\\s*:");
-
     private List<ToolCall> detectTextualFallbackToolCalls(TurnCapture capture, AgentRunState state) {
         List<ToolCall> fallbackCalls = new ArrayList<>();
         String fullText = capture.assistantText.toString();
@@ -2861,7 +2854,7 @@ public class AgentService implements AgentExecutionEngine {
             try {
                 String toolName = functionMatcher.group(1);
                 JsonNode parsed = mapper.readTree(functionMatcher.group(2));
-                JsonNode arguments = extractArguments(parsed);
+                JsonNode arguments = TextualToolCallParser.extractArguments(parsed);
                 fallbackCalls.add(registerFallbackCall(capture, toolName, arguments, "call_textual_"));
                 return fallbackCalls;
             } catch (Exception e) {
@@ -2869,15 +2862,15 @@ public class AgentService implements AgentExecutionEngine {
             }
         }
 
-        Matcher startMatcher = PSEUDO_JSON_TOOL_START.matcher(fullText);
+        Matcher startMatcher = TextualToolCallParser.PSEUDO_JSON_TOOL_START.matcher(fullText);
         while (startMatcher.find()) {
-            String jsonCandidate = extractBalancedJson(fullText, startMatcher.start());
+            String jsonCandidate = TextualToolCallParser.extractBalancedJson(fullText, startMatcher.start());
             if (jsonCandidate == null) {
                 continue;
             }
             try {
                 JsonNode parsed = mapper.readTree(jsonCandidate);
-                String toolName = firstNonBlankText(parsed, "tool", "name", "action", "function");
+                String toolName = TextualToolCallParser.toolName(parsed);
 
                 if (toolName.isBlank()) {
                     continue;
@@ -2894,7 +2887,8 @@ public class AgentService implements AgentExecutionEngine {
                     continue;
                 }
 
-                fallbackCalls.add(registerFallbackCall(capture, toolName, extractArguments(parsed), "call_fallback_"));
+                fallbackCalls.add(registerFallbackCall(
+                        capture, toolName, TextualToolCallParser.extractArguments(parsed), "call_fallback_"));
             } catch (Exception e) {
                 logger.debug("No textual fallback tool call detected for candidate: {}", jsonCandidate, e);
             }
@@ -2904,32 +2898,6 @@ public class AgentService implements AgentExecutionEngine {
             logger.info("Assistant text contained tool-like JSON but no executable call was recovered");
         }
         return fallbackCalls;
-    }
-
-    // Modelos pequenos variam o envelope: arguments, parameters, argument, args ou os campos
-    // soltos no objeto raiz. Aceitar todos custa nada e evita descartar a intencao correta.
-    private JsonNode extractArguments(JsonNode parsed) {
-        for (String wrapper : List.of("arguments", "parameters", "argument", "args", "input", "params")) {
-            if (parsed.has(wrapper) && parsed.get(wrapper).isObject()) {
-                return parsed.get(wrapper);
-            }
-        }
-        ObjectNode args = parsed.deepCopy();
-        args.remove("tool");
-        args.remove("name");
-        args.remove("action");
-        args.remove("function");
-        return args;
-    }
-
-    private String firstNonBlankText(JsonNode parsed, String... fields) {
-        for (String field : fields) {
-            String value = parsed.path(field).asText("");
-            if (!value.isBlank()) {
-                return value;
-            }
-        }
-        return "";
     }
 
     private ToolCall registerFallbackCall(TurnCapture capture, String toolName, JsonNode arguments, String idPrefix) {
@@ -2955,41 +2923,6 @@ public class AgentService implements AgentExecutionEngine {
         Set<String> registered = new HashSet<>();
         toolRegistry.all().forEach(tool -> registered.add(tool.name()));
         return registered;
-    }
-
-    // Extrai o objeto JSON completo a partir de openIndex ('{'), respeitando aninhamento e
-    // strings (chaves dentro de "..." nao contam). Devolve null se o objeto nunca fecha.
-    static String extractBalancedJson(String text, int openIndex) {
-        int depth = 0;
-        boolean inString = false;
-        boolean escaped = false;
-        for (int index = openIndex; index < text.length(); index++) {
-            char current = text.charAt(index);
-            if (escaped) {
-                escaped = false;
-                continue;
-            }
-            if (current == '\\') {
-                escaped = true;
-                continue;
-            }
-            if (current == '"') {
-                inString = !inString;
-                continue;
-            }
-            if (inString) {
-                continue;
-            }
-            if (current == '{') {
-                depth++;
-            } else if (current == '}') {
-                depth--;
-                if (depth == 0) {
-                    return text.substring(openIndex, index + 1);
-                }
-            }
-        }
-        return null;
     }
 
     private boolean shouldSuppressTextualToolMarkup(TurnCapture capture, String content) {

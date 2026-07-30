@@ -1,0 +1,8 @@
+# Comentário deve ser ignorado.
+[BOUNDED]
+" ui "
+" app "
+
+[PLAIN]
+dashboard
+pagina web

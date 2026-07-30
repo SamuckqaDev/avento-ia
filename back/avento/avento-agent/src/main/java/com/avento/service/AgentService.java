@@ -47,6 +47,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -120,6 +121,13 @@ public class AgentService implements AgentExecutionEngine {
             Set.copyOf(HeuristicWordLists.loadLines("agent/heuristics/project-action-words.txt"));
     private static final Map<String, List<String>> IMAGE_PROMPT_SIGNALS =
             HeuristicWordLists.loadSections("agent/heuristics/image-prompt-signals.txt");
+    // Frases que sozinhas ja pedem uma imagem, ao contrario das secoes que pontuam prompt longo.
+    // Uma lista so, das duas secoes: o casamento e identico, a separacao no arquivo existe para
+    // deixar visivel o quanto a cobertura em ingles e menor que a em portugues.
+    private static final List<String> IMAGE_GENERATION_TRIGGERS = Stream.concat(
+                    IMAGE_PROMPT_SIGNALS.getOrDefault("TRIGGERS_PT", List.of()).stream(),
+                    IMAGE_PROMPT_SIGNALS.getOrDefault("TRIGGERS_EN", List.of()).stream())
+            .toList();
     private static final Set<String> TERMINAL_TOOLS =
             Set.of("terminal_run", "terminal_start", "terminal_logs", "terminal_stop");
     private static final int MAX_ACTIVITY_OUTPUT_CHARS = 4000;
@@ -1675,89 +1683,18 @@ public class AgentService implements AgentExecutionEngine {
         if (wantsInterfacePrototype(normalizedMessage)) {
             return false;
         }
-        boolean productMockup = visualIntentClassifier.isProductMockup(normalizedMessage);
-        return productMockup
-                || normalizedMessage.contains("gera imagem")
-                || normalizedMessage.contains("gerar imagem")
-                || normalizedMessage.contains("gere imagem")
-                || normalizedMessage.contains("cria imagem")
-                || normalizedMessage.contains("criar imagem")
-                || normalizedMessage.contains("crie imagem")
-                || normalizedMessage.contains("gera a imagem")
-                || normalizedMessage.contains("gerar a imagem")
-                || normalizedMessage.contains("gere a imagem")
-                || normalizedMessage.contains("gera uma imagem")
-                || normalizedMessage.contains("gerar uma imagem")
-                || normalizedMessage.contains("gere uma imagem")
-                || normalizedMessage.contains("gera pra mim imagem")
-                || normalizedMessage.contains("gera pra mim a imagem")
-                || normalizedMessage.contains("gera pra mim uma imagem")
-                || normalizedMessage.contains("gere pra mim imagem")
-                || normalizedMessage.contains("gere pra mim a imagem")
-                || normalizedMessage.contains("gere pra mim uma imagem")
-                || normalizedMessage.contains("gerar pra mim imagem")
-                || normalizedMessage.contains("gerar pra mim a imagem")
-                || normalizedMessage.contains("gerar pra mim uma imagem")
-                || normalizedMessage.contains("cria a imagem")
-                || normalizedMessage.contains("criar a imagem")
-                || normalizedMessage.contains("crie a imagem")
-                || normalizedMessage.contains("cria uma imagem")
-                || normalizedMessage.contains("criar uma imagem")
-                || normalizedMessage.contains("crie uma imagem")
-                || normalizedMessage.contains("cria pra mim imagem")
-                || normalizedMessage.contains("cria pra mim a imagem")
-                || normalizedMessage.contains("cria pra mim uma imagem")
-                || normalizedMessage.contains("faz uma imagem")
-                || normalizedMessage.contains("faca uma imagem")
-                || normalizedMessage.contains("faz pra mim imagem")
-                || normalizedMessage.contains("faz pra mim uma imagem")
-                || normalizedMessage.contains("faca pra mim imagem")
-                || normalizedMessage.contains("faca pra mim uma imagem")
-                || normalizedMessage.contains("produz imagem")
-                || normalizedMessage.contains("produzir imagem")
-                || normalizedMessage.contains("gera uma foto")
-                || normalizedMessage.contains("gerar uma foto")
-                || normalizedMessage.contains("gera pra mim uma foto")
-                || normalizedMessage.contains("gere pra mim uma foto")
-                || normalizedMessage.contains("cria uma foto")
-                || normalizedMessage.contains("criar uma foto")
-                || normalizedMessage.contains("generate image")
-                || normalizedMessage.contains("create image")
-                || normalizedMessage.contains("text to image")
-                || normalizedMessage.contains("imagem artistica")
-                || normalizedMessage.contains("ilustracao de")
-                || normalizedMessage.contains("ilustracao artistica")
-                || normalizedMessage.contains("retrato artistico")
-                || normalizedMessage.contains("gere imagem realista")
-                || normalizedMessage.contains("retrato explicito")
-                || normalizedMessage.contains("pintura de")
-                || normalizedMessage.contains("desenho de")
-                || normalizedMessage.contains("concept art")
-                || normalizedMessage.contains("quero uma imagem")
-                || normalizedMessage.contains("quero uma foto")
-                || normalizedMessage.contains("quero um desenho")
-                || normalizedMessage.contains("quero uma ilustracao")
-                || normalizedMessage.contains("quero um retrato")
-                || normalizedMessage.contains("me manda uma imagem")
-                || normalizedMessage.contains("me da uma imagem")
-                || normalizedMessage.contains("me de uma imagem")
-                || normalizedMessage.contains("me mostra uma imagem")
-                || normalizedMessage.contains("desenha uma")
-                || normalizedMessage.contains("desenha um")
-                || normalizedMessage.contains("desenhe uma")
-                || normalizedMessage.contains("desenhe um")
-                || normalizedMessage.contains("pinta uma")
-                || normalizedMessage.contains("pinta um")
-                || normalizedMessage.contains("pinte uma")
-                || normalizedMessage.contains("pinte um")
-                || normalizedMessage.contains("ilustra uma")
-                || normalizedMessage.contains("ilustra um")
-                || normalizedMessage.contains("ilustre uma")
-                || normalizedMessage.contains("ilustre um")
-                || normalizedMessage.contains("renderiza uma")
-                || normalizedMessage.contains("renderiza um")
-                || normalizedMessage.contains("renderize uma")
-                || normalizedMessage.contains("renderize um");
+        return visualIntentClassifier.isProductMockup(normalizedMessage)
+                || matchesImageGenerationTrigger(normalizedMessage);
+    }
+
+    // Estatico e visivel ao teste de proposito: a lista mora num .txt editavel sem recompilar,
+    // entao ImageGenerationTriggerTest e a unica coisa que impede alguem de apagar uma frase
+    // sem perceber. Ver agent/heuristics/image-prompt-signals.txt, secoes [TRIGGERS_*].
+    static boolean matchesImageGenerationTrigger(String normalizedMessage) {
+        if (normalizedMessage == null || normalizedMessage.isBlank()) {
+            return false;
+        }
+        return IMAGE_GENERATION_TRIGGERS.stream().anyMatch(normalizedMessage::contains);
     }
 
     private boolean shouldDeferMediaNarration(ArrayNode messages) {

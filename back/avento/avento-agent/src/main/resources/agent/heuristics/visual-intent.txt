@@ -1,0 +1,90 @@
+# Termos que separam três pedidos visuais que se parecem e não são a mesma coisa:
+# protótipo de interface (vira HTML), mockup de produto (vira imagem) e
+# implementação de código (não vira nem um nem outro).
+#
+# Um termo entre aspas preserva os espaços das bordas: " ui " casa a palavra
+# isolada, enquanto ui casaria dentro de "build", "gui", "quiz".
+
+# Palavra que indica protótipo. Sozinha não basta: precisa de um qualificador
+# de interface junto, senão "mockup de camiseta" viraria tela de HTML.
+[PROTOTYPE_SIGNAL]
+mockup
+mock-up
+wireframe
+prototipo
+prototipar
+prototype
+
+[INTERFACE_QUALIFIER]
+tela
+screen
+interface
+" ui "
+dashboard
+painel
+site
+pagina web
+web page
+aplicativo
+" app "
+login
+cadastro
+
+# Frases que já dizem "interface" sozinhas, sem precisar da palavra protótipo.
+[INTERFACE_PHRASE]
+tela de login
+tela de cadastro
+tela mobile
+tela do app
+interface de
+layout de tela
+ui mockup
+
+# Verbo de implementar + alvo de código = o usuário quer o código escrito, não
+# uma imagem nem um protótipo. As duas listas valem juntas, nunca isoladas.
+[IMPLEMENTATION_VERB]
+implemente
+implementar
+codifique
+codar
+transforme
+aplique
+implement
+code this
+apply
+
+[CODE_TARGET]
+codigo
+code
+projeto
+project
+componente
+component
+front
+mockup
+layout
+
+# Mockup de produto: a palavra mockup mais um objeto físico. Vai para geração
+# de imagem, não para HTML.
+[PRODUCT_MOCKUP_SIGNAL]
+mockup
+mock-up
+
+[PRODUCT_TARGET]
+embalagem
+package
+produto
+product
+camiseta
+t-shirt
+roupa
+garrafa
+poster
+cartaz
+
+# Pedir print da tela não é pedir protótipo de tela.
+[SCREEN_CAPTURE]
+captura de tela
+screenshot
+print da tela
+tire um print

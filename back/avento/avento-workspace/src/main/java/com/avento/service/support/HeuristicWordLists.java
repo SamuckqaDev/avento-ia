@@ -23,9 +23,23 @@ public final class HeuristicWordLists {
             if (line.isEmpty() || line.startsWith("#")) {
                 continue;
             }
-            words.add(line);
+            words.add(unquote(line));
         }
         return List.copyOf(words);
+    }
+
+    /**
+     * Devolve o conteúdo de uma linha entre aspas sem as aspas, preservando os espaços de dentro.
+     *
+     * <p>Existe porque alguns termos só funcionam com a borda: {@code " ui "} casa a palavra
+     * isolada, enquanto {@code ui} casaria dentro de "build", "gui", "quiz". Sem as aspas o
+     * {@code strip()} comeria os espaços e mudaria silenciosamente o que o termo significa.
+     */
+    private static String unquote(String line) {
+        if (line.length() >= 2 && line.startsWith("\"") && line.endsWith("\"")) {
+            return line.substring(1, line.length() - 1);
+        }
+        return line;
     }
 
     // Parses a file split into [SECTION] headers, each followed by one word per line.
@@ -49,7 +63,7 @@ public final class HeuristicWordLists {
                 throw new IllegalStateException(
                         "Word found before any [SECTION] header in " + classpathResource + ": " + line);
             }
-            currentWords.add(line);
+            currentWords.add(unquote(line));
         }
 
         sections.replaceAll((section, words) -> List.copyOf(words));

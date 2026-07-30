@@ -59,3 +59,95 @@ melhora o prompt
 traduza
 traduz
 o que significa
+
+# Frases que, sozinhas, já pedem geração de imagem. Diferente das seções acima
+# (que pontuam um prompt longo), qualquer linha daqui basta para disparar.
+#
+# A lista é quase toda em português porque foi escrita enumerando o jeito que o
+# usuário fala. Isso é uma limitação conhecida: "manda uma img do meu gato" não
+# casa com nada aqui e nunca vai casar por enumeração — a cobertura semântica é
+# do IntentEmbeddingClassifier, que roda quando esta lista não acha nada.
+[TRIGGERS_PT]
+gera imagem
+gerar imagem
+gere imagem
+cria imagem
+criar imagem
+crie imagem
+gera a imagem
+gerar a imagem
+gere a imagem
+gera uma imagem
+gerar uma imagem
+gere uma imagem
+gera pra mim imagem
+gera pra mim a imagem
+gera pra mim uma imagem
+gere pra mim imagem
+gere pra mim a imagem
+gere pra mim uma imagem
+gerar pra mim imagem
+gerar pra mim a imagem
+gerar pra mim uma imagem
+cria a imagem
+criar a imagem
+crie a imagem
+cria uma imagem
+criar uma imagem
+crie uma imagem
+cria pra mim imagem
+cria pra mim a imagem
+cria pra mim uma imagem
+faz uma imagem
+faca uma imagem
+faz pra mim imagem
+faz pra mim uma imagem
+faca pra mim imagem
+faca pra mim uma imagem
+produz imagem
+produzir imagem
+gera uma foto
+gerar uma foto
+gera pra mim uma foto
+gere pra mim uma foto
+cria uma foto
+criar uma foto
+imagem artistica
+ilustracao de
+ilustracao artistica
+retrato artistico
+gere imagem realista
+retrato explicito
+pintura de
+desenho de
+quero uma imagem
+quero uma foto
+quero um desenho
+quero uma ilustracao
+quero um retrato
+me manda uma imagem
+me da uma imagem
+me de uma imagem
+me mostra uma imagem
+desenha uma
+desenha um
+desenhe uma
+desenhe um
+pinta uma
+pinta um
+pinte uma
+pinte um
+ilustra uma
+ilustra um
+ilustre uma
+ilustre um
+renderiza uma
+renderiza um
+renderize uma
+renderize um
+
+[TRIGGERS_EN]
+generate image
+create image
+text to image
+concept art

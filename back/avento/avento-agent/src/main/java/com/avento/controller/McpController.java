@@ -4,6 +4,7 @@ import com.avento.api.ApiResponses;
 import com.avento.api.dto.BaseResponse;
 import com.avento.api.dto.CommandExecution;
 import com.avento.api.dto.ManagedProcess;
+import com.avento.api.dto.PinnedToolsRequest;
 import com.avento.api.exception.ApiServiceException;
 import com.avento.auth.security.AuthPrincipal;
 import com.avento.service.DocumentReaderService;
@@ -69,6 +70,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -172,6 +174,9 @@ public class McpController implements ToolProvider {
 
     @Autowired
     private ToolCatalogService toolCatalogService;
+
+    @Autowired(required = false)
+    private com.avento.service.tools.PinnedToolService pinnedToolService;
 
     @Autowired
     private CodebaseRagService codebaseRagService;
@@ -788,6 +793,36 @@ public class McpController implements ToolProvider {
         } catch (Exception e) {
             throw new ApiServiceException("Could not list MCP tools.", e);
         }
+    }
+
+    /**
+     * Ferramentas que este usuário fixou.
+     *
+     * <p>Fixar é o contrapeso manual da descoberta progressiva: o catálogo continua decidindo o
+     * resto, mas o que está aqui entra no toolset de toda rodada, sem depender de o modelo lembrar
+     * de chamar {@code activate_tools}.
+     */
+    @GetMapping("/tools/pinned")
+    public ResponseEntity<BaseResponse<java.util.List<String>>> getPinnedTools(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        if (pinnedToolService == null) {
+            return ApiResponses.ok(java.util.List.of());
+        }
+        return ApiResponses.ok(
+                java.util.List.copyOf(pinnedToolService.pinnedFor(principal != null ? principal.userId() : null)));
+    }
+
+    @PutMapping("/tools/pinned")
+    public ResponseEntity<BaseResponse<java.util.List<String>>> updatePinnedTools(
+            @RequestBody PinnedToolsRequest request, @AuthenticationPrincipal AuthPrincipal principal) {
+        if (pinnedToolService == null) {
+            return ApiResponses.ok(java.util.List.of());
+        }
+        java.util.Set<String> requested = request == null || request.toolNames() == null
+                ? java.util.Set.of()
+                : new java.util.LinkedHashSet<>(request.toolNames());
+        return ApiResponses.ok(java.util.List.copyOf(
+                pinnedToolService.replace(principal != null ? principal.userId() : null, requested)));
     }
 
     public JsonNode executeToolInternal(String name, Map<String, Object> payload) throws Exception {
@@ -2266,6 +2301,32 @@ public class McpController implements ToolProvider {
             return text;
         }
         return text.substring(0, maxChars);
+    }
+
+    /**
+     * Processos que este usuário mantém rodando.
+     *
+     * <p>Existe para a extensão no telefone poder listar antes de pedir log: sem isto ela teria de
+     * adivinhar o id de um processo que nem sabe existir.
+     *
+     * <p>Filtra por dono. Sem o filtro, o telefone de um usuário enxergaria o build de outro — e o
+     * id vazado bastaria para ler a saída inteira pelo endpoint de log.
+     */
+    @GetMapping("/processes")
+    public ResponseEntity<BaseResponse<JsonNode>> listProcesses(@AuthenticationPrincipal AuthPrincipal principal) {
+        java.util.UUID owner = principal != null ? principal.userId() : null;
+        ArrayNode processes = mapper.createArrayNode();
+        for (ManagedProcess managed : managedProcesses.values()) {
+            if (owner != null && !owner.equals(managed.ownerId())) {
+                continue;
+            }
+            ObjectNode entry = processes.addObject();
+            entry.put("id", managed.processId());
+            entry.put("command", String.join(" ", managed.command()));
+            entry.put("startedAt", managed.startedAt());
+            entry.put("running", managed.process().isAlive());
+        }
+        return ApiResponses.ok(mapper.createObjectNode().set("processes", processes));
     }
 
     @GetMapping("/processes/{processId}/logs")

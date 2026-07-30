@@ -16,25 +16,23 @@ import java.util.Locale;
 public enum ProviderKind {
 
     /** Ollama nativo — local ou em outra máquina da rede. */
-    OLLAMA("/api/tags", false, true),
+    OLLAMA("/api/tags", false),
 
     /** Qualquer servidor que fale o formato da OpenAI: vLLM, LM Studio, DGX, TGI. */
-    OPENAI_COMPATIBLE("/v1/models", false, true),
+    OPENAI_COMPATIBLE("/v1/models", false),
 
     /** Google Gemini. */
-    GEMINI("/v1beta/models", true, false),
+    GEMINI("/v1beta/models", true),
 
     /** Anthropic Claude. */
-    ANTHROPIC("/v1/models", true, false);
+    ANTHROPIC("/v1/models", true);
 
     private final String modelsPath;
     private final boolean requiresApiKey;
-    private final boolean supportsLocalTools;
 
-    ProviderKind(String modelsPath, boolean requiresApiKey, boolean supportsLocalTools) {
+    ProviderKind(String modelsPath, boolean requiresApiKey) {
         this.modelsPath = modelsPath;
         this.requiresApiKey = requiresApiKey;
-        this.supportsLocalTools = supportsLocalTools;
     }
 
     /** Caminho de listagem de modelos, relativo à base URL do provedor. */
@@ -45,17 +43,6 @@ public enum ProviderKind {
     /** Sem chave, o provedor não responde — a interface deve exigir antes de ativar. */
     public boolean requiresApiKey() {
         return requiresApiKey;
-    }
-
-    /**
-     * Se o laço de rodadas com ferramentas locais funciona neste provedor.
-     *
-     * <p>Falso para os de nuvem enquanto o tool calling deles não estiver traduzido: o laço monta
-     * toolset e interpreta {@code tool_calls} no formato do Ollama, e o Gemini devolve
-     * {@code functionCall} dentro de {@code parts}. Reaproveitar daria erro silencioso.
-     */
-    public boolean supportsLocalTools() {
-        return supportsLocalTools;
     }
 
     /** URL padrão do provedor, usada quando o usuário não informa uma. */

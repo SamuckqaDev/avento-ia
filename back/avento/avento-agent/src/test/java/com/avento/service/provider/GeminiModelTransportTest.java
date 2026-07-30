@@ -209,4 +209,63 @@ class GeminiModelTransportTest {
         assertThat(GeminiModelTransport.toInternalChunk("{\"candidates\":[{\"cont", MAPPER))
                 .isNull();
     }
+
+    /**
+     * A imagem anexada chega no formato do Ollama ({@code images} com base64 puro). Sem tradução
+     * para {@code inlineData} ela era descartada em silêncio: a tela mostrava a miniatura enviada e
+     * o modelo respondia que não tinha recebido imagem nenhuma.
+     */
+    @Test
+    void translatesAttachedImagesIntoInlineData() throws Exception {
+        ObjectNode request = MAPPER.createObjectNode();
+        request.put("model", "gemini-2.0-flash");
+        ObjectNode user = request.putArray("messages").addObject();
+        user.put("role", "user").put("content", "o que tem nesta foto?");
+        user.putArray("images").add("iVBORw0KGgoAAAANSUhEUg==");
+        request.putArray("tools");
+
+        ObjectNode geminiRequest = GeminiModelTransport.toGeminiRequest(request, MAPPER);
+
+        JsonNode parts = geminiRequest.path("contents").get(0).path("parts");
+        assertThat(parts.get(0).path("inlineData").path("mimeType").asText()).isEqualTo("image/png");
+        assertThat(parts.get(0).path("inlineData").path("data").asText()).isEqualTo("iVBORw0KGgoAAAANSUhEUg==");
+        assertThat(parts.get(1).path("text").asText()).isEqualTo("o que tem nesta foto?");
+    }
+
+    /**
+     * O uso vem ACUMULADO em todo evento do stream. Contabilizar cada um multiplicaria os tokens da
+     * rodada, então só o evento que fecha a resposta conta — e ele volta no formato do Ollama, que é
+     * o que o agente sabe ler.
+     */
+    @Test
+    void reportsTokenUsageOnlyOnTheFinalEvent() throws Exception {
+        String partial = "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Ola\"}]}}],"
+                + "\"usageMetadata\":{\"promptTokenCount\":10,\"candidatesTokenCount\":1}}";
+        JsonNode intermediate = MAPPER.readTree(GeminiModelTransport.toInternalChunk(partial, MAPPER));
+        assertThat(intermediate.path("done").asBoolean()).isFalse();
+        assertThat(intermediate.has("eval_count")).isFalse();
+
+        String last = "{\"modelVersion\":\"gemini-2.0-flash\",\"candidates\":[{\"finishReason\":\"STOP\","
+                + "\"content\":{\"parts\":[{\"text\":\"!\"}]}}],"
+                + "\"usageMetadata\":{\"promptTokenCount\":10,\"candidatesTokenCount\":42}}";
+        JsonNode line = MAPPER.readTree(GeminiModelTransport.toInternalChunk(last, MAPPER));
+
+        assertThat(line.path("message").path("content").asText()).isEqualTo("!");
+        assertThat(line.path("done").asBoolean()).isTrue();
+        assertThat(line.path("prompt_eval_count").asInt()).isEqualTo(10);
+        assertThat(line.path("eval_count").asInt()).isEqualTo(42);
+        assertThat(line.path("model").asText()).isEqualTo("gemini-2.0-flash");
+    }
+
+    // O evento que fecha pode não trazer texto nenhum; a contagem não pode se perder com ele.
+    @Test
+    void reportsTokenUsageWhenTheFinalEventCarriesNoText() throws Exception {
+        String last = "{\"candidates\":[{\"finishReason\":\"STOP\",\"content\":{\"parts\":[]}}],"
+                + "\"usageMetadata\":{\"promptTokenCount\":7,\"candidatesTokenCount\":3}}";
+
+        JsonNode line = MAPPER.readTree(GeminiModelTransport.toInternalChunk(last, MAPPER));
+
+        assertThat(line.path("done").asBoolean()).isTrue();
+        assertThat(line.path("eval_count").asInt()).isEqualTo(3);
+    }
 }

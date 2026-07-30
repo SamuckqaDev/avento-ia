@@ -57,6 +57,15 @@ class ContextLimitDiscoveryTest {
                 .isEqualTo(131072);
     }
 
+    // O vLLM (o caso do DGX) nomeia o campo de outro jeito; sem isto a janela voltaria ao chute.
+    @Test
+    void readsVllmMaxModelLen() throws Exception {
+        String body = "{\"data\":[{\"id\":\"qwen2.5-72b\",\"max_model_len\":32768}]}";
+
+        assertThat(ProviderModelCatalog.declaredInputLimit(MAPPER.readTree(body), "qwen2.5-72b"))
+                .isEqualTo(32768);
+    }
+
     // Modelo que nao esta na lista nao pode devolver o limite de outro.
     @Test
     void returnsZeroForAModelThatIsNotListed() throws Exception {

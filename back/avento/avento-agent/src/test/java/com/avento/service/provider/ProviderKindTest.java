@@ -45,14 +45,6 @@ class ProviderKindTest {
         assertThat(ProviderKind.ANTHROPIC.requiresApiKey()).isTrue();
     }
 
-    // So o local roda o laco de ferramentas: ele interpreta tool_calls no formato do Ollama.
-    @Test
-    void onlyLocalKindsSupportTheLocalToolLoop() {
-        assertThat(ProviderKind.OLLAMA.supportsLocalTools()).isTrue();
-        assertThat(ProviderKind.GEMINI.supportsLocalTools()).isFalse();
-        assertThat(ProviderKind.ANTHROPIC.supportsLocalTools()).isFalse();
-    }
-
     // Cada provedor devolve o nome do modelo num lugar diferente.
     @Test
     void parsesOllamaModelNames() throws Exception {

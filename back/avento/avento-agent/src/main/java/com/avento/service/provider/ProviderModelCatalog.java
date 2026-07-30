@@ -194,8 +194,12 @@ public class ProviderModelCatalog {
         }
         for (JsonNode entry : body.path("data")) {
             if (entry.path("id").asText("").equalsIgnoreCase(model)) {
+                // Cada servidor compativel batizou o campo do seu jeito. O vLLM, que e o caso do DGX
+                // aqui, usa max_model_len — sem ele o limite voltava zero e a janela caia no chute do
+                // arquivo de configuracao, que e o problema que esta descoberta veio resolver.
                 return entry.path("context_length")
-                        .asInt(entry.path("max_context_length").asInt(0));
+                        .asInt(entry.path("max_context_length")
+                                .asInt(entry.path("max_model_len").asInt(0)));
             }
         }
         return 0;

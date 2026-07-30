@@ -4,13 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.netty.resolver.DefaultAddressResolverGroup;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -45,13 +43,7 @@ public class GeminiModelTransport implements ModelTransport {
             ObjectMapper mapper, @Value("${avento.provider.gemini.timeout-seconds:300}") long timeoutSeconds) {
         this.mapper = mapper;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
-        this.webClient = WebClient.builder()
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(8 * 1024 * 1024))
-                // Resolvedor da JVM: o nativo do Netty para macOS só existe para x86_64 e num Apple
-                // Silicon a chamada morre com "Can't assign requested address" antes de sair.
-                .clientConnector(new ReactorClientHttpConnector(
-                        reactor.netty.http.client.HttpClient.create().resolver(DefaultAddressResolverGroup.INSTANCE)))
-                .build();
+        this.webClient = ProviderWebClients.streaming();
     }
 
     @Override
@@ -100,7 +92,7 @@ public class GeminiModelTransport implements ModelTransport {
                         systemText.append(content);
                     }
                 }
-                case "user" -> addTextContent(contents, "user", content, mapper);
+                case "user" -> addUserContent(contents, message, content, mapper);
                 case "assistant" -> addAssistantContent(contents, message, content, mapper);
                 // Resultado de ferramenta: o Gemini espera functionResponse, nao texto solto.
                 case "tool" -> addFunctionResponse(contents, message, mapper);
@@ -223,6 +215,41 @@ public class GeminiModelTransport implements ModelTransport {
         entry.putArray("parts").addObject().put("text", text);
     }
 
+    /**
+     * Mensagem do usuário, com a imagem anexada quando houver uma.
+     *
+     * <p>O formato interno herdou do Ollama a lista {@code images} com base64 puro. O Gemini quer
+     * {@code inlineData} com o tipo declarado — e sem esta tradução o anexo era simplesmente
+     * descartado: o modelo respondia que não tinha recebido imagem nenhuma, e a tela mostrava a
+     * miniatura ao lado, como se tivesse enviado.
+     */
+    private static void addUserContent(ArrayNode contents, JsonNode message, String content, ObjectMapper mapper) {
+        JsonNode images = message.path("images");
+        if (!images.isArray() || images.isEmpty()) {
+            addTextContent(contents, "user", content, mapper);
+            return;
+        }
+        ArrayNode parts = mapper.createArrayNode();
+        for (JsonNode image : images) {
+            String raw = image.asText("");
+            if (raw.isBlank()) {
+                continue;
+            }
+            ObjectNode inlineData = parts.addObject().putObject("inlineData");
+            inlineData.put("mimeType", Base64Images.mediaType(raw));
+            inlineData.put("data", Base64Images.payload(raw));
+        }
+        if (content != null && !content.isBlank()) {
+            parts.addObject().put("text", content);
+        }
+        if (parts.isEmpty()) {
+            return;
+        }
+        ObjectNode entry = contents.addObject();
+        entry.put("role", "user");
+        entry.set("parts", parts);
+    }
+
     /** Mensagem do assistente pode carregar texto E a chamada de ferramenta que ele fez. */
     private static void addAssistantContent(ArrayNode contents, JsonNode message, String content, ObjectMapper mapper) {
         ArrayNode parts = mapper.createArrayNode();
@@ -288,9 +315,16 @@ public class GeminiModelTransport implements ModelTransport {
         }
         try {
             JsonNode root = mapper.readTree(rawEvent);
-            JsonNode parts = root.path("candidates").path(0).path("content").path("parts");
+            JsonNode candidate = root.path("candidates").path(0);
+            // O uso vem repetido e ACUMULADO em todo evento; contabilizar cada um multiplicaria os
+            // tokens da rodada. Só o evento que fecha a resposta (o que traz finishReason) conta.
+            boolean isFinalEvent = candidate.hasNonNull("finishReason")
+                    && !candidate.path("finishReason").asText("").isBlank();
+            JsonNode usage = root.path("usageMetadata");
+
+            JsonNode parts = candidate.path("content").path("parts");
             if (!parts.isArray() || parts.isEmpty()) {
-                return null;
+                return isFinalEvent ? usageLine(usage, root, mapper) : null;
             }
 
             StringBuilder text = new StringBuilder();
@@ -310,7 +344,7 @@ public class GeminiModelTransport implements ModelTransport {
             }
 
             if (text.length() == 0 && toolCalls.isEmpty()) {
-                return null;
+                return isFinalEvent ? usageLine(usage, root, mapper) : null;
             }
 
             ObjectNode line = mapper.createObjectNode();
@@ -320,11 +354,35 @@ public class GeminiModelTransport implements ModelTransport {
             if (!toolCalls.isEmpty()) {
                 message.set("tool_calls", toolCalls);
             }
-            line.put("done", false);
+            // Texto e uso podem vir no mesmo evento: o agente lê os dois campos de forma
+            // independente, então a linha carrega ambos em vez de duplicar o chunk.
+            if (isFinalEvent && usage.isObject()) {
+                appendUsage(line, usage, root);
+            } else {
+                line.put("done", false);
+            }
             return line.toString();
         } catch (Exception exception) {
             logger.debug("Evento do Gemini ignorado: {}", exception.getClass().getSimpleName());
             return null;
         }
+    }
+
+    /** Linha só com a contagem, para o evento final que não trouxe texto nem chamada. */
+    private static String usageLine(JsonNode usage, JsonNode root, ObjectMapper mapper) {
+        if (!usage.isObject()) {
+            return null;
+        }
+        ObjectNode line = mapper.createObjectNode();
+        appendUsage(line, usage, root);
+        return line.toString();
+    }
+
+    /** O agente lê o uso da rodada no formato do Ollama: {@code done} + {@code eval_count}. */
+    private static void appendUsage(ObjectNode line, JsonNode usage, JsonNode root) {
+        line.put("done", true);
+        line.put("model", root.path("modelVersion").asText(""));
+        line.put("prompt_eval_count", usage.path("promptTokenCount").asInt(0));
+        line.put("eval_count", usage.path("candidatesTokenCount").asInt(0));
     }
 }

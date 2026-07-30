@@ -168,20 +168,17 @@ public class AgentService implements AgentExecutionEngine {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry;
 
-    // Mesma injecao opcional. Serve so para AVISAR: o chat fala direto com o Ollama (/api/chat, corpo
-    // no formato nativo), entao escolher Gemini na tela nao muda para onde a requisicao vai. Sem
-    // aviso, o usuario recebe o modelo local achando que falou com a nuvem.
+    // Injecao opcional: os testes constroem AgentService pelo construtor, sem contexto Spring.
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.avento.service.provider.ModelProviderService modelProviderService;
 
+    // Transportes de modelo, um por dialeto. Quem tem as ferramentas e o AGENTE: o laco de rodadas
+    // monta o toolset, pede aprovacao, prende ao sandbox e executa — igual para todo provedor. O
+    // transporte so traduz o dialeto da chamada, e por isso a nuvem enxerga arquivo, terminal, MCP e
+    // RAG do mesmo jeito que o local.
+    //
     // Lista, nao um unico bean: o despacho escolhe pelo TIPO do provedor ativo. Com um so, um
-    // usuario em OPENAI_COMPATIBLE seria atendido pela implementacao do Gemini.
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private java.util.List<com.avento.service.provider.CloudChatProvider> cloudChatProviders;
-
-    // Transportes de modelo. Quem tem as ferramentas e o AGENTE: o laco de rodadas monta o toolset,
-    // pede aprovacao, prende ao sandbox e executa — igual para todo provedor. O transporte so
-    // traduz o dialeto da chamada, e por isso o Gemini passa a enxergar arquivo, terminal, MCP e RAG.
+    // usuario em OPENAI_COMPATIBLE seria atendido pela traducao do Gemini.
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private java.util.List<com.avento.service.provider.ModelTransport> modelTransports;
 
@@ -189,6 +186,11 @@ public class AgentService implements AgentExecutionEngine {
     // reason as the field above: tests build AgentService through the constructor.
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.avento.service.tools.ToolCatalogService toolCatalogService;
+
+    // Contrapeso manual da descoberta progressiva: o que o usuario fixou na tela entra em toda
+    // rodada, sem depender de o modelo chamar activate_tools.
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.avento.service.tools.PinnedToolService pinnedToolService;
 
     private final UserSettingsService userSettingsService;
     private final UserMemoryService userMemoryService;
@@ -345,7 +347,12 @@ public class AgentService implements AgentExecutionEngine {
         options.put("top_k", topK);
         options.put("repeat_penalty", repeatPenalty);
 
-        return webClient
+        String ollamaBaseUrl = modelProviderService != null ? modelProviderService.activeBaseUrl(null) : null;
+        WebClient ollamaClient = (ollamaBaseUrl != null && !ollamaBaseUrl.isBlank())
+                ? webClient.mutate().baseUrl(ollamaBaseUrl).build()
+                : webClient;
+
+        return ollamaClient
                 .post()
                 .uri("/api/chat")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -857,23 +864,32 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private String resolveChatModel(String requestedModel, ArrayNode messages, UUID userId) {
-        // Provedor remoto ativo: o modelo PEDIDO manda. Este trecho antes devolvia sempre o valor
-        // gravado, entao escolher outro modelo no chat nao tinha efeito nenhum — o log mostrava
-        // "starting for chat X with model gemini-3.1-pro-preview" seguido de "round 1 ... model
-        // gemini-2.5-flash". O gravado so entra quando o pedido vem sem modelo, ou traz um nome
-        // local que o provedor remoto nao conhece.
+        String configuredModel = modelProviderService != null ? modelProviderService.activeModelName(userId) : "";
+
+        String targetModel;
         if (transportFor(userId) != null) {
             if (requestedModel != null && !requestedModel.isBlank() && !isLocalModelName(requestedModel)) {
-                return requestedModel;
+                targetModel = requestedModel;
+            } else if (!configuredModel.isBlank()) {
+                targetModel = configuredModel;
+            } else {
+                targetModel = normalizeChatModel(requestedModel);
             }
-            String remoteModel = modelProviderService.activeModelName(userId);
-            if (!remoteModel.isBlank()) {
-                return remoteModel;
+        } else {
+            // Se o usuário configurou um modelo na tela de Provedores (front), usa o modelo ativo
+            // gravado a menos que o pedido traga outro modelo específico diferente do default.
+            if (!configuredModel.isBlank()
+                    && (requestedModel == null
+                            || requestedModel.isBlank()
+                            || requestedModel.equalsIgnoreCase(defaultChatModel))) {
+                targetModel = configuredModel;
+            } else {
+                targetModel = normalizeChatModel(requestedModel);
             }
         }
-        String selectedModel = normalizeChatModel(requestedModel);
-        if (!conversationHasImages(messages) || isVisionModel(selectedModel, inferFamily(selectedModel))) {
-            return selectedModel;
+
+        if (!conversationHasImages(messages) || isVisionModel(targetModel, inferFamily(targetModel))) {
+            return targetModel;
         }
         return normalizeChatModel(visionModelFor(userId));
     }
@@ -956,56 +972,23 @@ public class AgentService implements AgentExecutionEngine {
         state.chatId = chatId;
         state.userId = userId;
         // O aviso vai ANTES da resposta: se o usuario escolheu nuvem e recebe o modelo local sem
-        // saber, ele julga a qualidade do Gemini olhando para a saida de um 9B local.
+        // saber, ele julga a qualidade da nuvem olhando para a saida de um 9B local.
         // Sem desvio: o provedor remoto entra pelo MESMO laco de rodadas, via ModelTransport. E o que
-        // faz o Gemini enxergar ferramenta, RAG e memoria — o agente e quem as tem, o modelo so
-        // processa. Enquanto nao houver transporte para o tipo ativo, o aviso evita a mentira de
-        // responder pelo local em silencio.
+        // faz a nuvem enxergar ferramenta, RAG e memoria — o agente e quem as tem, o modelo so
+        // processa. Se faltar transporte para o tipo ativo, o aviso evita a mentira de responder
+        // pelo local em silencio.
         String cloudNotice = cloudProviderNotice(userId, chatModel);
         Flux<String> turn = runTurn(chatModel, messages, state, 1);
         return cloudNotice.isEmpty() ? turn : Flux.concat(Flux.just(contentChunk(cloudNotice)), turn);
     }
 
-    /** Implementacao que atende o tipo ativo, ou null quando ainda nao existe uma. */
-    private com.avento.service.provider.CloudChatProvider providerForActiveKind(UUID userId) {
-        if (cloudChatProviders == null || modelProviderService == null) {
-            return null;
-        }
-        if (!modelProviderService.remoteProviderReady(userId)) {
-            return null;
-        }
-        com.avento.service.provider.ProviderKind kind = modelProviderService.activeKind(userId);
-        return cloudChatProviders.stream()
-                .filter(provider -> provider.kind() == kind)
-                .findFirst()
-                .orElse(null);
-    }
-
     /**
-     * Caminho de nuvem: conversa apenas, SEM ferramentas.
+     * Aviso para o caso de o provedor escolhido estar sem transporte, vazio no caminho normal.
      *
-     * <p>Desvia antes do laço de rodadas de propósito. O laço monta toolset, interpreta tool_call e
-     * reexecuta — tudo no formato do Ollama. Reaproveitá-lo com um provedor que devolve
-     * {@code functionCall} dentro de {@code parts} daria erro silencioso; ferramentas na nuvem são a
-     * etapa seguinte, sobre esta base já validada.
-     */
-    private Flux<String> streamThroughCloudProvider(
-            com.avento.service.provider.CloudChatProvider provider, ArrayNode messages, UUID userId) {
-        String model = modelProviderService.activeModelName(userId);
-        String apiKey = modelProviderService.rawApiKey(userId);
-        String aviso = "\n> ☁️ Respondendo por **" + provider.providerName() + " (" + model
-                + ")**. Neste modo as ferramentas locais ficam indisponíveis — para usá-las, selecione"
-                + " o provedor local nas configurações.\n\n";
-        return Flux.concat(Flux.just(contentChunk(aviso)), provider.streamChat(messages, model, apiKey));
-    }
-
-    /**
-     * Texto de aviso quando ha provedor de nuvem selecionado, vazio quando nao ha.
-     *
-     * <p>O fluxo de chat monta corpo no formato nativo do Ollama e chama {@code /api/chat} num
-     * WebClient com a base URL fixada no construtor. Nada disso consulta o provedor — os metodos
-     * {@code resolveActiveModelUrl}/{@code resolveActiveModelName} existem no ModelProviderService e
-     * nunca foram chamados por ninguem. Ate a camada de provedor existir, o minimo honesto e dizer.
+     * <p>Todo tipo suportado tem o seu {@link com.avento.service.provider.ModelTransport} hoje, entao
+     * este texto so aparece se um bean de transporte faltar no contexto. Sem ele, a requisicao cai no
+     * WebClient local e o usuario recebe a resposta de um modelo que nao foi o que ele escolheu — sem
+     * jeito de perceber.
      */
     String cloudProviderNotice(UUID userId, String modelUsed) {
         if (modelProviderService == null || !modelProviderService.remoteProviderReady(userId)) {
@@ -1015,9 +998,8 @@ public class AgentService implements AgentExecutionEngine {
             return ""; // ha transporte para este tipo: a resposta vem de la, com ferramentas.
         }
         String selected = modelProviderService.selectedCloudProviderName(userId);
-        return "\n> ⚠️ Você selecionou **" + selected + "**, mas o fluxo de conversa ainda fala apenas"
-                + " com o modelo local. Esta resposta veio de `" + modelUsed + "`, não da nuvem."
-                + " A integração com provedor de nuvem ainda não foi implementada aqui.\n\n";
+        return "\n> ⚠️ Você selecionou **" + selected + "**, mas não há transporte carregado para esse"
+                + " provedor. Esta resposta veio de `" + modelUsed + "`, não da nuvem.\n\n";
     }
 
     private int lastUserMessageIndex(ArrayNode messages) {
@@ -1334,6 +1316,13 @@ public class AgentService implements AgentExecutionEngine {
         // Ferramentas ativadas via activate_tools em rodadas anteriores desta run (Redis).
         if (toolCatalogService != null && !state.runId.isBlank()) {
             state.extraExposedToolNames.addAll(toolCatalogService.getActiveTools(state.runId));
+        }
+        // Fixadas na tela pelo usuario: entram em TODA rodada. A descoberta progressiva continua
+        // valendo para o resto, mas ela depende de o modelo pesquisar e chamar activate_tools — e
+        // quando ele nao chama, a ferramenta esta conectada e mesmo assim nao e usada. Fixar e a
+        // saida manual para isso.
+        if (pinnedToolService != null) {
+            state.extraExposedToolNames.addAll(pinnedToolService.pinnedFor(state.userId));
         }
         // finalSynthesis zera o toolset de propósito: é a rodada em que o modelo precisa RESPONDER
         // com o que já coletou. Com ferramentas na mesa ele pede mais uma leitura e o ciclo recomeça.
@@ -2430,7 +2419,14 @@ public class AgentService implements AgentExecutionEngine {
                     modelProviderService.activeBaseUrl(userId),
                     modelProviderService.rawApiKey(userId));
         }
-        return webClient
+        // Usa a URL configurada pelo usuário — cobre Ollama em outra máquina da rede.
+        // O webClient fixado no construtor sempre apontava para localhost, ignorando o que
+        // foi gravado na tela de configurações.
+        String ollamaBaseUrl = modelProviderService != null ? modelProviderService.activeBaseUrl(userId) : null;
+        WebClient ollamaClient = (ollamaBaseUrl != null && !ollamaBaseUrl.isBlank())
+                ? webClient.mutate().baseUrl(ollamaBaseUrl).build()
+                : webClient;
+        return ollamaClient
                 .post()
                 .uri("/api/chat")
                 .contentType(MediaType.APPLICATION_JSON)

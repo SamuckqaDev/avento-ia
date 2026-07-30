@@ -15,6 +15,7 @@ import com.avento.service.intent.VisualIntentClassifier;
 import com.avento.service.orchestration.AgentExecutionEngine;
 import com.avento.service.support.HeuristicWordLists;
 import com.avento.service.support.ModelNames;
+import com.avento.service.support.ProviderErrorTranslator;
 import com.avento.service.support.SkillRegistry;
 import com.avento.service.tools.ToolCapabilityRegistry;
 import com.avento.service.tools.ToolExecutionGateway;
@@ -2443,7 +2444,7 @@ public class AgentService implements AgentExecutionEngine {
                     + " conversa ou a máquina sobrecarregada — tente numa conversa nova ou com um pedido"
                     + " mais simples.";
         } else if (error instanceof WebClientResponseException responseException) {
-            message = describeProviderError(
+            message = ProviderErrorTranslator.describeProviderError(
                     responseException.getStatusCode().value(), responseException.getResponseBodyAsString());
         } else if (error.getMessage() != null && !error.getMessage().isBlank()) {
             message = error.getMessage();
@@ -2462,69 +2463,13 @@ public class AgentService implements AgentExecutionEngine {
             sink.next(contentChunk(availableModelsHint(state.userId)));
         }
         if (remote && message.contains("429")) {
-            sink.next(contentChunk(quotaHint(message, model)));
+            sink.next(contentChunk(ProviderErrorTranslator.quotaHint(message, model)));
             // Cota zero significa "escolha outro" — e sem a lista, escolher e tentativa e erro.
             if (message.contains("limit: 0")) {
                 sink.next(contentChunk(availableModelsHint(state.userId)));
             }
         }
         sink.complete();
-    }
-
-    /**
-     * Resume um 429 do provedor.
-     *
-     * <p>O corpo vem como um muro de JSON com violacoes repetidas e links; o que importa e se a cota
-     * e ZERO (modelo fora do plano, e esperar nao resolve) ou se e limite temporario, e em quanto
-     * tempo tentar de novo.
-     */
-    /**
-     * Descreve um erro HTTP do provedor em uma linha.
-     *
-     * <p>O corpo vem como JSON aninhado com a mesma violacao repetida, links de documentacao e
-     * metadados. Despejar isso na conversa esconde a unica frase que importa dentro de um paragrafo
-     * de chaves — o usuario precisa garimpar para descobrir o que fazer.
-     */
-    static String describeProviderError(int status, String body) {
-        String resumo = "O provedor retornou HTTP " + status;
-        if (body == null || body.isBlank()) {
-            return resumo + ".";
-        }
-        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
-                        "\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
-                .matcher(body);
-        if (!matcher.find()) {
-            return resumo + ": " + (body.length() > 300 ? body.substring(0, 300) + "…" : body);
-        }
-        String detalhe =
-                matcher.group(1).replace("\\n", " ").replaceAll("\\s+", " ").trim();
-        // A mesma violacao costuma vir repetida; corta antes da repeticao.
-        int repeticao = detalhe.indexOf("Invalid JSON payload received.", 1);
-        if (repeticao > 0) {
-            detalhe = detalhe.substring(0, repeticao).trim();
-        }
-        return resumo + ": " + (detalhe.length() > 400 ? detalhe.substring(0, 400) + "…" : detalhe);
-    }
-
-    static String quotaHint(String message, String model) {
-        boolean semCota = message.contains("limit: 0");
-        String espera = "";
-        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\"retryDelay\"\\s*:\\s*\"(\\d+)s\"")
-                .matcher(message);
-        if (matcher.find()) {
-            espera = matcher.group(1);
-        }
-
-        if (semCota) {
-            return "\n> ⚠️ O modelo `" + model + "` tem cota **zero** no seu plano — nao e limite"
-                    + " atingido, e modelo indisponivel na conta. No Gemini, os modelos **pro**"
-                    + " costumam exigir faturamento habilitado; os **flash** sao os do plano"
-                    + " gratuito. Troque em Configuracoes > Modelos & Provedores, ou habilite"
-                    + " faturamento no Google.\n";
-        }
-        return "\n> ⚠️ Limite de uso do provedor atingido"
-                + (espera.isBlank() ? "" : "; tente de novo em " + espera + "s")
-                + ".\n";
     }
 
     /** Lista os modelos que o provedor realmente oferece, para o 404 virar instrucao. */

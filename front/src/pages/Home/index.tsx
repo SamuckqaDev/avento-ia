@@ -15,9 +15,7 @@ import { SkillsManager } from '../../modules/chat/SkillsManager';
 import { McpToolsManager } from '../../modules/chat/McpToolsManager';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import { api, apiErrorMessage } from '../../services/apiClient';
-import { List, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare, ShieldCheck, Hand, Monitor } from '@phosphor-icons/react';
-import { HandSpatialControl } from '../../components/HandTracking/HandSpatialControl';
-import { SpatialDesktopViewer } from '../../components/SpatialDesktop/SpatialDesktopViewer';
+import { List, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare, ShieldCheck } from '@phosphor-icons/react';
 import { 
   AppLayout, 
   MainContent, 
@@ -281,6 +279,50 @@ interface AvailableModel {
   heavy: boolean;
   vision: boolean;
   preferredForVision: boolean;
+}
+
+/** Recorte de `/api/ai/providers`: só o que descreve para onde a conversa vai. */
+interface ActiveProvider {
+  providerKind: string;
+  baseUrl: string;
+  selectedModel: string;
+}
+
+/**
+ * Rótulo do provedor para o cabeçalho: ícone, nome e o host quando ele importa.
+ *
+ * <p>O host entra só quando não é a máquina local nem o endereço padrão do serviço. Num Ollama de
+ * rede saber a máquina é o que diferencia dois setups iguais no resto; na nuvem o endereço é sempre
+ * o mesmo e mostrá-lo só ocuparia a barra.
+ */
+function describeProvider(kind: string, baseUrl: string): { icon: string; label: string; host: string } {
+  const host = (() => {
+    try {
+      return new URL(baseUrl).hostname;
+    } catch {
+      return '';
+    }
+  })();
+  const isLoopback = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '';
+
+  switch (kind) {
+    case 'GEMINI':
+      return { icon: '☁️', label: 'Gemini', host: '' };
+    case 'ANTHROPIC':
+      return { icon: '☁️', label: 'Anthropic', host: '' };
+    case 'OPENAI_COMPATIBLE':
+      return {
+        icon: '⚡',
+        label: host === 'api.openai.com' ? 'OpenAI' : 'OpenAI / DGX',
+        host: host === 'api.openai.com' ? '' : host,
+      };
+    default:
+      return {
+        icon: '🖥️',
+        label: isLoopback ? 'Ollama Local' : 'Ollama Rede',
+        host: isLoopback ? '' : host,
+      };
+  }
 }
 
 function imageModelLabel(name: string): string {
@@ -718,8 +760,6 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const [messageQueue, setMessageQueue] = useState<QueuedMessage[]>([]);
   const isProcessingQueueRef = useRef(false);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(loadVoiceEnabled);
-  const [isHandControlActive, setIsHandControlActive] = useState<boolean>(false);
-  const [isSpatialDesktopOpen, setIsSpatialDesktopOpen] = useState<boolean>(false);
   const isVoiceEnabledRef = useRef<boolean>(isVoiceEnabled);
   const [isMobileOpen, setMobileOpen] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<string>(loadSelectedModel);
@@ -727,6 +767,9 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const [availableImageModels, setAvailableImageModels] = useState<AvailableModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+  // Provedor que o backend vai realmente usar. Vem dele, nao de uma deducao a partir da lista de
+  // modelos: quem decide o roteamento e o ModelProviderService, e so ele sabe o endereco e o tipo.
+  const [activeProvider, setActiveProvider] = useState<ActiveProvider | null>(null);
   useEffect(() => {
     try {
       if (selectedModel) {
@@ -1178,6 +1221,31 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     loadModels();
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  // O provedor muda no modal de configurações, que vive na Sidebar — outro ramo da árvore. O evento
+  // de janela é o mesmo caminho já usado para a troca de avatar, e evita subir estado só para isso.
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadActiveProvider() {
+      try {
+        const { data } = await api.get<ActiveProvider>('/api/ai/providers');
+        if (!isMounted) return;
+        setActiveProvider(data ?? null);
+      } catch (err) {
+        console.error('Erro ao buscar o provedor ativo', err);
+        // Sem resposta, o badge some em vez de afirmar um provedor que talvez não seja o ativo.
+        if (isMounted) setActiveProvider(null);
+      }
+    }
+
+    loadActiveProvider();
+    window.addEventListener('avento:provider-changed', loadActiveProvider);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('avento:provider-changed', loadActiveProvider);
     };
   }, []);
 
@@ -2435,31 +2503,35 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     </>
   );
 
-  // Provedor remoto ativo: o backend manda o TIPO em `family` nos modelos que ele oferece. Sem isso
-  // visivel, o usuario configura o Gemini e nao tem como saber de onde a resposta veio.
-  const REMOTE_FAMILIES = ['GEMINI', 'ANTHROPIC', 'OPENAI_COMPATIBLE'];
-  const activeRemoteProvider = REMOTE_FAMILIES.includes(selectedModelInfo?.family || '')
-    ? selectedModelInfo?.family
+  // Fonte real do processamento, direto do backend. Antes isto era deduzido do campo `family` do
+  // modelo selecionado, o que só acusava a nuvem e deixava o modo local sem indicação nenhuma —
+  // quem trocasse de provedor e continuasse recebendo resposta local não tinha como perceber.
+  const providerBadge = activeProvider
+    ? describeProvider(activeProvider.providerKind, activeProvider.baseUrl)
     : null;
+  // O modelo mostrado é o que a requisição vai levar: o escolhido aqui no cabeçalho manda, e o
+  // gravado só entra quando não há escolha — a mesma regra que o backend aplica em resolveChatModel.
+  const badgeModel = selectedModel || activeProvider?.selectedModel || '';
 
   const renderModelSelectors = (inMenu = false) => (
     <>
-      {activeRemoteProvider && (
+      {providerBadge && (
         <span
           className="provider-badge"
-          title={`As respostas vêm de ${activeRemoteProvider}. Ferramentas locais indisponíveis neste modo.`}
-          style={{
-            fontSize: '0.68rem',
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            padding: '3px 8px',
-            borderRadius: '999px',
-            background: 'rgba(79, 209, 180, 0.16)',
-            color: '#4FD1B4',
-            whiteSpace: 'nowrap',
-          }}
+          title={
+            `As respostas vêm de ${providerBadge.label}` +
+            `${providerBadge.host ? ` (${providerBadge.host})` : ''}` +
+            `${badgeModel ? ` usando ${badgeModel}` : ''}.` +
+            ' Ferramentas, RAG e memória funcionam igual em qualquer provedor.'
+          }
         >
-          ☁️ {activeRemoteProvider}
+          <span aria-hidden="true">{providerBadge.icon}</span>
+          {providerBadge.label}
+          {(providerBadge.host || badgeModel) && (
+            <span className="provider-badge-model">
+              {[providerBadge.host, badgeModel].filter(Boolean).join(' · ')}
+            </span>
+          )}
         </span>
       )}
       <label className={inMenu ? 'menu-model-control' : 'model-control'}>
@@ -2567,21 +2639,6 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
               <ShieldCheck size={22} weight={isAutoApproveAll ? "fill" : "regular"} style={{ color: isAutoApproveAll ? '#10b981' : undefined }} />
             </HeaderIconButton>
 
-            <HeaderIconButton
-              onClick={() => setIsSpatialDesktopOpen(true)}
-              title="Área de Trabalho Espacial 3D (Espelhar Mac ao Vivo + Controle por Mãos)"
-              aria-label="Abrir Área de Trabalho Espacial"
-            >
-              <Monitor size={22} style={{ color: isSpatialDesktopOpen ? '#00f2fe' : undefined }} />
-            </HeaderIconButton>
-
-            <HeaderIconButton
-              onClick={() => setIsHandControlActive(prev => !prev)}
-              title={isHandControlActive ? "Desativar Controle por Gestos 3D VR" : "Ativar Controle Espacial por Gestos de Mão (Webcam/VR)"}
-              aria-label="Alternar controle por gestos"
-            >
-              <Hand size={22} weight={isHandControlActive ? "fill" : "regular"} style={{ color: isHandControlActive ? '#00f2fe' : undefined }} />
-            </HeaderIconButton>
             <HeaderIconButton onClick={() => setIsRightPanelOpen(!isRightPanelOpen)} title="Tarefas e contexto">
               <Columns size={24} weight={isRightPanelOpen ? "fill" : "regular"} />
             </HeaderIconButton>
@@ -3216,14 +3273,6 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
           {snackbarMessage}
         </Snackbar>
       )}
-      <HandSpatialControl
-        isActive={isHandControlActive}
-        onClose={() => setIsHandControlActive(false)}
-      />
-      <SpatialDesktopViewer
-        isOpen={isSpatialDesktopOpen}
-        onClose={() => setIsSpatialDesktopOpen(false)}
-      />
     </AppLayout>
   );
 }

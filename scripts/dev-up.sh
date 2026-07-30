@@ -17,18 +17,13 @@ BACKEND_URL_WAS_SET="${AVENTO_BACKEND_URL+x}"
 FRONTEND_URL_WAS_SET="${AVENTO_FRONTEND_URL+x}"
 BACKEND_URL="${AVENTO_BACKEND_URL:-http://127.0.0.1:8000}"
 
-# O front sobe em HTTPS por padrao. E o que o iPhone exige para abrir a camera no visor: getUserMedia
-# e bloqueado fora de contexto seguro, e localhost — a unica excecao — nao vale para o telefone, que
-# chega pelo IP da rede. AVENTO_HTTPS=0 volta ao http.
-#
-# O certificado e local (mkcert) ou autoassinado (basic-ssl); em nenhum dos dois casos o curl valida
-# sozinho, entao as sondas deste script usam -k. Isso vale so para loopback, dentro do dev.
-if [ "${AVENTO_HTTPS:-1}" = "0" ]; then
-  FRONTEND_SCHEME='http'
-  CURL_OPTS=(-fsS)
-else
+# HTTP e o padrao para desenvolvimento local. Para habilitar HTTPS no futuro: AVENTO_HTTPS=1.
+if [ "${AVENTO_HTTPS:-0}" = "1" ]; then
   FRONTEND_SCHEME='https'
   CURL_OPTS=(-fsS -k)
+else
+  FRONTEND_SCHEME='http'
+  CURL_OPTS=(-fsS)
 fi
 FRONTEND_URL="${AVENTO_FRONTEND_URL:-$FRONTEND_SCHEME://127.0.0.1:5173}"
 COMFYUI_URL="${AVENTO_COMFYUI_URL:-http://127.0.0.1:8188}"

@@ -8,16 +8,8 @@ import { fileURLToPath } from 'node:url'
 
 const apiProxyTarget = process.env.AVENTO_BACKEND_URL || 'http://127.0.0.1:8000'
 
-// HTTPS é o padrão, e desligar é que exige `AVENTO_HTTPS=0`.
-//
-// O iPhone só abre a câmera em contexto seguro: `getUserMedia` é bloqueado em http://192.168.x.x,
-// e localhost é a única exceção — que não vale para o telefone, que chega pelo IP da rede. Sem
-// HTTPS a tela /remote carrega e a câmera nunca liga, o que parece defeito do Avento e é política
-// do navegador.
-//
-// Já foi opcional. Na prática o custo de esquecer de ligar (o visor abre morto, sem nada no log
-// explicando) é muito maior que o de deixar ligado sempre — no Mac o HTTPS não atrapalha nada.
-const useHttps = process.env.AVENTO_HTTPS !== '0'
+// HTTP é o padrão para desenvolvimento local. Para habilitar HTTPS: `AVENTO_HTTPS=1`.
+const useHttps = process.env.AVENTO_HTTPS === '1'
 
 // Certificado do mkcert, quando existir.
 //

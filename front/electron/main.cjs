@@ -407,10 +407,9 @@ async function ensureViteDevServer() {
       return candidate;
     }
   }
-  // HTTPS por padrao: e o que o iPhone exige para abrir a camera, e subir em http aqui faria a tela
-  // /remote carregar com a camera morta sem nada no log explicando. `AVENTO_HTTPS=0` volta ao http.
-  const plainHttp = process.env.AVENTO_HTTPS === '0';
-  const script = plainHttp ? 'dev:web:http' : 'dev:web';
+  // HTTP e o padrao. `AVENTO_HTTPS=1` habilita https no desenvolvimento.
+  const useHttps = process.env.AVENTO_HTTPS === '1';
+  const script = useHttps ? 'dev:web:https' : 'dev:web';
 
   log(`subindo o servidor de desenvolvimento do front (${script})`);
   spawnOwned('npm', ['run', script], { cwd: path.join(PROJECT_ROOT, 'front') }, 'frontend.log');

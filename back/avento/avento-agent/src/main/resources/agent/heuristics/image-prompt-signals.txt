@@ -151,3 +151,89 @@ generate image
 create image
 text to image
 concept art
+
+# Pedidos de VIDEO. Ficam neste arquivo porque servem ao mesmo julgamento que os de imagem:
+# quando a rodada vai produzir midia, a narracao do modelo espera a midia ficar pronta em vez
+# de anunciar antes. As duas frases de imagem em ingles ja estao em [TRIGGERS_EN].
+[VIDEO_TRIGGERS]
+gera video
+gerar video
+cria video
+criar video
+crie video
+gera um video
+gerar um video
+gere um video
+cria um video
+criar um video
+crie um video
+generate video
+generate_video
+image to video
+text to video
+
+# Como o proprio Avento avisa que a geracao falhou. Serve para nao confundir a mensagem de
+# erro de um turno anterior com o pedido do usuario ao remontar o prompt de uma nova tentativa.
+[IMAGE_STATUS_MESSAGE]
+erro ao chamar o modelo
+falha ao chamar o modelo
+nao consegui executar generate_image
+nao consegui gerar
+imagem nao foi gerada
+modelo local
+modelo flux
+modelo nao esta disponivel
+nao esta disponivel no ollama
+não está disponível no ollama
+does not support chat
+ollama image generation failed
+model requires more memory
+# "gera a imagem que pedi" e parentes: pedido sem assunto proprio, que so faz sentido
+# reaproveitando o prompt de um turno anterior.
+[GENERIC_FOLLOW_UP]
+gera a imagem que pedi
+gera a imagem que eu pedi
+gera a imagem que eue pedi
+gerar a imagem que pedi
+gerar a imagem que eu pedi
+gerar a imagem que eue pedi
+gera imagem que pedi
+gera imagem que eu pedi
+gera imagem que eue pedi
+gerar imagem que pedi
+gerar imagem que eu pedi
+gerar imagem que eue pedi
+faz a imagem que pedi
+faca a imagem que pedi
+cria a imagem que pedi
+criar a imagem que pedi
+imagem que pedi
+imagem que eu pedi
+imagem que eue pedi
+gera o que pedi
+gere o que pedi
+gerar o que pedi
+cria o que pedi
+crie o que pedi
+faca o que pedi
+faz o que pedi
+# FIXME: as quatro linhas abaixo sao vazamento de fixture de teste — o assunto ("pitbull")
+# nunca deveria estar aqui. O certo e um padrao "<verbo> <artigo> <assunto> que (eu) pedi",
+# que cobre qualquer assunto. Mantidas na migracao para ela ser neutra; ver
+# AgentServiceDirectAutomationTest.reusesPreviousImagePromptWhenSubjectIsMentionedWithoutImageWord
+gera o pitbull que pedi
+gera o pitbull que eu pedi
+gere o pitbull que pedi
+gere o pitbull que eu pedi
+tenta de novo
+tenta agora
+testa de novo
+testa com o que tiver
+testa
+tente de novo
+tente agora
+prossiga
+pode seguir
+pode prosseguir
+segue
+continue

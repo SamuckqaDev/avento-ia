@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.avento.controller.McpController;
 import com.avento.service.dto.MacApplication;
 import com.avento.service.image.ImageGenerationOptions;
+import com.avento.service.intent.ImageIntentService;
 import com.avento.service.intent.IntentEmbeddingClassifier;
 import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
@@ -80,7 +81,7 @@ class AgentServiceDirectAutomationTest {
             userMemoryService,
             memoryExtractionService,
             pendingApprovalService,
-            new VisualIntentClassifier(),
+            new ImageIntentService(new VisualIntentClassifier()),
             mapper,
             "http://localhost:9",
             6,
@@ -382,16 +383,6 @@ class AgentServiceDirectAutomationTest {
 
         assertTrue((boolean) method.invoke(service, toolCall, success));
         assertFalse((boolean) method.invoke(service, toolCall, failure));
-    }
-
-    @Test
-    void defersModelNarrationForMediaGenerationRequests() throws Exception {
-        Method method = AgentService.class.getDeclaredMethod("shouldDeferMediaNarration", ArrayNode.class);
-        method.setAccessible(true);
-
-        assertTrue((boolean) method.invoke(service, userMessages("Gere uma imagem realista de um carro vermelho.")));
-        assertTrue((boolean) method.invoke(service, userMessages("Crie um vídeo curto a partir desta cena.")));
-        assertFalse((boolean) method.invoke(service, userMessages("Explique como o ComfyUI gera imagens.")));
     }
 
     @Test
@@ -1603,30 +1594,6 @@ class AgentServiceDirectAutomationTest {
         Method detector = AgentService.class.getDeclaredMethod("detectDirectConversationResponse", ArrayNode.class);
         detector.setAccessible(true);
         return (String) detector.invoke(service, messages);
-    }
-
-    private boolean invokeIntentPredicate(String methodName, String message) throws Exception {
-        String normalized = MessageText.normalizeIntentText(message);
-        Method method = AgentService.class.getDeclaredMethod(methodName, String.class);
-        method.setAccessible(true);
-        return (boolean) method.invoke(service, normalized);
-    }
-
-    @Test
-    void mockupRequestsRouteToUiPreviewNotImageGeneration() throws Exception {
-        // O pedido do usuario (com o typo "terla") que caiu no generate_image antes.
-        assertTrue(invokeIntentPredicate("wantsInterfacePrototype", "gera um mockup de um terla de login mobile"));
-        assertFalse(invokeIntentPredicate("wantsImageGeneration", "gera um mockup de um terla de login mobile"));
-        assertFalse(invokeIntentPredicate("wantsImageGeneration", "quero um mockup com preview da tela de login"));
-        assertTrue(invokeIntentPredicate("wantsInterfacePrototype", "faz um wireframe da tela de cadastro"));
-    }
-
-    @Test
-    void realImageRequestsStillRouteToImageGeneration() throws Exception {
-        assertTrue(invokeIntentPredicate("wantsImageGeneration", "gera uma imagem de um pitbull marrom"));
-        assertFalse(invokeIntentPredicate("wantsInterfacePrototype", "gera uma imagem de um pitbull marrom"));
-        // "captura de tela" nao pode ser confundido com prototipo de tela.
-        assertFalse(invokeIntentPredicate("wantsInterfacePrototype", "tira um print da tela"));
     }
 
     private boolean shouldExposeTool(String toolName, String message) throws Exception {

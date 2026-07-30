@@ -8,9 +8,9 @@ import com.avento.service.dto.SkillResolution;
 import com.avento.service.dto.ToolCall;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.intent.AgentIntent;
+import com.avento.service.intent.ImageIntentService;
 import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
-import com.avento.service.intent.VisualIntentClassifier;
 import com.avento.service.orchestration.AgentExecutionEngine;
 import com.avento.service.support.HeuristicWordLists;
 import com.avento.service.support.HistoryText;
@@ -206,7 +206,7 @@ public class AgentService implements AgentExecutionEngine {
     private final UserMemoryService userMemoryService;
     private final MemoryExtractionService memoryExtractionService;
     private final PendingToolApprovalService pendingApprovalService;
-    private final VisualIntentClassifier visualIntentClassifier;
+    private final ImageIntentService imageIntentService;
 
     @Value("${avento.image.default-model:comfyui:RealVisXL_V5.0_fp16.safetensors}")
     private String defaultImageModel;
@@ -266,7 +266,7 @@ public class AgentService implements AgentExecutionEngine {
             UserMemoryService userMemoryService,
             MemoryExtractionService memoryExtractionService,
             PendingToolApprovalService pendingApprovalService,
-            VisualIntentClassifier visualIntentClassifier,
+            ImageIntentService imageIntentService,
             ObjectMapper mapper,
             @Value("${spring.ai.ollama.base-url:http://localhost:11434}") String ollamaBaseUrl,
             @Value("${avento.agent.max-tool-rounds:6}") int maxToolRounds,
@@ -305,7 +305,7 @@ public class AgentService implements AgentExecutionEngine {
         this.userMemoryService = userMemoryService;
         this.memoryExtractionService = memoryExtractionService;
         this.pendingApprovalService = pendingApprovalService;
-        this.visualIntentClassifier = visualIntentClassifier;
+        this.imageIntentService = imageIntentService;
         this.mapper = mapper;
         this.webClient = WebClient.builder().baseUrl(ollamaBaseUrl).build();
         this.maxToolRounds = maxToolRounds;
@@ -825,7 +825,7 @@ public class AgentService implements AgentExecutionEngine {
                 messages.size());
 
         return Flux.create(sink -> {
-            TurnCapture capture = new TurnCapture(shouldDeferMediaNarration(messages));
+            TurnCapture capture = new TurnCapture(imageIntentService.shouldDeferMediaNarration(messages));
             sink.next(eventChunk(
                     "agent.round.started",
                     "Rodada " + round + " iniciada",
@@ -1085,7 +1085,7 @@ public class AgentService implements AgentExecutionEngine {
         // Mockup/tela/interface = bloco ui-preview (HTML), nao ferramenta. Devolve conjunto vazio
         // para o modelo escrever o preview direto — e, crucial, para que generate_image nao fique
         // exposto e o modelo nao caia em gerar uma imagem feia e cara no lugar do preview.
-        if (wantsInterfacePrototype(normalized)) {
+        if (imageIntentService.wantsInterfacePrototype(normalized)) {
             return selectedTools;
         }
         // Pedido de imagem/captura PRIORIZA a ferramenta correspondente, mas nao exclui as demais:
@@ -1093,7 +1093,7 @@ public class AgentService implements AgentExecutionEngine {
         // dela" ficava so com generate_image). A prioridade garante a ferramenta certa no topo e
         // dentro do teto; o resto da selecao continua valendo.
         Set<String> priorityTools = new HashSet<>();
-        if (wantsImageGeneration(normalized)) {
+        if (imageIntentService.wantsImageGeneration(normalized)) {
             priorityTools.add("generate_image");
         }
         if (wantsScreenCapture(normalized)) {
@@ -1277,7 +1277,7 @@ public class AgentService implements AgentExecutionEngine {
             return true;
         }
 
-        if (wantsImageGeneration(normalizedMessage)) {
+        if (imageIntentService.wantsImageGeneration(normalizedMessage)) {
             return "generate_image".equals(toolName);
         }
         if (wantsScreenCapture(normalizedMessage)) {
@@ -1288,238 +1288,16 @@ public class AgentService implements AgentExecutionEngine {
 
     // Pedido de mockup/tela/interface NUNCA e geracao de imagem — vai para um bloco ui-preview
     // (HTML), que renderiza e vira artefato baixavel. Evita gerar imagem feia e cara no ComfyUI.
-    private boolean wantsInterfacePrototype(String normalizedMessage) {
-        return visualIntentClassifier.isInterfacePrototype(normalizedMessage);
-    }
-
-    private boolean wantsImageGeneration(String normalizedMessage) {
-        if (wantsInterfacePrototype(normalizedMessage)) {
-            return false;
-        }
-        return visualIntentClassifier.isProductMockup(normalizedMessage)
-                || matchesImageGenerationTrigger(normalizedMessage);
-    }
-
-    // Estatico e visivel ao teste de proposito: a lista mora num .txt editavel sem recompilar,
-    // entao ImageGenerationTriggerTest e a unica coisa que impede alguem de apagar uma frase
-    // sem perceber. Ver agent/heuristics/image-prompt-signals.txt, secoes [TRIGGERS_*].
-    static boolean matchesImageGenerationTrigger(String normalizedMessage) {
-        if (normalizedMessage == null || normalizedMessage.isBlank()) {
-            return false;
-        }
-        return IMAGE_GENERATION_TRIGGERS.stream().anyMatch(normalizedMessage::contains);
-    }
-
-    private boolean shouldDeferMediaNarration(ArrayNode messages) {
-        String userMessage = MessageText.lastUserMessage(messages);
-        if (userMessage == null || userMessage.isBlank()) {
-            return false;
-        }
-        String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(userMessage));
-        return wantsImageGeneration(normalized)
-                || normalized.contains("generate image")
-                || normalized.contains("generate_image")
-                || normalized.contains("gera video")
-                || normalized.contains("gerar video")
-                || normalized.contains("cria video")
-                || normalized.contains("criar video")
-                || normalized.contains("crie video")
-                || normalized.contains("gera um video")
-                || normalized.contains("gerar um video")
-                || normalized.contains("gere um video")
-                || normalized.contains("cria um video")
-                || normalized.contains("criar um video")
-                || normalized.contains("crie um video")
-                || normalized.contains("generate video")
-                || normalized.contains("generate_video")
-                || normalized.contains("image to video")
-                || normalized.contains("text to video");
-    }
-
     private ToolCall detectDirectImageGenerationRequest(ArrayNode messages) {
-        String lastUserMessage = MessageText.lastUserMessage(messages);
-        if (lastUserMessage == null || lastUserMessage.isBlank()) {
-            return null;
-        }
-
-        String directRequest = MessageText.extractDirectUserRequest(lastUserMessage);
-        String normalized = MessageText.normalizeIntentText(directRequest);
-        // Este e o atalho que PULA o modelo inteiramente e chama generate_image
-        // direto — precisa ser de alta precisao (so frase exata), nao de alto
-        // recall. O classificador por embedding e recall-oriented (bom pra
-        // EXPOR a ferramenta, ruim pra decidir sozinho por ela) e ja tinha
-        // causado falso positivo aqui (ex.: "faca uma analisa dessa pasta"
-        // acionando generate_image). Ele continua valendo via
-        // intentRouter.classify() na exposicao de ferramentas, so nao aqui.
-        boolean directImageRequest = wantsImageGeneration(normalized);
-        boolean standaloneImagePrompt = looksLikeStandaloneImagePrompt(directRequest);
-        boolean retryingPreviousImageRequest = isGenericImageGenerationFollowUp(directRequest)
-                && hasPreviousImageGenerationContext(messages, directRequest);
-        if (!directImageRequest && !standaloneImagePrompt && !retryingPreviousImageRequest) {
-            return null;
-        }
-
-        ObjectNode arguments = mapper.createObjectNode();
-        arguments.put("prompt", imageGenerationPrompt(messages, directRequest));
-        return new ToolCall("call_direct_" + UUID.randomUUID().toString().substring(0, 8), "generate_image", arguments);
-    }
-
-    private boolean looksLikeStandaloneImagePrompt(String request) {
-        if (request == null || request.length() < 80 || request.contains("?")) {
-            return false;
-        }
-        String normalized = MessageText.normalizeIntentText(request);
-        if (countImagePromptSignals(normalized, "DISCUSSION") > 0) {
-            return false;
-        }
-        return countImagePromptSignals(normalized, "VISUAL_STYLE") >= 2
-                && countImagePromptSignals(normalized, "COMPOSITION") >= 2;
-    }
-
-    private long countImagePromptSignals(String normalized, String section) {
-        return IMAGE_PROMPT_SIGNALS.getOrDefault(section, List.of()).stream()
-                .filter(normalized::contains)
-                .count();
-    }
-
-    private String imageGenerationPrompt(ArrayNode messages, String directRequest) {
-        String trimmedRequest = directRequest == null ? "" : directRequest.trim();
-        if (!isGenericImageGenerationFollowUp(trimmedRequest)) {
-            return trimmedRequest;
-        }
-
-        return previousUserPrompt(messages, false)
-                .or(() -> previousAssistantImagePrompt(messages))
-                .or(() -> imageSubjectPrompt(messages, trimmedRequest))
-                .orElse(trimmedRequest.isBlank() ? "Gere uma imagem a partir do pedido do usuário." : trimmedRequest);
-    }
-
-    private boolean hasPreviousImageGenerationContext(ArrayNode messages, String directRequest) {
-        return previousUserPrompt(messages, true).isPresent()
-                || previousAssistantImagePrompt(messages).isPresent()
-                || imageSubjectPrompt(messages, directRequest).isPresent();
-    }
-
-    private Optional<String> previousUserPrompt(ArrayNode messages, boolean requireImageIntent) {
-        for (int index = messages.size() - 2; index >= 0; index--) {
-            JsonNode message = messages.get(index);
-            if (!"user".equals(message.path("role").asText(""))) {
-                continue;
-            }
-            String previousRequest = MessageText.extractDirectUserRequest(
-                            message.path("content").asText(""))
-                    .trim();
-            String normalizedPreviousRequest = MessageText.normalizeIntentText(previousRequest);
-            if (!previousRequest.isBlank()
-                    && (!requireImageIntent || wantsImageGeneration(normalizedPreviousRequest))
-                    && !isGenericImageGenerationFollowUp(previousRequest)
-                    && !isImageGenerationStatusMessage(normalizedPreviousRequest)
-                    && !MessageText.isCasualUserMessage(normalizedPreviousRequest)) {
-                return Optional.of(previousRequest);
-            }
-        }
-        return Optional.empty();
-    }
-
-    private Optional<String> previousAssistantImagePrompt(ArrayNode messages) {
-        Pattern imageSubject = Pattern.compile("(?iu)\\bimagem\\s+(?:do|da|de um|de uma)\\s+([^.!?]+)");
-        for (int index = messages.size() - 2; index >= 0; index--) {
-            JsonNode message = messages.get(index);
-            if (!"assistant".equals(message.path("role").asText(""))) {
-                continue;
-            }
-            String content = message.path("content").asText("");
-            if (!isImageGenerationStatusMessage(MessageText.normalizeIntentText(content))) {
-                continue;
-            }
-            Matcher matcher = imageSubject.matcher(content);
-            if (matcher.find()) {
-                return Optional.of("Gere uma imagem de " + matcher.group(1).trim() + ".");
-            }
-        }
-        return Optional.empty();
-    }
-
-    private Optional<String> imageSubjectPrompt(ArrayNode messages, String directRequest) {
-        String request = directRequest == null ? "" : directRequest.trim();
-        Matcher subjectMatcher = Pattern.compile(
-                        "(?iu)^(?:gera|gere|faz|faça|faca|cria|crie)\\s+(?:o|a|um|uma)?\\s*(.+?)(?:\\s+que\\s+(?:eu\\s+)?pedi)?[.!?]*$")
-                .matcher(request);
-        if (subjectMatcher.matches()) {
-            String subject = subjectMatcher.group(1).trim();
-            if (!subject.isBlank()
-                    && !MessageText.containsAny(
-                            MessageText.normalizeIntentText(subject), "imagem", "o que", "isso", "de novo")) {
-                return Optional.of("Gere uma imagem de " + subject + ".");
-            }
-        }
-        return Optional.empty();
-    }
-
-    private boolean isImageGenerationStatusMessage(String normalizedMessage) {
-        return MessageText.containsAny(
-                normalizedMessage,
-                "erro ao chamar o modelo",
-                "falha ao chamar o modelo",
-                "nao consegui executar generate_image",
-                "nao consegui gerar",
-                "imagem nao foi gerada",
-                "modelo local",
-                "modelo flux",
-                "modelo nao esta disponivel",
-                "nao esta disponivel no ollama",
-                "não está disponível no ollama",
-                "does not support chat",
-                "ollama image generation failed",
-                "model requires more memory");
-    }
-
-    private boolean isGenericImageGenerationFollowUp(String request) {
-        String normalized = MessageText.normalizeIntentText(request);
-        return MessageText.containsAny(
-                normalized,
-                "gera a imagem que pedi",
-                "gera a imagem que eu pedi",
-                "gera a imagem que eue pedi",
-                "gerar a imagem que pedi",
-                "gerar a imagem que eu pedi",
-                "gerar a imagem que eue pedi",
-                "gera imagem que pedi",
-                "gera imagem que eu pedi",
-                "gera imagem que eue pedi",
-                "gerar imagem que pedi",
-                "gerar imagem que eu pedi",
-                "gerar imagem que eue pedi",
-                "faz a imagem que pedi",
-                "faca a imagem que pedi",
-                "cria a imagem que pedi",
-                "criar a imagem que pedi",
-                "imagem que pedi",
-                "imagem que eu pedi",
-                "imagem que eue pedi",
-                "gera o que pedi",
-                "gere o que pedi",
-                "gerar o que pedi",
-                "cria o que pedi",
-                "crie o que pedi",
-                "faca o que pedi",
-                "faz o que pedi",
-                "gera o pitbull que pedi",
-                "gera o pitbull que eu pedi",
-                "gere o pitbull que pedi",
-                "gere o pitbull que eu pedi",
-                "tenta de novo",
-                "tenta agora",
-                "testa de novo",
-                "testa com o que tiver",
-                "testa",
-                "tente de novo",
-                "tente agora",
-                "prossiga",
-                "pode seguir",
-                "pode prosseguir",
-                "segue",
-                "continue");
+        return imageIntentService
+                .detectDirectImageGenerationRequest(messages)
+                .map(prompt -> {
+                    ObjectNode arguments = mapper.createObjectNode();
+                    arguments.put("prompt", prompt);
+                    return new ToolCall(
+                            "call_direct_" + UUID.randomUUID().toString().substring(0, 8), "generate_image", arguments);
+                })
+                .orElse(null);
     }
 
     private ArrayNode withBackendIdentityPrompt(ArrayNode messages, List<String> workspaceRoots, UUID userId) {
@@ -2530,7 +2308,7 @@ public class AgentService implements AgentExecutionEngine {
         if (normalizedMessage == null || normalizedMessage.isBlank()) {
             return false;
         }
-        if (wantsImageGeneration(normalizedMessage) || wantsScreenCapture(normalizedMessage)) {
+        if (imageIntentService.wantsImageGeneration(normalizedMessage) || wantsScreenCapture(normalizedMessage)) {
             return true;
         }
         for (String actionWord : PROJECT_ACTION_WORDS) {

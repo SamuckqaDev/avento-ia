@@ -1,4 +1,4 @@
-package com.avento.service;
+package com.avento.service.intent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -105,7 +105,7 @@ class ImageGenerationTriggerTest {
     @Test
     void everyPhraseFromTheOldJavaListStillTriggers() {
         for (String phrase : TRIGGERS_FROM_THE_OLD_JAVA_LIST) {
-            assertThat(AgentService.matchesImageGenerationTrigger(phrase))
+            assertThat(ImageIntentService.matchesGenerationTrigger(phrase))
                     .as("frase que disparava antes da migração: '%s'", phrase)
                     .isTrue();
         }
@@ -132,7 +132,7 @@ class ImageGenerationTriggerTest {
                 "qual a cotacao do dolar",
                 "me da um prompt melhor pra essa imagem");
         for (String request : notImageRequests) {
-            assertThat(AgentService.matchesImageGenerationTrigger(request))
+            assertThat(ImageIntentService.matchesGenerationTrigger(request))
                     .as("pedido que não é de geração de imagem: '%s'", request)
                     .isFalse();
         }

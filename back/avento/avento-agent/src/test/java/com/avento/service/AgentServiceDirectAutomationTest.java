@@ -13,6 +13,7 @@ import com.avento.service.intent.IntentEmbeddingClassifier;
 import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
 import com.avento.service.intent.VisualIntentClassifier;
+import com.avento.service.support.MessageText;
 import com.avento.service.support.ModelNames;
 import com.avento.service.support.SkillRegistry;
 import com.avento.service.tools.ToolCapabilityRegistry;
@@ -1605,9 +1606,7 @@ class AgentServiceDirectAutomationTest {
     }
 
     private boolean invokeIntentPredicate(String methodName, String message) throws Exception {
-        Method normalize = AgentService.class.getDeclaredMethod("normalizeIntentText", String.class);
-        normalize.setAccessible(true);
-        String normalized = (String) normalize.invoke(service, message);
+        String normalized = MessageText.normalizeIntentText(message);
         Method method = AgentService.class.getDeclaredMethod(methodName, String.class);
         method.setAccessible(true);
         return (boolean) method.invoke(service, normalized);
@@ -1631,9 +1630,7 @@ class AgentServiceDirectAutomationTest {
     }
 
     private boolean shouldExposeTool(String toolName, String message) throws Exception {
-        Method normalize = AgentService.class.getDeclaredMethod("normalizeIntentText", String.class);
-        normalize.setAccessible(true);
-        String normalized = (String) normalize.invoke(service, message);
+        String normalized = MessageText.normalizeIntentText(message);
 
         Field intentRouterField = AgentService.class.getDeclaredField("intentRouter");
         intentRouterField.setAccessible(true);

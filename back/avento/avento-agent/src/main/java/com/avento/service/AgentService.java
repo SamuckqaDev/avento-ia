@@ -14,6 +14,7 @@ import com.avento.service.intent.VisualIntentClassifier;
 import com.avento.service.orchestration.AgentExecutionEngine;
 import com.avento.service.support.HeuristicWordLists;
 import com.avento.service.support.HistoryText;
+import com.avento.service.support.MessageText;
 import com.avento.service.support.ModelNames;
 import com.avento.service.support.ProviderErrorTranslator;
 import com.avento.service.support.SkillRegistry;
@@ -30,7 +31,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.Normalizer;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -700,8 +700,8 @@ public class AgentService implements AgentExecutionEngine {
         if (content.isEmpty()) {
             return SkillResolution.NOT_INVOKED;
         }
-        String normalized = normalizeIntentText(extractDirectUserRequest(content));
-        if (normalized.isBlank() || isCasualUserMessage(normalized)) {
+        String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(content));
+        if (normalized.isBlank() || MessageText.isCasualUserMessage(normalized)) {
             return SkillResolution.NOT_INVOKED;
         }
 
@@ -914,7 +914,7 @@ public class AgentService implements AgentExecutionEngine {
         // Conecta sob demanda os servidores MCP que o pedido precisa (ex.: git) antes de listar, para
         // que as ferramentas deles já entrem no toolset desta rodada — "pega a ferramenta que precisa".
         ToolExecutionGateway.ToolListing listing = toolGateway.listToolsWithAutoConnect(
-                state.userId, state.chatId, state.runId, lastUserMessage(messages), state.workspaceRoots);
+                state.userId, state.chatId, state.runId, MessageText.lastUserMessage(messages), state.workspaceRoots);
         ArrayNode availableTools = listing.tools();
         // O catálogo da rodada é a referência do parser de fallback textual: uma chamada escrita
         // como texto só vira execução se o nome existir aqui (local OU MCP externa conectada).
@@ -1066,13 +1066,13 @@ public class AgentService implements AgentExecutionEngine {
             }
         }
 
-        String lastUserMessage = lastUserMessage(messages);
+        String lastUserMessage = MessageText.lastUserMessage(messages);
         if (lastUserMessage == null || lastUserMessage.isBlank()) {
             return selectedTools;
         }
 
-        String normalized = normalizeIntentText(extractDirectUserRequest(lastUserMessage));
-        if (isCasualUserMessage(normalized)) {
+        String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(lastUserMessage));
+        if (MessageText.isCasualUserMessage(normalized)) {
             return selectedTools;
         }
 
@@ -1311,11 +1311,11 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean shouldDeferMediaNarration(ArrayNode messages) {
-        String userMessage = lastUserMessage(messages);
+        String userMessage = MessageText.lastUserMessage(messages);
         if (userMessage == null || userMessage.isBlank()) {
             return false;
         }
-        String normalized = normalizeIntentText(extractDirectUserRequest(userMessage));
+        String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(userMessage));
         return wantsImageGeneration(normalized)
                 || normalized.contains("generate image")
                 || normalized.contains("generate_image")
@@ -1337,13 +1337,13 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private ToolCall detectDirectImageGenerationRequest(ArrayNode messages) {
-        String lastUserMessage = lastUserMessage(messages);
+        String lastUserMessage = MessageText.lastUserMessage(messages);
         if (lastUserMessage == null || lastUserMessage.isBlank()) {
             return null;
         }
 
-        String directRequest = extractDirectUserRequest(lastUserMessage);
-        String normalized = normalizeIntentText(directRequest);
+        String directRequest = MessageText.extractDirectUserRequest(lastUserMessage);
+        String normalized = MessageText.normalizeIntentText(directRequest);
         // Este e o atalho que PULA o modelo inteiramente e chama generate_image
         // direto — precisa ser de alta precisao (so frase exata), nao de alto
         // recall. O classificador por embedding e recall-oriented (bom pra
@@ -1368,7 +1368,7 @@ public class AgentService implements AgentExecutionEngine {
         if (request == null || request.length() < 80 || request.contains("?")) {
             return false;
         }
-        String normalized = normalizeIntentText(request);
+        String normalized = MessageText.normalizeIntentText(request);
         if (countImagePromptSignals(normalized, "DISCUSSION") > 0) {
             return false;
         }
@@ -1406,14 +1406,15 @@ public class AgentService implements AgentExecutionEngine {
             if (!"user".equals(message.path("role").asText(""))) {
                 continue;
             }
-            String previousRequest =
-                    extractDirectUserRequest(message.path("content").asText("")).trim();
-            String normalizedPreviousRequest = normalizeIntentText(previousRequest);
+            String previousRequest = MessageText.extractDirectUserRequest(
+                            message.path("content").asText(""))
+                    .trim();
+            String normalizedPreviousRequest = MessageText.normalizeIntentText(previousRequest);
             if (!previousRequest.isBlank()
                     && (!requireImageIntent || wantsImageGeneration(normalizedPreviousRequest))
                     && !isGenericImageGenerationFollowUp(previousRequest)
                     && !isImageGenerationStatusMessage(normalizedPreviousRequest)
-                    && !isCasualUserMessage(normalizedPreviousRequest)) {
+                    && !MessageText.isCasualUserMessage(normalizedPreviousRequest)) {
                 return Optional.of(previousRequest);
             }
         }
@@ -1428,7 +1429,7 @@ public class AgentService implements AgentExecutionEngine {
                 continue;
             }
             String content = message.path("content").asText("");
-            if (!isImageGenerationStatusMessage(normalizeIntentText(content))) {
+            if (!isImageGenerationStatusMessage(MessageText.normalizeIntentText(content))) {
                 continue;
             }
             Matcher matcher = imageSubject.matcher(content);
@@ -1447,7 +1448,8 @@ public class AgentService implements AgentExecutionEngine {
         if (subjectMatcher.matches()) {
             String subject = subjectMatcher.group(1).trim();
             if (!subject.isBlank()
-                    && !containsAny(normalizeIntentText(subject), "imagem", "o que", "isso", "de novo")) {
+                    && !MessageText.containsAny(
+                            MessageText.normalizeIntentText(subject), "imagem", "o que", "isso", "de novo")) {
                 return Optional.of("Gere uma imagem de " + subject + ".");
             }
         }
@@ -1455,7 +1457,7 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean isImageGenerationStatusMessage(String normalizedMessage) {
-        return containsAny(
+        return MessageText.containsAny(
                 normalizedMessage,
                 "erro ao chamar o modelo",
                 "falha ao chamar o modelo",
@@ -1473,8 +1475,8 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean isGenericImageGenerationFollowUp(String request) {
-        String normalized = normalizeIntentText(request);
-        return containsAny(
+        String normalized = MessageText.normalizeIntentText(request);
+        return MessageText.containsAny(
                 normalized,
                 "gera a imagem que pedi",
                 "gera a imagem que eu pedi",
@@ -1547,8 +1549,8 @@ public class AgentService implements AgentExecutionEngine {
         int start = Math.max(0, messages.size() - 8);
         for (int index = messages.size() - 1; index >= start; index--) {
             String content = messages.get(index).path("content").asText("");
-            String normalized = normalizeIntentText(extractDirectUserRequest(content));
-            if (containsAny(
+            String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(content));
+            if (MessageText.containsAny(
                     normalized,
                     "avento",
                     "quem e voce",
@@ -1660,8 +1662,9 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private String conversationContinuityBlock(ArrayNode messages) {
-        String latestRequest = lastUserMessage(messages);
-        if (latestRequest == null || !isGenericContinuationRequest(extractDirectUserRequest(latestRequest))) {
+        String latestRequest = MessageText.lastUserMessage(messages);
+        if (latestRequest == null
+                || !isGenericContinuationRequest(MessageText.extractDirectUserRequest(latestRequest))) {
             return "";
         }
 
@@ -1675,11 +1678,12 @@ public class AgentService implements AgentExecutionEngine {
                 skippedLatest = true;
                 continue;
             }
-            String request =
-                    extractDirectUserRequest(message.path("content").asText("")).trim();
+            String request = MessageText.extractDirectUserRequest(
+                            message.path("content").asText(""))
+                    .trim();
             if (request.isBlank()
                     || isGenericContinuationRequest(request)
-                    || isCasualUserMessage(normalizeIntentText(request))) {
+                    || MessageText.isCasualUserMessage(MessageText.normalizeIntentText(request))) {
                 continue;
             }
             String compactRequest = request.length() <= 1_200 ? request : request.substring(0, 1_200) + "...";
@@ -1692,8 +1696,8 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean isGenericContinuationRequest(String request) {
-        String normalized = normalizeIntentText(request);
-        return containsAny(
+        String normalized = MessageText.normalizeIntentText(request);
+        return MessageText.containsAny(
                 normalized,
                 "continue",
                 "continua",
@@ -1866,7 +1870,7 @@ public class AgentService implements AgentExecutionEngine {
             return content == null ? "" : content;
         }
 
-        int requestStart = directUserRequestStart(content);
+        int requestStart = MessageText.directUserRequestStart(content);
         if (requestStart < 0) {
             return content;
         }
@@ -2279,7 +2283,7 @@ public class AgentService implements AgentExecutionEngine {
                                 emptyTurn
                                         ? "O modelo terminou a rodada sem texto e sem ferramenta; repetindo com instrução explícita."
                                         : "O modelo disse que ia agir mas não chamou nenhuma ferramenta; repetindo com instrução explícita."));
-                String originalRequest = lastUserMessage(messages);
+                String originalRequest = MessageText.lastUserMessage(messages);
                 ArrayNode nudged = messages.deepCopy();
                 ObjectNode nudge = nudged.addObject();
                 nudge.put("role", "user");
@@ -2498,11 +2502,11 @@ public class AgentService implements AgentExecutionEngine {
         if (round != 1 || state.retriedWithFullToolset || state.forceFullToolset) {
             return false;
         }
-        String lastUserMessage = lastUserMessage(messages);
+        String lastUserMessage = MessageText.lastUserMessage(messages);
         if (lastUserMessage == null || lastUserMessage.contains("[Project Analysis]")) {
             return false;
         }
-        String normalized = normalizeIntentText(extractDirectUserRequest(lastUserMessage));
+        String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(lastUserMessage));
         return isActionableToolRequest(normalized);
     }
 
@@ -2514,11 +2518,11 @@ public class AgentService implements AgentExecutionEngine {
         if (state.executedToolCalls > 0) {
             return false;
         }
-        String lastUserMessage = lastUserMessage(messages);
+        String lastUserMessage = MessageText.lastUserMessage(messages);
         if (lastUserMessage == null) {
             return false;
         }
-        String normalized = normalizeIntentText(extractDirectUserRequest(lastUserMessage));
+        String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(lastUserMessage));
         return isActionableToolRequest(normalized);
     }
 
@@ -2961,12 +2965,12 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private ApprovalVoiceCommand detectApprovalVoiceCommand(ArrayNode messages, UUID userId) {
-        String lastUserMessage = lastUserMessage(messages);
+        String lastUserMessage = MessageText.lastUserMessage(messages);
         if (lastUserMessage == null) {
             return null;
         }
 
-        String normalized = normalizeIntentText(lastUserMessage);
+        String normalized = MessageText.normalizeIntentText(lastUserMessage);
         ApprovalVoiceDecision decision = approvalVoiceDecision(normalized);
         if (decision == null) {
             return null;
@@ -3032,7 +3036,7 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private ApprovalVoiceDecision approvalVoiceDecision(String normalized) {
-        if (containsAny(
+        if (MessageText.containsAny(
                 normalized,
                 "nao executa",
                 "nao roda",
@@ -3048,7 +3052,7 @@ public class AgentService implements AgentExecutionEngine {
             return ApprovalVoiceDecision.REJECT;
         }
 
-        if (containsAny(
+        if (MessageText.containsAny(
                 normalized,
                 "pode executar",
                 "pode abrir",
@@ -3078,26 +3082,26 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private ApprovalMemory approvalMemory(String normalized) {
-        if (containsAny(normalized, "sempre neste projeto", "sempre nesse projeto", "sempre neste repo")) {
+        if (MessageText.containsAny(normalized, "sempre neste projeto", "sempre nesse projeto", "sempre neste repo")) {
             return new ApprovalMemory(null, true, "sempre neste projeto");
         }
-        if (containsAny(normalized, "24 horas", "vinte quatro horas", "um dia", "1 dia")) {
+        if (MessageText.containsAny(normalized, "24 horas", "vinte quatro horas", "um dia", "1 dia")) {
             return new ApprovalMemory(Duration.ofHours(24), false, "por 24 horas neste projeto");
         }
-        if (containsAny(normalized, "1 hora", "uma hora", "por hora")) {
+        if (MessageText.containsAny(normalized, "1 hora", "uma hora", "por hora")) {
             return new ApprovalMemory(Duration.ofHours(1), false, "por 1 hora neste projeto");
         }
         return ApprovalMemory.once();
     }
 
     private String detectDirectConversationResponse(ArrayNode messages) {
-        String lastUserMessage = lastUserMessage(messages);
+        String lastUserMessage = MessageText.lastUserMessage(messages);
         if (lastUserMessage == null || lastUserMessage.isBlank()) {
             return null;
         }
 
-        lastUserMessage = extractDirectUserRequest(lastUserMessage);
-        String normalized = normalizeIntentText(lastUserMessage);
+        lastUserMessage = MessageText.extractDirectUserRequest(lastUserMessage);
+        String normalized = MessageText.normalizeIntentText(lastUserMessage);
         if (normalized.isBlank()) {
             return null;
         }
@@ -3106,7 +3110,7 @@ public class AgentService implements AgentExecutionEngine {
             return "Oi! Sou o Avento. Como posso ajudar?\n";
         }
 
-        if (containsAny(
+        if (MessageText.containsAny(
                 normalized,
                 "chega",
                 "cala boca",
@@ -3122,7 +3126,7 @@ public class AgentService implements AgentExecutionEngine {
         }
 
         if (normalized.length() <= 40
-                && containsAny(
+                && MessageText.containsAny(
                         normalized,
                         "comervais",
                         "comer vais",
@@ -3143,12 +3147,12 @@ public class AgentService implements AgentExecutionEngine {
             return identityResponse();
         }
 
-        if (normalized.length() <= 60 && containsAny(normalized, "portugues brasileiro natural")) {
+        if (normalized.length() <= 60 && MessageText.containsAny(normalized, "portugues brasileiro natural")) {
             return "Estou te ouvindo em português brasileiro. Pode falar o pedido normalmente.\n";
         }
 
         if (normalized.length() <= 80
-                && containsAny(
+                && MessageText.containsAny(
                         normalized,
                         "bom dia",
                         "boa tarde",
@@ -3167,41 +3171,8 @@ public class AgentService implements AgentExecutionEngine {
         return null;
     }
 
-    private String extractDirectUserRequest(String message) {
-        int requestStart = directUserRequestStart(message);
-        if (requestStart < 0) {
-            return message;
-        }
-
-        String extracted = message.substring(requestStart).trim();
-        return extracted.isBlank() ? message : extracted;
-    }
-
-    private int directUserRequestStart(String message) {
-        String lower = message.toLowerCase(Locale.ROOT);
-        int requestStart = -1;
-        int marker = lower.lastIndexOf("responda ao seguinte pedido");
-        if (marker >= 0) {
-            int separator = message.indexOf(":\n\n", marker);
-            if (separator >= 0) {
-                requestStart = separator + 3;
-            }
-        }
-
-        String explicitMarker = "[pedido do usuário]";
-        int explicitRequest = lower.lastIndexOf(explicitMarker);
-        if (explicitRequest >= 0) {
-            int explicitStart = explicitRequest + explicitMarker.length();
-            while (explicitStart < message.length() && Character.isWhitespace(message.charAt(explicitStart))) {
-                explicitStart++;
-            }
-            requestStart = Math.max(requestStart, explicitStart);
-        }
-        return requestStart;
-    }
-
     private ToolCall detectDirectSystemAutomationRequest(ArrayNode messages) {
-        String lastUserMessage = lastUserMessage(messages);
+        String lastUserMessage = MessageText.lastUserMessage(messages);
         if (lastUserMessage == null || lastUserMessage.isBlank()) {
             return null;
         }
@@ -3211,9 +3182,9 @@ public class AgentService implements AgentExecutionEngine {
         // own "Apps detectados: Finder, Terminal, ..." text (which always lists
         // Finder first) gets matched by detectKnownAppName instead of the app the
         // user actually asked for.
-        lastUserMessage = extractDirectUserRequest(lastUserMessage);
-        String normalized = normalizeIntentText(lastUserMessage);
-        if (isCasualUserMessage(normalized) || isSocialConversationIntent(normalized)) {
+        lastUserMessage = MessageText.extractDirectUserRequest(lastUserMessage);
+        String normalized = MessageText.normalizeIntentText(lastUserMessage);
+        if (MessageText.isCasualUserMessage(normalized) || isSocialConversationIntent(normalized)) {
             return null;
         }
 
@@ -3246,7 +3217,7 @@ public class AgentService implements AgentExecutionEngine {
                     "call_direct_" + UUID.randomUUID().toString().substring(0, 8), "open_browser_tab", arguments);
         }
 
-        boolean wantsClose = containsAny(
+        boolean wantsClose = MessageText.containsAny(
                 normalized,
                 "fecha",
                 "fesha",
@@ -3265,7 +3236,7 @@ public class AgentService implements AgentExecutionEngine {
                 "close",
                 "mata",
                 "matar");
-        boolean wantsOpen = containsAny(
+        boolean wantsOpen = MessageText.containsAny(
                 normalized, "abre", "abrir", "abra", "vaba", "open", "inicia", "iniciar", "amem", "amen", "navegador");
 
         if (!hasExplicitAppAutomationIntent(normalized, appName, wantsOpen, wantsClose)) {
@@ -3294,7 +3265,7 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean wantsNewBrowserTab(String normalizedMessage) {
-        return containsAny(
+        return MessageText.containsAny(
                 normalizedMessage,
                 "nova aba",
                 "novo aba",
@@ -3309,7 +3280,7 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean wantsBrowserTabClose(String normalizedMessage) {
-        return containsAny(
+        return MessageText.containsAny(
                 normalizedMessage,
                 "aba",
                 "guia",
@@ -3323,7 +3294,7 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean wantsScreenCapture(String normalizedMessage) {
-        return containsAny(
+        return MessageText.containsAny(
                 normalizedMessage,
                 "tira um print",
                 "tirar um print",
@@ -3341,7 +3312,7 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean wantsMacAppListing(String normalizedMessage) {
-        return containsAny(
+        return MessageText.containsAny(
                         normalizedMessage,
                         "lista de apps",
                         "listar apps",
@@ -3356,7 +3327,7 @@ public class AgentService implements AgentExecutionEngine {
                         "procura nos apps",
                         "procurar nos apps")
                 || (normalizedMessage.contains("finder")
-                        && containsAny(normalizedMessage, "apps", "aplicativos", "applications"));
+                        && MessageText.containsAny(normalizedMessage, "apps", "aplicativos", "applications"));
     }
 
     private String macAppListQuery(String normalizedMessage) {
@@ -3445,7 +3416,7 @@ public class AgentService implements AgentExecutionEngine {
             return false;
         }
 
-        return containsAny(
+        return MessageText.containsAny(
                 normalizedMessage,
                 "comervais",
                 "comer vais",
@@ -3497,7 +3468,7 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean isCapabilityQuestion(String normalizedMessage) {
-        return containsAny(
+        return MessageText.containsAny(
                 normalizedMessage,
                 "o que voce pode fazer",
                 "o que vc pode fazer",
@@ -3529,7 +3500,7 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean isIdentityQuestion(String normalizedMessage) {
-        return containsAny(
+        return MessageText.containsAny(
                 normalizedMessage,
                 "quem e voce",
                 "quem voce e",
@@ -3567,7 +3538,7 @@ public class AgentService implements AgentExecutionEngine {
 
         String appToken = appName.toLowerCase(Locale.ROOT);
         if ("Visual Studio Code".equals(appName)) {
-            return containsAny(
+            return MessageText.containsAny(
                     normalizedMessage,
                     "vs code",
                     "vscode",
@@ -3583,10 +3554,10 @@ public class AgentService implements AgentExecutionEngine {
                     "vesconti");
         }
         if ("Brave Browser".equals(appName)) {
-            return containsAny(normalizedMessage, "brave", "brave browser", "navegador brave");
+            return MessageText.containsAny(normalizedMessage, "brave", "brave browser", "navegador brave");
         }
         if ("Google Chrome".equals(appName)) {
-            return containsAny(normalizedMessage, "google chrome", "chrome");
+            return MessageText.containsAny(normalizedMessage, "google chrome", "chrome");
         }
         return normalizedMessage.matches(".*\\b" + Pattern.quote(appToken) + "\\b.*");
     }
@@ -3608,15 +3579,6 @@ public class AgentService implements AgentExecutionEngine {
                 || normalizedMessage.equals(appName.toLowerCase(Locale.ROOT));
     }
 
-    private boolean containsAny(String text, String... values) {
-        for (String value : values) {
-            if (text.contains(value)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private void appendApprovalComment(ArrayNode messages, String comment) {
         if (comment == null || comment.isBlank()) {
             return;
@@ -3628,54 +3590,12 @@ public class AgentService implements AgentExecutionEngine {
         messages.add(userMsg);
     }
 
-    private String lastUserMessage(ArrayNode messages) {
-        for (int index = messages.size() - 1; index >= 0; index--) {
-            JsonNode message = messages.get(index);
-            if ("user".equals(message.path("role").asText())) {
-                return message.path("content").asText("");
-            }
-        }
-        return null;
-    }
-
     private boolean shouldIgnoreToolCallsForCasualMessage(ArrayNode messages) {
-        String lastUserMessage = lastUserMessage(messages);
+        String lastUserMessage = MessageText.lastUserMessage(messages);
         if (lastUserMessage == null) {
             return false;
         }
-        return isCasualUserMessage(extractDirectUserRequest(lastUserMessage));
-    }
-
-    private boolean isCasualUserMessage(String message) {
-        String normalized = normalizeIntentText(message);
-        if (normalized.isBlank() || normalized.length() > 80) {
-            return false;
-        }
-
-        for (String actionWord : PROJECT_ACTION_WORDS) {
-            if (normalized.contains(actionWord)) {
-                return false;
-            }
-        }
-
-        for (String casualPhrase : CASUAL_PHRASES) {
-            if (normalized.equals(casualPhrase) || normalized.startsWith(casualPhrase + " ")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private String normalizeIntentText(String message) {
-        if (message == null) {
-            return "";
-        }
-        String withoutAccents = Normalizer.normalize(message.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "");
-        return withoutAccents
-                .replaceAll("[^\\p{L}\\p{N}\\s]", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
+        return MessageText.isCasualUserMessage(MessageText.extractDirectUserRequest(lastUserMessage));
     }
 
     // Verbos de acao que so se cumprem com ferramenta. "vou explicar" nao entra: e coisa que o

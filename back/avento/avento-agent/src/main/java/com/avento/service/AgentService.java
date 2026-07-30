@@ -28,11 +28,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -85,24 +82,8 @@ public class AgentService implements AgentExecutionEngine {
     // The model-facing instructions live in editable resource files rather than a
     // large Java string. Keep this loader as the single authoritative composition
     // point because frontend system messages are intentionally discarded later.
-    private static final String AGENT_SYSTEM_PROMPT = loadAgentInstructions();
-    private static final String AVENTO_PRODUCT_FACTS = loadAgentResource("agent/instructions/product.md");
     private static final String IDENTITY_RESPONSE_PT = loadAgentResource("agent/responses/identity-pt.md");
     private static final String CAPABILITY_RESPONSE_PT = loadAgentResource("agent/responses/capabilities-pt.md");
-
-    private static String loadAgentInstructions() {
-        List<String> resources = List.of(
-                "agent/instructions/identity.md",
-                "agent/instructions/personality.md",
-                "agent/instructions/context.md",
-                "agent/instructions/tools.md",
-                "agent/instructions/execution.md");
-        StringBuilder instructions = new StringBuilder();
-        for (String resource : resources) {
-            instructions.append(loadAgentResource(resource)).append("\n\n");
-        }
-        return instructions.toString().trim();
-    }
 
     private static String loadAgentResource(String resource) {
         try {
@@ -167,12 +148,6 @@ public class AgentService implements AgentExecutionEngine {
     private final int maxToolResultChars;
     private final int maxTotalMessageContentChars;
 
-    @Value("${avento.agent.policy-mode:maximum}")
-    private String policyMode;
-
-    @Value("${avento.agent.policy-override-dir:}")
-    private String policyOverrideDirectory;
-
     // Per-run tool allow-list (agent mode). Optional field injection so the constructor and the
     // tests that build AgentService directly stay untouched; null means "no restriction".
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -203,7 +178,7 @@ public class AgentService implements AgentExecutionEngine {
     private com.avento.service.tools.PinnedToolService pinnedToolService;
 
     private final UserSettingsService userSettingsService;
-    private final UserMemoryService userMemoryService;
+    private final PromptAssemblyService promptAssemblyService;
     private final MemoryExtractionService memoryExtractionService;
     private final PendingToolApprovalService pendingApprovalService;
     private final ImageIntentService imageIntentService;
@@ -263,7 +238,7 @@ public class AgentService implements AgentExecutionEngine {
             SkillRegistry skillRegistry,
             TokenUsageService tokenUsageService,
             UserSettingsService userSettingsService,
-            UserMemoryService userMemoryService,
+            PromptAssemblyService promptAssemblyService,
             MemoryExtractionService memoryExtractionService,
             PendingToolApprovalService pendingApprovalService,
             ImageIntentService imageIntentService,
@@ -302,7 +277,7 @@ public class AgentService implements AgentExecutionEngine {
         this.skillRegistry = skillRegistry;
         this.tokenUsageService = tokenUsageService;
         this.userSettingsService = userSettingsService;
-        this.userMemoryService = userMemoryService;
+        this.promptAssemblyService = promptAssemblyService;
         this.memoryExtractionService = memoryExtractionService;
         this.pendingApprovalService = pendingApprovalService;
         this.imageIntentService = imageIntentService;
@@ -1300,205 +1275,20 @@ public class AgentService implements AgentExecutionEngine {
                 .orElse(null);
     }
 
+    // Fica aqui, e nao no PromptAssemblyService, porque monta a LISTA de mensagens: a compactacao
+    // depende do orcamento de contexto configurado neste servico. O servico monta o TEXTO do system
+    // prompt; a montagem do array e a juncao com o historico continuam sendo do laco do agente.
     private ArrayNode withBackendIdentityPrompt(ArrayNode messages, List<String> workspaceRoots, UUID userId) {
         ArrayNode guardedMessages = mapper.createArrayNode();
         ObjectNode identityMessage = guardedMessages.addObject();
         identityMessage.put("role", "system");
-        identityMessage.put(
-                "content",
-                AGENT_SYSTEM_PROMPT
-                        + productFactsBlock(messages)
-                        // SO a data (LocalDate), nao LocalDateTime: um timestamp com hora/nanossegundo
-                        // muda a cada requisicao e fica no PREFIXO do prompt, invalidando o cache de
-                        // prompt do Ollama — obrigando a reavaliar os ~8192 tokens inteiros toda vez
-                        // (medido: ~50s por resposta). Com a data, o prefixo fica estavel o dia todo e
-                        // o Ollama reaproveita o contexto ja avaliado. Precisao de dia basta ao agente.
-                        + "\n\n[Local Environment]\nData atual: "
-                        + LocalDate.now().toString()
-                        + policyInstructions()
-                        + workspaceRootsBlock(workspaceRoots)
-                        + memoryBlock(userId)
-                        + conversationContinuityBlock(messages));
+        identityMessage.put("content", promptAssemblyService.systemPrompt(messages, workspaceRoots, userId));
         guardedMessages.addAll(compactMessagesForModel(messages));
         return guardedMessages;
     }
 
-    private String productFactsBlock(ArrayNode messages) {
-        int start = Math.max(0, messages.size() - 8);
-        for (int index = messages.size() - 1; index >= start; index--) {
-            String content = messages.get(index).path("content").asText("");
-            String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(content));
-            if (MessageText.containsAny(
-                    normalized,
-                    "avento",
-                    "quem e voce",
-                    "o que voce pode fazer",
-                    "o que vc pode fazer",
-                    "suas ferramentas",
-                    "seus servicos",
-                    "sua arquitetura",
-                    "seu criador",
-                    "quem te criou",
-                    "post do linkedin",
-                    "post para o linkedin")) {
-                return "\n\n" + AVENTO_PRODUCT_FACTS;
-            }
-        }
-        return "";
-    }
-
     private ArrayNode withBackendIdentityPrompt(ArrayNode messages, List<String> workspaceRoots) {
         return withBackendIdentityPrompt(messages, workspaceRoots, null);
-    }
-
-    // Injeta somente os fatos ACTIVE pertencentes ao usuário autenticado.
-    private String memoryBlock(UUID userId) {
-        if (userId == null) {
-            return "";
-        }
-        try {
-            String block = userMemoryService.promptBlock(userId);
-            if (block != null && !block.isBlank()) {
-                logger.debug("Bloco de memória injetado para o usuário {} ({} caracteres)", userId, block.length());
-            }
-            return block == null ? "" : block;
-        } catch (RuntimeException exception) {
-            logger.debug("Não foi possível montar o bloco de memória; seguindo sem ele", exception);
-            return "";
-        }
-    }
-
-    private String policyInstructions() {
-        String mode = policyMode == null ? "maximum" : policyMode.trim().toLowerCase(Locale.ROOT);
-        String resource =
-                switch (mode) {
-                    case "professional" -> "agent/policies/professional.md";
-                    case "protected" -> "agent/policies/protected.md";
-                    default -> "agent/policies/maximum.md";
-                };
-        return "\n\n" + localPolicyOverride(mode).orElseGet(() -> loadPolicyResource(resource));
-    }
-
-    private Optional<String> localPolicyOverride(String mode) {
-        if (policyOverrideDirectory == null || policyOverrideDirectory.isBlank()) {
-            return Optional.empty();
-        }
-
-        Path overridePath =
-                Paths.get(policyOverrideDirectory).resolve(mode + ".md").normalize();
-        if (!Files.isRegularFile(overridePath)) {
-            return Optional.empty();
-        }
-
-        try {
-            logger.info("Using local agent policy override from {}", overridePath);
-            return Optional.of(Files.readString(overridePath, StandardCharsets.UTF_8));
-        } catch (IOException exception) {
-            logger.warn(
-                    "Could not read local agent policy override at {}; using bundled policy", overridePath, exception);
-            return Optional.empty();
-        }
-    }
-
-    private String loadPolicyResource(String resource) {
-        try {
-            ClassPathResource policyResource = new ClassPathResource(resource);
-            try (var inputStream = policyResource.getInputStream()) {
-                return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-            }
-        } catch (IOException exception) {
-            throw new IllegalStateException("Não foi possível carregar a política do agente: " + resource, exception);
-        }
-    }
-
-    // The prompt and every file-tool description tell the model to use paths
-    // "dentro de
-    // [Workspace Roots]", but nothing ever showed the model what those roots
-    // actually are —
-    // it had no choice but to guess a plausible-looking placeholder path, which
-    // then failed
-    // workspace authorization on every attempt. This renders the literal [Workspace
-    // Roots] block
-    // the prompt already refers to, from the paths the frontend registered for this
-    // request.
-    private String workspaceRootsBlock(List<String> workspaceRoots) {
-        if (workspaceRoots == null || workspaceRoots.isEmpty()) {
-            // Mentioning an absent workspace anchors small local models on an irrelevant limitation,
-            // even for ordinary conversation. File tools still enforce authorization in the backend.
-            return "";
-        }
-        StringBuilder block = new StringBuilder("\n\n[Workspace Roots]\n");
-        for (String root : workspaceRoots) {
-            block.append("- ").append(root).append('\n');
-        }
-        block.append("Use SEMPRE um desses caminhos absolutos exatos (ou um arquivo dentro deles) como "
-                + "argumento \"path\" das ferramentas de arquivo. NUNCA invente, adivinhe ou monte um "
-                + "caminho parecido (ex: \"/Users/usuario/projetos/...\") — isso sempre falha. Se não "
-                + "souber o caminho exato de um arquivo dentro da raiz, use directory_tree ou "
-                + "search_files primeiro para descobrir.");
-        return block.toString();
-    }
-
-    private String conversationContinuityBlock(ArrayNode messages) {
-        String latestRequest = MessageText.lastUserMessage(messages);
-        if (latestRequest == null
-                || !isGenericContinuationRequest(MessageText.extractDirectUserRequest(latestRequest))) {
-            return "";
-        }
-
-        boolean skippedLatest = false;
-        for (int index = messages.size() - 1; index >= 0; index--) {
-            JsonNode message = messages.get(index);
-            if (!"user".equals(message.path("role").asText(""))) {
-                continue;
-            }
-            if (!skippedLatest) {
-                skippedLatest = true;
-                continue;
-            }
-            String request = MessageText.extractDirectUserRequest(
-                            message.path("content").asText(""))
-                    .trim();
-            if (request.isBlank()
-                    || isGenericContinuationRequest(request)
-                    || MessageText.isCasualUserMessage(MessageText.normalizeIntentText(request))) {
-                continue;
-            }
-            String compactRequest = request.length() <= 1_200 ? request : request.substring(0, 1_200) + "...";
-            return "\n\n[Conversation Continuity]\n"
-                    + "A mensagem atual é uma continuação curta. Preserve este último pedido explícito como objetivo; "
-                    + "não invente outro assunto:\n"
-                    + compactRequest;
-        }
-        return "";
-    }
-
-    private boolean isGenericContinuationRequest(String request) {
-        String normalized = MessageText.normalizeIntentText(request);
-        return MessageText.containsAny(
-                normalized,
-                "continue",
-                "continua",
-                "prossiga",
-                "pode seguir",
-                "pode prosseguir",
-                "segue",
-                "tenta de novo",
-                "tente de novo",
-                "tenta agora",
-                "testa de novo",
-                "faz de novo",
-                "faca de novo",
-                "gera de novo",
-                "gere de novo",
-                "sobre o que estavamos falando",
-                "sobre o que estavamos falando antes",
-                "sobre o que a gente tava falando",
-                "do que a gente tava falando",
-                "do que estavamos falando",
-                "o que estavamos falando",
-                "qual era o assunto",
-                "qual o assunto");
     }
 
     private ArrayNode compactMessagesForModel(ArrayNode messages) {

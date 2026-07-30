@@ -1,0 +1,42 @@
+# Termos que fazem o prompt carregar os fatos do produto e os que marcam uma continuacao
+# curta. Os dois decidem o que ENTRA no system prompt de uma rodada.
+
+# Pergunta sobre o proprio Avento: so entao vale gastar contexto com product.md.
+[PRODUCT_QUESTION]
+avento
+quem e voce
+o que voce pode fazer
+o que vc pode fazer
+suas ferramentas
+seus servicos
+sua arquitetura
+seu criador
+quem te criou
+post do linkedin
+post para o linkedin
+
+# "continue", "tenta de novo" — mensagem sem assunto proprio. O prompt recupera o ultimo
+# pedido explicito para o modelo nao inventar outro objetivo.
+[GENERIC_CONTINUATION]
+continue
+continua
+prossiga
+pode seguir
+pode prosseguir
+segue
+tenta de novo
+tente de novo
+tenta agora
+testa de novo
+faz de novo
+faca de novo
+gera de novo
+gere de novo
+sobre o que estavamos falando
+sobre o que estavamos falando antes
+sobre o que a gente tava falando
+do que a gente tava falando
+do que estavamos falando
+o que estavamos falando
+qual era o assunto
+qual o assunto

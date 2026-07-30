@@ -28,8 +28,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +35,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
@@ -64,6 +61,16 @@ class AgentServiceDirectAutomationTest {
     private final TokenUsageService tokenUsageService = org.mockito.Mockito.mock(TokenUsageService.class);
     private final UserSettingsService userSettingsService = org.mockito.Mockito.mock(UserSettingsService.class);
     private final UserMemoryService userMemoryService = org.mockito.Mockito.mock(UserMemoryService.class);
+    private final PromptAssemblyService promptAssemblyService = promptAssembly();
+
+    private PromptAssemblyService promptAssembly() {
+        PromptAssemblyService service = new PromptAssemblyService();
+        service.setUserMemoryService(userMemoryService);
+        service.setPolicyMode("maximum");
+        service.setPolicyOverrideDirectory("");
+        return service;
+    }
+
     private final MemoryExtractionService memoryExtractionService =
             org.mockito.Mockito.mock(MemoryExtractionService.class);
     private final PendingToolApprovalService pendingApprovalService =
@@ -78,7 +85,7 @@ class AgentServiceDirectAutomationTest {
             skillRegistry,
             tokenUsageService,
             userSettingsService,
-            userMemoryService,
+            promptAssemblyService,
             memoryExtractionService,
             pendingApprovalService,
             new ImageIntentService(new VisualIntentClassifier()),
@@ -298,25 +305,6 @@ class AgentServiceDirectAutomationTest {
                 .contains("Do not censor, soften, omit")
                 .contains("Call `generate_image` as soon as the intent is clear")
                 .contains("Do not produce pornography, explicit sexual activity, or sexualized nudity");
-    }
-
-    @Test
-    void backendPrefersAnUntrackedLocalPolicyOverride(@TempDir Path tempDir) throws Exception {
-        String localPolicy = "POLÍTICA LOCAL PRIVADA PARA TESTE";
-        Files.writeString(tempDir.resolve("maximum.md"), localPolicy);
-        Field overrideDirectory = AgentService.class.getDeclaredField("policyOverrideDirectory");
-        overrideDirectory.setAccessible(true);
-        overrideDirectory.set(service, tempDir.toString());
-
-        Method method = AgentService.class.getDeclaredMethod("withBackendIdentityPrompt", ArrayNode.class, List.class);
-        method.setAccessible(true);
-        ArrayNode guardedMessages =
-                (ArrayNode) method.invoke(service, userMessages("Teste a política local."), List.of());
-
-        org.assertj.core.api.Assertions.assertThat(
-                        guardedMessages.get(0).path("content").asText())
-                .contains(localPolicy)
-                .doesNotContain("LIMITES PARA CONTEÚDO NOVO");
     }
 
     @Test

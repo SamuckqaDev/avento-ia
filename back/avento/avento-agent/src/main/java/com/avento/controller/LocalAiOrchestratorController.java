@@ -9,6 +9,7 @@ import com.avento.model.AgentRunJob;
 import com.avento.repository.ChatRepository;
 import com.avento.service.AgentService;
 import com.avento.service.ComfyUiImageService;
+import com.avento.service.ModelCatalogService;
 import com.avento.service.WorkspaceAccessService;
 import com.avento.service.context.ConversationContextCache;
 import com.avento.service.dto.AgentRunSnapshot;
@@ -47,6 +48,7 @@ import reactor.core.publisher.Mono;
 public class LocalAiOrchestratorController {
 
     private final AgentService agentService;
+    private final ModelCatalogService modelCatalogService;
     private final AgentOrchestrator agentOrchestrator;
     private final ComfyUiImageService comfyUiImageService;
     private final ObjectMapper mapper;
@@ -58,6 +60,7 @@ public class LocalAiOrchestratorController {
 
     public LocalAiOrchestratorController(
             AgentService agentService,
+            ModelCatalogService modelCatalogService,
             AgentOrchestrator agentOrchestrator,
             ComfyUiImageService comfyUiImageService,
             ObjectMapper mapper,
@@ -67,6 +70,7 @@ public class LocalAiOrchestratorController {
             RunEventStreamService runEventStreamService,
             AgentRunSubmissionService runSubmissionService) {
         this.agentService = agentService;
+        this.modelCatalogService = modelCatalogService;
         this.agentOrchestrator = agentOrchestrator;
         this.comfyUiImageService = comfyUiImageService;
         this.mapper = mapper;
@@ -79,7 +83,7 @@ public class LocalAiOrchestratorController {
 
     @GetMapping(value = "/models", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<BaseResponse<List<String>>>> getModels() {
-        return agentService.getModels().map(ApiResponses::ok);
+        return modelCatalogService.getModels().map(ApiResponses::ok);
     }
 
     @GetMapping(value = "/models/details", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -87,7 +91,7 @@ public class LocalAiOrchestratorController {
             @AuthenticationPrincipal AuthPrincipal principal) {
         // O usuario e necessario aqui: a configuracao de provedor e por usuario, e sem ela a lista
         // volta a mostrar modelos locais mesmo com a nuvem ativa.
-        return agentService
+        return modelCatalogService
                 .getModelDetails(principal == null ? null : principal.userId())
                 .map(ApiResponses::ok);
     }
@@ -96,11 +100,11 @@ public class LocalAiOrchestratorController {
     public Mono<ResponseEntity<BaseResponse<List<LocalModelInfo>>>> getImageModelDetails(
             @AuthenticationPrincipal AuthPrincipal principal) {
         java.util.UUID userId = principal == null ? null : principal.userId();
-        return agentService.getImageModelDetails(userId).flatMap(providerModels -> {
+        return modelCatalogService.getImageModelDetails(userId).flatMap(providerModels -> {
             // Provedor remoto ativo manda sozinho: somar os checkpoints do ComfyUI local aqui faria
             // o seletor oferecer modelos que o provedor ativo nao conhece — o mesmo defeito que o
             // seletor de chat tinha.
-            if (!providerModels.isEmpty() && agentService.usesRemoteProvider(userId)) {
+            if (!providerModels.isEmpty() && modelCatalogService.usesRemoteProvider(userId)) {
                 return Mono.just(ApiResponses.ok(providerModels));
             }
             return comfyUiImageService.getModels().map(comfyModels -> {

@@ -9,8 +9,6 @@ import com.avento.service.provider.ModelProviderService;
 import com.avento.service.provider.ProviderKind;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -23,7 +21,7 @@ import org.junit.jupiter.api.Test;
  * <p>O efeito para quem usa é escolher um nome que não tem efeito nenhum e concluir — com razão —
  * que a seleção de provedor foi ignorada.
  */
-class AgentServiceCloudModelListTest {
+class ModelCatalogServiceTest {
 
     private static final UUID USER_ID = UUID.fromString("66666666-6666-6666-6666-666666666666");
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -37,7 +35,7 @@ class AgentServiceCloudModelListTest {
     }
 
     @Test
-    void listsCloudModelsWhenACloudProviderIsActive() throws Exception {
+    void listsCloudModelsWhenACloudProviderIsActive() {
         ModelProviderService provider = mock(ModelProviderService.class);
         when(provider.cloudProviderSelected(USER_ID)).thenReturn(true);
         when(provider.activeKind(USER_ID)).thenReturn(ProviderKind.GEMINI);
@@ -51,7 +49,7 @@ class AgentServiceCloudModelListTest {
 
     // O modelo configurado tem de vir marcado, senao a UI elege outro como "recomendado".
     @Test
-    void marksTheConfiguredModelAsRecommended() throws Exception {
+    void marksTheConfiguredModelAsRecommended() {
         ModelProviderService provider = mock(ModelProviderService.class);
         when(provider.cloudProviderSelected(USER_ID)).thenReturn(true);
         when(provider.activeKind(USER_ID)).thenReturn(ProviderKind.GEMINI);
@@ -67,7 +65,7 @@ class AgentServiceCloudModelListTest {
 
     // Marcado como vision: senao anexar imagem faria a UI trocar para um modelo local de visao.
     @Test
-    void marksCloudModelsAsVisionCapable() throws Exception {
+    void marksCloudModelsAsVisionCapable() {
         ModelProviderService provider = mock(ModelProviderService.class);
         when(provider.cloudProviderSelected(USER_ID)).thenReturn(true);
         when(provider.activeKind(USER_ID)).thenReturn(ProviderKind.GEMINI);
@@ -79,7 +77,7 @@ class AgentServiceCloudModelListTest {
 
     // family carrega o TIPO: e por ele que a interface mostra de onde a resposta vem.
     @Test
-    void tagsModelsWithTheProviderKind() throws Exception {
+    void tagsModelsWithTheProviderKind() {
         ModelProviderService provider = mock(ModelProviderService.class);
         when(provider.cloudProviderSelected(USER_ID)).thenReturn(true);
         when(provider.activeKind(USER_ID)).thenReturn(ProviderKind.GEMINI);
@@ -90,7 +88,7 @@ class AgentServiceCloudModelListTest {
     }
 
     @Test
-    void fallsBackToLocalListingWhenNoCloudProviderIsActive() throws Exception {
+    void fallsBackToLocalListingWhenNoCloudProviderIsActive() {
         ModelProviderService provider = mock(ModelProviderService.class);
         when(provider.cloudProviderSelected(USER_ID)).thenReturn(false);
 
@@ -98,21 +96,32 @@ class AgentServiceCloudModelListTest {
     }
 
     @Test
-    void fallsBackToLocalListingWithoutTheProviderService() throws Exception {
+    void fallsBackToLocalListingWithoutTheProviderService() {
         assertThat(cloudModelsFor(null, USER_ID)).isEmpty();
     }
 
-    @SuppressWarnings("unchecked")
-    private List<LocalModelInfo> cloudModelsFor(ModelProviderService provider, UUID userId) throws Exception {
-        AgentService service = mock(
-                AgentService.class,
-                org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.CALLS_REAL_METHODS));
-        Field field = AgentService.class.getDeclaredField("modelProviderService");
-        field.setAccessible(true);
-        field.set(service, provider);
+    private List<LocalModelInfo> cloudModelsFor(ModelProviderService provider, UUID userId) {
+        ModelCatalogService service = new ModelCatalogService(
+                "http://localhost:11434", "granite4.1:8b", "qwen2.5vl:7b", "comfyui:modelo.safetensors");
+        service.setModelProviderService(provider);
+        return service.cloudModelsFor(userId);
+    }
 
-        Method method = AgentService.class.getDeclaredMethod("cloudModelsFor", UUID.class);
-        method.setAccessible(true);
-        return (List<LocalModelInfo>) method.invoke(service, userId);
+    // A UI usa a flag preferredForVision para nao trocar de modelo sozinha quando o usuario anexa
+    // imagem. Era um teste por reflexao no AgentService; agora chama o servico que de fato lista.
+    @Test
+    void marksTheConfiguredVisionModelForTheFrontend() {
+        ObjectNode tags = MAPPER.createObjectNode();
+        ObjectNode model = tags.putArray("models").addObject();
+        model.put("name", "qwen2.5vl:7b");
+        model.putObject("details").put("family", "qwen25vl").put("parameter_size", "8.3B");
+
+        ModelCatalogService service = new ModelCatalogService(
+                "http://localhost:11434", "granite4.1:8b", "qwen2.5vl:7b", "comfyui:modelo.safetensors");
+        List<LocalModelInfo> models = service.parseOllamaTags(tags);
+
+        assertThat(models).hasSize(1);
+        assertThat(models.get(0).vision()).isTrue();
+        assertThat(models.get(0).preferredForVision()).isTrue();
     }
 }

@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.avento.controller.McpController;
-import com.avento.service.dto.LocalModelInfo;
 import com.avento.service.dto.MacApplication;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.intent.IntentEmbeddingClassifier;
@@ -487,23 +486,6 @@ class AgentServiceDirectAutomationTest {
         String resolved = (String) method.invoke(service, "qwen3:8b", userMessagesWithImage("analisa pra mim"), null);
 
         assertEquals("qwen2.5vl:7b", resolved);
-    }
-
-    @Test
-    void modelDetailsMarkTheConfiguredVisionModelForTheFrontend() throws Exception {
-        ObjectNode tags = mapper.createObjectNode();
-        ObjectNode model = tags.putArray("models").addObject();
-        model.put("name", "qwen2.5vl:7b");
-        model.putObject("details").put("family", "qwen25vl").put("parameter_size", "8.3B");
-        Method method = AgentService.class.getDeclaredMethod("parseOllamaTags", JsonNode.class);
-        method.setAccessible(true);
-
-        @SuppressWarnings("unchecked")
-        List<LocalModelInfo> models = (List<LocalModelInfo>) method.invoke(service, tags);
-
-        assertEquals(1, models.size());
-        assertTrue(models.get(0).vision());
-        assertTrue(models.get(0).preferredForVision());
     }
 
     @Test

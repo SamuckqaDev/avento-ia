@@ -1,9 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: sem isto o iPhone reserva faixas pretas no notch e o ambiente
+         espacial não chega às bordas. user-scalable=no evita o zoom por toque duplo, que dentro
+         de um visor desalinha as duas metades sem que dê para desfazer. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+
+    <!-- TELA CHEIA DE VERDADE no iPhone.
+         O Safari ignora requestFullscreen: uma página web não tem como esconder a barra do próprio
+         navegador no iOS. O único caminho é ADICIONAR À TELA DE INÍCIO — aí o app abre em modo
+         standalone, sem barra de endereço e sem barra de baixo, que é o que cobria os botões e
+         impedia o VR de ocupar a tela inteira. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Avento" />
+    <meta name="theme-color" content="#0B1512" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/avento-logo.svg" />
+
     <title>Avento Local AI</title>
   </head>
   <body>

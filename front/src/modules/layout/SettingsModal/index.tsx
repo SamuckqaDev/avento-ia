@@ -255,6 +255,17 @@ export function SettingsModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  /**
+   * Avisa o resto da aplicação que o provedor mudou.
+   *
+   * <p>O badge do cabeçalho mostra de onde vem a resposta, e o cabeçalho vive noutro ramo da árvore
+   * — sem este aviso ele continuaria anunciando o provedor antigo até um reload, que é justamente a
+   * informação errada na hora em que ela mais importa.
+   */
+  const notifyProviderChanged = () => {
+    window.dispatchEvent(new Event('avento:provider-changed'));
+  };
+
   const loadProviders = async () => {
     setIsLoadingProviders(true);
     try {
@@ -342,6 +353,7 @@ export function SettingsModal({
       setEditingApiKey(false);
       setTestLanStatus({ success: true, message: 'Provedor removido — voltando ao modelo local.', loading: false });
       await loadProviders();
+      notifyProviderChanged();
     } catch (error) {
       console.error('Erro ao remover provedor', error);
       setTestLanStatus({ success: false, message: 'Falha ao remover o provedor.', loading: false });
@@ -367,6 +379,7 @@ export function SettingsModal({
           ? { success: true, message: `Modelo ativo: ${model}`, loading: false }
           : { success: false, message: `O backend manteve "${data?.selectedModel}" em vez de "${model}".`, loading: false }
       );
+      notifyProviderChanged();
     } catch (error) {
       console.error('Erro ao salvar o modelo', error);
       setTestLanStatus({ success: false, message: `Falha ao salvar o modelo ${model}.`, loading: false });
@@ -400,6 +413,7 @@ export function SettingsModal({
         });
       }
       await loadProviders();
+      notifyProviderChanged();
     } catch (error) {
       console.error("Erro ao salvar configurações de provedor", error);
       setTestLanStatus({ success: false, message: 'Falha ao salvar o provedor.', loading: false });
@@ -1053,51 +1067,59 @@ export function SettingsModal({
             </AgentField>
           </SettingRow>
 
-          {activeKind.key && providerSettings.apiKeyMasked && !editingApiKey && (
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
-                background: 'rgba(79, 209, 180, 0.10)',
-                border: '1px solid rgba(79, 209, 180, 0.35)',
-                borderRadius: '10px', padding: '12px 14px', margin: '8px 0',
-              }}
-            >
-              <span style={{ fontSize: '1.1rem' }}>🔒</span>
-              <div style={{ flex: 1, minWidth: '180px' }}>
-                <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#4FD1B4' }}>
-                  Conectado a {activeKind.title}
-                </div>
-                <div style={{ fontSize: '0.78rem', color: '#9FB8B1', fontFamily: 'ui-monospace, monospace' }}>
-                  {providerSettings.apiKeyMasked}
-                </div>
-              </div>
-              <TestButton type="button" onClick={() => setEditingApiKey(true)}>Editar chave</TestButton>
-              <TestButton
-                type="button"
-                onClick={handleDisconnectProvider}
-                disabled={isSaving}
-                style={{ borderColor: 'rgba(244, 130, 130, 0.5)', color: '#F48282' }}
-              >
-                Remover
-              </TestButton>
-            </div>
-          )}
-
-          {activeKind.key && (!providerSettings.apiKeyMasked || editingApiKey) && (
+          {/* O campo é um só, em dois estados. Antes havia um painel "Conectado a X" separado do
+              input, e quem tinha duas contas no mesmo provedor não conseguia saber QUAL chave estava
+              valendo sem removê-la e colar de novo. O valor mascarado mora no próprio campo: o
+              começo e o fim bastam para reconhecer a chave, e o miolo nunca sai do backend. */}
+          {activeKind.key && (
             <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
               <AgentField style={{ flex: 1 }}>
                 <span>Chave de API</span>
-                <input
-                  type="password"
-                  value={providerSettings.apiKeyInput}
-                  onChange={e => setProviderSettings({ ...providerSettings, apiKeyInput: e.target.value })}
-                  placeholder={providerSettings.apiKeyMasked || 'Cole sua chave de API aqui...'}
-                  autoFocus={editingApiKey}
-                />
-                <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '4px' }}>
-                  {editingApiKey
-                    ? 'Deixe em branco e salve para manter a chave atual.'
-                    : 'A chave fica guardada cifrada e nunca volta para a tela.'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {providerSettings.apiKeyMasked && !editingApiKey ? (
+                    <input
+                      type="text"
+                      readOnly
+                      value={providerSettings.apiKeyMasked}
+                      aria-label="Chave de API salva, exibida parcialmente"
+                      style={{ flex: 1, minWidth: '180px', fontFamily: 'ui-monospace, monospace' }}
+                    />
+                  ) : (
+                    <input
+                      type="password"
+                      value={providerSettings.apiKeyInput}
+                      onChange={e => setProviderSettings({ ...providerSettings, apiKeyInput: e.target.value })}
+                      placeholder={providerSettings.apiKeyMasked || 'Cole sua chave de API aqui...'}
+                      autoFocus={editingApiKey}
+                      style={{ flex: 1, minWidth: '180px' }}
+                    />
+                  )}
+                  {providerSettings.apiKeyMasked && !editingApiKey && (
+                    <>
+                      <TestButton type="button" onClick={() => setEditingApiKey(true)}>Editar</TestButton>
+                      <TestButton
+                        type="button"
+                        onClick={handleDisconnectProvider}
+                        disabled={isSaving}
+                        style={{ borderColor: 'rgba(244, 130, 130, 0.5)', color: '#F48282' }}
+                      >
+                        Remover
+                      </TestButton>
+                    </>
+                  )}
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.74rem',
+                    marginTop: '6px',
+                    color: providerSettings.apiKeyMasked && !editingApiKey ? '#4FD1B4' : '#9FB8B1',
+                  }}
+                >
+                  {providerSettings.apiKeyMasked && !editingApiKey
+                    ? `🔒 Chave ativa em uso — ${activeKind.title}`
+                    : editingApiKey
+                      ? 'Deixe em branco e salve para manter a chave atual.'
+                      : 'A chave fica guardada cifrada e nunca volta inteira para a tela.'}
                 </span>
               </AgentField>
             </SettingRow>
@@ -1207,8 +1229,8 @@ export function SettingsModal({
 
           {activeKind.kind !== 'OLLAMA' && (
             <p style={{ color: '#9FB8B1', fontSize: '0.78rem', margin: '0 0 8px' }}>
-              Neste provedor as ferramentas locais (arquivos, terminal, imagem) ficam indisponíveis —
-              elas ainda não foram traduzidas para o formato dele.
+              As ferramentas locais (arquivos, terminal, MCP), o RAG e a memória continuam valendo
+              neste provedor — quem as executa é o agente, não o modelo.
             </p>
           )}
 

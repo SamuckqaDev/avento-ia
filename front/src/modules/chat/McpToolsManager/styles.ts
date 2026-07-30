@@ -367,3 +367,104 @@ export const EmptyState = styled.div`
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: 0.82rem;
 `;
+
+/* Alternador entre os dois niveis. Sao coisas diferentes: servidor voce liga e desliga, ferramenta
+   voce fixa para o modelo enxergar sempre — e misturar as duas listas numa so confunde qual acao
+   tem qual efeito. */
+export const ViewTabs = styled.div`
+  display: flex;
+  gap: 6px;
+  padding: 3px;
+  border-radius: 9px;
+  background: color-mix(in srgb, ${({ theme }) => theme.colors.border} 45%, transparent);
+`;
+
+export const ViewTab = styled.button<{ $active: boolean }>`
+  flex: 1;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: ${({ $active, theme }) => ($active ? theme.colors.surface : 'transparent')};
+  color: ${({ $active, theme }) => ($active ? theme.colors.text : theme.colors.textMuted)};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.text};
+  }
+`;
+
+export const ToolRow = styled.article<{ $pinned: boolean }>`
+  min-width: 0;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid ${({ $pinned, theme }) => $pinned
+    ? `color-mix(in srgb, ${theme.colors.primary} 34%, ${theme.colors.border})`
+    : theme.colors.border};
+  border-radius: 8px;
+  background: ${({ $pinned, theme }) => $pinned
+    ? `color-mix(in srgb, ${theme.colors.primary} 5%, ${theme.colors.surface})`
+    : theme.colors.surface};
+`;
+
+export const ToolMeta = styled.div`
+  flex: 1;
+  min-width: 0;
+
+  .tool-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  strong {
+    font-size: 0.86rem;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    color: ${({ theme }) => theme.colors.text};
+  }
+
+  code {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, ${({ theme }) => theme.colors.border} 60%, transparent);
+    color: ${({ theme }) => theme.colors.textMuted};
+  }
+
+  p {
+    margin: 3px 0 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: ${({ theme }) => theme.colors.textMuted};
+    /* Descricao de ferramenta MCP costuma ter varios paragrafos; a lista fica ilegivel inteira. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+`;
+
+export const PinButton = styled.button<{ $pinned: boolean }>`
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid ${({ $pinned, theme }) => $pinned ? theme.colors.primary : theme.colors.border};
+  background: ${({ $pinned, theme }) => $pinned
+    ? `color-mix(in srgb, ${theme.colors.primary} 16%, transparent)`
+    : 'transparent'};
+  color: ${({ $pinned, theme }) => ($pinned ? theme.colors.primary : theme.colors.textMuted)};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.text};
+  }
+`;

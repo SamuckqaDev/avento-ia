@@ -30,7 +30,7 @@ export function LoginScreen() {
   const { login, bootstrap, isLoading } = useAuth();
   const [isBootstrapMode, setBootstrapMode] = useState(false);
   const [displayName, setDisplayName] = useState('Avento Root');
-  const [email, setEmail] = useState('admin@avento.local');
+  const [email, setEmail] = useState('root');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -135,13 +135,18 @@ export function LoginScreen() {
             )}
 
             <FieldGroup>
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">Email ou usuário</label>
+              {/* type="text", nao "email": com type="email" o proprio navegador barra "root" antes
+                  do submit, com um balao que so diz "inclua um @". O AuthProvider completa o
+                  dominio local, e o servidor continua recebendo (e exigindo) um email valido. */}
               <input
                 id="email"
-                type="email"
+                type="text"
+                inputMode="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
+                placeholder="root"
+                autoComplete="username"
                 required
               />
             </FieldGroup>

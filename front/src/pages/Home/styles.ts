@@ -173,6 +173,36 @@ export const HeaderRight = styled.div`
     background: transparent;
   }
 
+  /* Fonte real do processamento. Fica ao lado dos seletores, e nao dentro deles, porque nao e uma
+     escolha: e o que esta valendo agora. Sem isto, quem configurou a nuvem julga a qualidade dela
+     olhando para a resposta de um modelo local — sem nenhum jeito de perceber a troca. */
+  .provider-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    max-width: 320px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, ${({ theme }) => theme.colors.accent} 30%, transparent);
+    background: color-mix(in srgb, ${({ theme }) => theme.colors.accent} 12%, transparent);
+    color: ${({ theme }) => theme.colors.accent};
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  /* O nome do modelo pode ser longo (gemini-3.1-pro-preview); ele encolhe, o rotulo do provedor
+     nao — saber DE ONDE veio importa mais do que ler o nome inteiro. */
+  .provider-badge .provider-badge-model {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+
   label.image-model-control {
     max-width: 230px;
     flex-basis: 190px;

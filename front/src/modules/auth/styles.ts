@@ -40,6 +40,18 @@ export const AuthShell = styled.div`
   @media (max-width: 720px) {
     width: 100%;
   }
+
+  /* Telefone deitado — que é como o aparelho fica no suporte de VR. Aqui a altura é o recurso
+     escasso: o painel decorativo empurra o formulário para fora da tela e obriga a rolar às cegas
+     com o teclado aberto. Nesta faixa sobra só o que se preenche. */
+  @media (max-height: 500px) {
+    min-height: auto;
+    grid-template-columns: 1fr;
+
+    > section:first-child {
+      display: none;
+    }
+  }
 `;
 
 export const AuthAside = styled.section`
@@ -70,6 +82,11 @@ export const AuthAside = styled.section`
   > * {
     position: relative;
     z-index: 1;
+  }
+
+  @media (max-height: 500px) {
+    min-height: auto;
+    padding: 18px;
   }
 
   @media (max-width: 880px) {
@@ -305,6 +322,10 @@ export const FieldGroup = styled.div`
     color: ${({ theme }) => theme.colors.text};
     padding: 0 14px;
     font: inherit;
+    /* 16px é o limite do iOS: com fonte MENOR que isso o Safari dá zoom ao focar o campo, a página
+       salta e some da tela, e digitar a senha vira briga com o navegador. É o motivo real de o
+       login ficar ruim no telefone — não é o tamanho do campo, é o zoom automático. */
+    font-size: 16px;
     outline: none;
     transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 

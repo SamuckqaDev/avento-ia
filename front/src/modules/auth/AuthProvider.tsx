@@ -25,6 +25,27 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Domínio das contas locais: é o que o RootUserSeeder cria (`root@avento.local`). */
+const LOCAL_ACCOUNT_DOMAIN = 'avento.local';
+
+/**
+ * Completa o domínio quando só o usuário é digitado — "root" vira "root@avento.local".
+ *
+ * <p>A conta local se chama `root`, mas o backend identifica usuário por email e o `LoginRequest`
+ * valida `@Email`: digitar "root" tomava HTTP 400 antes de chegar no serviço, com uma mensagem de
+ * validação que não dizia o que fazer. Completar aqui deixa o login curto funcionar sem afrouxar a
+ * validação do servidor, que continua exigindo um email de verdade.
+ *
+ * <p>Só age quando não há "@": quem digita o email inteiro, de qualquer domínio, não é tocado.
+ */
+export function toAccountEmail(identifier: string): string {
+  const trimmed = identifier.trim();
+  if (!trimmed || trimmed.includes('@')) {
+    return trimmed;
+  }
+  return `${trimmed.toLowerCase()}@${LOCAL_ACCOUNT_DOMAIN}`;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const response = await api.post<{ user: AuthUser }>('/api/auth/login', { email, password });
+      const response = await api.post<{ user: AuthUser }>('/api/auth/login', {
+        email: toAccountEmail(email),
+        password,
+      });
       setUser(response.data.user);
       markApiSessionAuthenticated();
     } catch (error) {
@@ -59,7 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const bootstrap = useCallback(async (email: string, password: string, displayName: string) => {
     try {
-      const response = await api.post<{ user: AuthUser }>('/api/auth/bootstrap', { email, password, displayName });
+      const response = await api.post<{ user: AuthUser }>('/api/auth/bootstrap', {
+        email: toAccountEmail(email),
+        password,
+        displayName,
+      });
       setUser(response.data.user);
       markApiSessionAuthenticated();
     } catch (error) {

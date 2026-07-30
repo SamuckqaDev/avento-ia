@@ -14,6 +14,7 @@ import com.avento.service.intent.IntentRouter;
 import com.avento.service.intent.VisualIntentClassifier;
 import com.avento.service.orchestration.AgentExecutionEngine;
 import com.avento.service.support.HeuristicWordLists;
+import com.avento.service.support.HistoryText;
 import com.avento.service.support.ModelNames;
 import com.avento.service.support.ProviderErrorTranslator;
 import com.avento.service.support.SkillRegistry;
@@ -3965,18 +3966,6 @@ public class AgentService implements AgentExecutionEngine {
                 .trim();
     }
 
-    // O preâmbulo antes de uma chamada de ferramenta ("Vou continuar a análise...") voltava inteiro
-    // para o histórico. Na rodada seguinte o modelo via a própria frase, copiava, e na outra via
-    // duas cópias — eco que enche o contexto e produz a resposta repetida que o usuário vê. O que o
-    // modelo precisa reter da rodada é o tool_call e o resultado, não o floreio; guarda-se só um
-    // trecho curto para não perder um raciocínio que às vezes vem junto.
-    private static final int MAX_NARRATION_CHARS_KEPT = 240;
-
-    /**
-     * Sem chamada de ferramenta o texto É a resposta ao usuário e vai inteiro. Com chamada, ele é
-     * preâmbulo: mantém-se só o começo, o bastante para preservar um raciocínio curto sem realimentar
-     * o parágrafo que o modelo vai copiar na rodada seguinte.
-     */
     // Verbos de acao que so se cumprem com ferramenta. "vou explicar" nao entra: e coisa que o
     // modelo faz em texto mesmo.
     private static final Pattern ANNOUNCED_ACTION = Pattern.compile(
@@ -4011,17 +4000,11 @@ public class AgentService implements AgentExecutionEngine {
         return ANNOUNCED_ACTION.matcher(text).find();
     }
 
-    static String narrationForHistory(String assistantText, boolean roundCalledATool) {
-        if (!roundCalledATool || assistantText.length() <= MAX_NARRATION_CHARS_KEPT) {
-            return assistantText;
-        }
-        return assistantText.substring(0, MAX_NARRATION_CHARS_KEPT).stripTrailing() + "…";
-    }
-
     private void appendAssistantToolRequest(ArrayNode messages, TurnCapture capture) {
         ObjectNode assistantMsg = mapper.createObjectNode();
         assistantMsg.put("role", "assistant");
-        String fullText = narrationForHistory(capture.assistantText.toString(), !capture.nativeToolCalls.isEmpty());
+        String fullText =
+                HistoryText.narrationForHistory(capture.assistantText.toString(), !capture.nativeToolCalls.isEmpty());
         if (!fullText.isEmpty()) {
             assistantMsg.put("content", fullText);
         }
@@ -4106,16 +4089,6 @@ public class AgentService implements AgentExecutionEngine {
      * <p>O marcador no fim é deliberado: sem ele o modelo trata o texto cortado como o documento
      * inteiro e responde com confiança sobre o que não leu.
      */
-    static String truncateToolResultForHistory(String content, int maxChars) {
-        if (content == null || content.length() <= maxChars) {
-            return content;
-        }
-        return content.substring(0, maxChars)
-                + "\n\n[...truncado pelo Avento: o resultado tinha " + content.length()
-                + " caracteres. Se precisar do trecho que faltou, chame a ferramenta de novo com um"
-                + " filtro mais específico em vez de supor o conteúdo.]";
-    }
-
     private JsonNode executeToolCall(
             ArrayNode messages, FluxSink<String> sink, ToolCall toolCall, String runId, UUID userId) {
         JsonNode visibleArguments = permissionArguments(toolCall);
@@ -4133,7 +4106,9 @@ public class AgentService implements AgentExecutionEngine {
             JsonNode toolResult = toolGateway.execute(toolCall.name(), argsMap);
             // O corte acompanha a janela: com 1M de contexto, cortar em 4000 chars joga fora
             // pesquisa que caberia; com 8k, 4000 ja e demais.
-            toolMsg.put("content", truncateToolResultForHistory(toolResult.toString(), toolResultBudget(userId)));
+            toolMsg.put(
+                    "content",
+                    HistoryText.truncateToolResultForHistory(toolResult.toString(), toolResultBudget(userId)));
             messages.add(toolMsg);
             if (toolResult.has("error")) {
                 String error = toolResult.get("error").asText();

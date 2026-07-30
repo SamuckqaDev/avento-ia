@@ -1,4 +1,4 @@
-package com.avento.service;
+package com.avento.service.support;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
  * ~4,4ms por token, então uma pesquisa com três páginas chegava a quase um minuto de silêncio antes
  * do primeiro caractere — o que parecia "pensando muito" era releitura.
  */
-class AgentServiceToolResultTruncationTest {
+class HistoryTextTruncationTest {
 
     private static final int LIMIT = 1000;
 
@@ -18,14 +18,14 @@ class AgentServiceToolResultTruncationTest {
     void keepsShortResultsUntouched() {
         String small = "{\"ok\":true,\"body\":\"resposta curta\"}";
 
-        assertThat(AgentService.truncateToolResultForHistory(small, LIMIT)).isEqualTo(small);
+        assertThat(HistoryText.truncateToolResultForHistory(small, LIMIT)).isEqualTo(small);
     }
 
     @Test
     void cutsLongResultsToTheConfiguredLimit() {
         String page = "conteudo da pagina ".repeat(500);
 
-        String truncated = AgentService.truncateToolResultForHistory(page, LIMIT);
+        String truncated = HistoryText.truncateToolResultForHistory(page, LIMIT);
 
         assertThat(truncated).hasSizeLessThan(page.length());
         assertThat(truncated).startsWith("conteudo da pagina");
@@ -37,7 +37,7 @@ class AgentServiceToolResultTruncationTest {
     void tellsTheModelThatSomethingWasCut() {
         String page = "x".repeat(5000);
 
-        String truncated = AgentService.truncateToolResultForHistory(page, LIMIT);
+        String truncated = HistoryText.truncateToolResultForHistory(page, LIMIT);
 
         assertThat(truncated).contains("truncado pelo Avento");
         assertThat(truncated).contains("5000 caracteres");
@@ -46,13 +46,13 @@ class AgentServiceToolResultTruncationTest {
 
     @Test
     void handlesNullResult() {
-        assertThat(AgentService.truncateToolResultForHistory(null, LIMIT)).isNull();
+        assertThat(HistoryText.truncateToolResultForHistory(null, LIMIT)).isNull();
     }
 
     @Test
     void keepsResultExactlyAtTheLimit() {
         String exact = "y".repeat(LIMIT);
 
-        assertThat(AgentService.truncateToolResultForHistory(exact, LIMIT)).isEqualTo(exact);
+        assertThat(HistoryText.truncateToolResultForHistory(exact, LIMIT)).isEqualTo(exact);
     }
 }

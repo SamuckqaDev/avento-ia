@@ -94,7 +94,11 @@ public class ModelProviderService {
                 && !stored.getCloudModel().isBlank()) {
             return stored.getCloudModel();
         }
-        return activeKind(userId) == ProviderKind.OLLAMA ? readSystemField("defaultModel", "qwen3.5:9b") : "";
+        // Vazio quando nao ha escolha gravada — quem chama decide o padrao, como os acessores
+        // vizinhos ja fazem. Havia um "qwen3.5:9b" literal aqui que contradizia o
+        // avento.agent.default-model e, pior, nunca deixava este metodo devolver vazio: o modelo
+        // escolhido no seletor era descartado em favor de um nome chumbado num servico.
+        return activeKind(userId) == ProviderKind.OLLAMA ? readSystemField("defaultModel", "") : "";
     }
 
     /**

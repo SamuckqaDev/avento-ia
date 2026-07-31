@@ -151,14 +151,14 @@ class ModelNamesTest {
     }
 
     /**
-     * A aresta conhecida: escolher justamente o DEFAULT no seletor, havendo modelo gravado, nao
-     * muda nada — o pedido fica indistinguivel de "o front nao mandou modelo". Travado aqui para
-     * ser comportamento declarado e nao surpresa; hoje provider_settings vazio torna isto inerte.
+     * O defeito que o log flagrou: o orquestrador recebia granite4.1:8b do seletor e a rodada saia
+     * com qwen3.5:9b. Escolher o proprio default era tratado como "nao escolhi", e o modelo ativo
+     * ganhava em silencio.
      */
     @Test
-    void pickingTheDefaultCannotOverrideAStoredModel() {
+    void pickingTheDefaultInTheSelectStillWinsOverAStoredModel() {
         assertThat(ModelNames.chooseChatModel("granite4.1:8b", "qwen3.5:9b", "granite4.1:8b", false))
-                .isEqualTo("qwen3.5:9b");
+                .isEqualTo("granite4.1:8b");
     }
 
     /** Na nuvem, um nome local nao serve: o provedor nao conhece familia:tag. */

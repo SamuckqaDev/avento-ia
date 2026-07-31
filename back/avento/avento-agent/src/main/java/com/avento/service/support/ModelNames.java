@@ -147,11 +147,10 @@ public final class ModelNames {
      * por mensagem; a tela de Provedores grava um modelo ativo. Quando o pedido traz um nome, ele
      * ganha — trocar no seletor tem de ter efeito imediato, senão a interface mente.
      *
-     * <p>A exceção é o pedido vir com o PRÓPRIO default: aí não dá para distinguir "o usuário
-     * escolheu o granite" de "o front não mandou nada e o default preencheu", então o gravado
-     * prevalece. Consequência real: com um modelo gravado em Provedores, escolher o default no
-     * seletor não muda nada. Preferir o gravado é o menor dos males — trocar no seletor para
-     * qualquer OUTRO modelo funciona, e quem gravou um modelo ativo espera que ele valha.
+     * <p>Só um pedido EM BRANCO conta como "não escolhi" — é o que o front manda enquanto o seletor
+     * nunca foi tocado. A versão anterior também tratava "pediu exatamente o default" como ausência
+     * de escolha, e o efeito era escolher granite no seletor e continuar rodando outro modelo, sem
+     * aviso nenhum.
      *
      * @param remoteTransport um provedor de nuvem está atendendo; nomes locais não servem para ele
      */
@@ -167,10 +166,11 @@ public final class ModelNames {
             return configured.isEmpty() ? normalizeChatModel(requested, defaultChatModel) : configured;
         }
 
-        boolean requestIsIndistinguishableFromDefault =
-                requested.isEmpty() || requested.equalsIgnoreCase(defaultChatModel);
-        if (!configured.isEmpty() && requestIsIndistinguishableFromDefault) {
-            return configured;
+        // Pedido em branco e a UNICA forma de "nao escolhi": o front manda string vazia enquanto o
+        // seletor nunca foi tocado, e o nome escolhido em qualquer outro caso. Tratar "pediu o
+        // default" como "nao pediu nada" fazia escolher o granite no seletor nao ter efeito algum.
+        if (requested.isEmpty()) {
+            return configured.isEmpty() ? defaultChatModel : configured;
         }
         return normalizeChatModel(requested, defaultChatModel);
     }

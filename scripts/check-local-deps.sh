@@ -55,11 +55,39 @@ require_command docker
 require_command ollama
 
 printf '\nContainer runtime:\n'
-if command -v colima >/dev/null 2>&1; then
-  ok "colima: $(command -v colima)"
-  colima status 2>/dev/null | sed 's/^/     /' || warn "colima is installed but not running"
+# O que importa nao e qual runtime esta instalado, e sim qual atende AGORA: o contexto ativo
+# decide onde a stack sobe, e volumes nao sao compartilhados entre contextos.
+if docker info >/dev/null 2>&1; then
+  ok "docker daemon responding (context: $(docker context show 2>/dev/null))"
 else
-  warn "colima not found (fine if you use Docker Desktop or another Docker runtime)"
+  warn "no docker daemon responding on the active context ($(docker context show 2>/dev/null))"
+  missing_optional=$((missing_optional + 1))
+fi
+
+if command -v colima >/dev/null 2>&1; then
+  if colima status >/dev/null 2>&1; then
+    ok "colima: running"
+  else
+    ok "colima: installed, not running"
+  fi
+fi
+
+# O plugin docker mcp vive dentro do Docker.app e fala com o backend do Desktop, nao com o daemon:
+# sob Colima ele responde "Docker Desktop is not running" ate no --dry-run.
+if [ -S "$HOME/.docker/run/docker.sock" ]; then
+  ok "Docker Desktop: running (MCP Gateway available)"
+  gateway_servers="$(docker mcp server ls 2>/dev/null \
+    | sed 's/\x1b\[[0-9;]*m//g' \
+    | awk '/^[a-z0-9][a-z0-9._-]*[[:space:]]/ { printf "%s ", $1 }')"
+  if [ -n "$gateway_servers" ]; then
+    ok "MCP Gateway servers enabled: $gateway_servers"
+  else
+    warn "MCP Gateway is available but no server is enabled (docker mcp server enable <name>)"
+  fi
+else
+  warn "Docker Desktop not running: the MCP Gateway stays off (every other MCP server is unaffected)"
+  warn "  to use it: AVENTO_DOCKER_CONTEXT=desktop-linux ./scripts/dev-up.sh"
+  missing_optional=$((missing_optional + 1))
 fi
 
 printf '\nOptional voice commands:\n'

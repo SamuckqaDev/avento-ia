@@ -198,12 +198,20 @@ prepare_docker_mcp_gateway() {
     return 0
   fi
 
+  # O plugin vive dentro do Docker.app e fala com o backend do Desktop, nao com o daemon: com
+  # Colima ele responde "Docker Desktop is not running" ate no --dry-run.
+  if [ ! -S "$HOME/.docker/run/docker.sock" ]; then
+    info "Docker MCP Gateway needs Docker Desktop running; skipping (other MCP servers are unaffected)"
+    info "  to use it: AVENTO_DOCKER_CONTEXT=desktop-linux ./scripts/dev-up.sh"
+    return 0
+  fi
+
   if ! DOCKER_MCP_IN_CONTAINER=1 docker mcp version >/dev/null 2>&1; then
     warn "Docker MCP Gateway plugin is unavailable; the remaining tools will still start"
     return 0
   fi
 
-  info "preparing Docker MCP Gateway for the current Docker/Colima context"
+  info "preparing Docker MCP Gateway"
   if ! DOCKER_MCP_IN_CONTAINER=1 docker mcp gateway run \
     --servers docker \
     --transport stdio \
@@ -497,8 +505,40 @@ fi
 
 ./scripts/check-local-deps.sh
 
+# Contexto do Docker.
+#
+# ATENCAO: volumes NAO sao compartilhados entre contextos. Subir a stack no desktop-linux cria um
+# Postgres VAZIO, separado do que roda no colima — as conversas ficam onde o banco delas estiver.
+# Por isso a troca e explicita e nunca automatica.
+#
+# AVENTO_DOCKER_CONTEXT=desktop-linux ./scripts/dev-up.sh   # usa o Docker Desktop
+if [ -n "${AVENTO_DOCKER_CONTEXT:-}" ]; then
+  if ! docker context inspect "$AVENTO_DOCKER_CONTEXT" >/dev/null 2>&1; then
+    warn "Docker context '$AVENTO_DOCKER_CONTEXT' does not exist. Available:"
+    docker context ls --format '  {{.Name}}' >&2
+    exit 1
+  fi
+  export DOCKER_CONTEXT="$AVENTO_DOCKER_CONTEXT"
+  info "using Docker context '$DOCKER_CONTEXT' (volumes are per-context; this stack is separate)"
+fi
+
 if ! docker info >/dev/null 2>&1; then
-  if command -v colima >/dev/null 2>&1; then
+  # Docker Desktop foi pedido mas nao esta no ar: subir Colima aqui nao resolveria, e trocaria o
+  # contexto por baixo do usuario.
+  if [ "${DOCKER_CONTEXT:-}" = "desktop-linux" ]; then
+    if [ -d /Applications/Docker.app ]; then
+      info "starting Docker Desktop"
+      open -a Docker
+      for _ in $(seq 1 30); do
+        docker info >/dev/null 2>&1 && break
+        sleep 2
+      done
+    fi
+    if ! docker info >/dev/null 2>&1; then
+      warn "Docker Desktop did not become ready. Start it manually or unset AVENTO_DOCKER_CONTEXT."
+      exit 1
+    fi
+  elif command -v colima >/dev/null 2>&1; then
     info "Docker is not responding; starting Colima"
     colima start
   else

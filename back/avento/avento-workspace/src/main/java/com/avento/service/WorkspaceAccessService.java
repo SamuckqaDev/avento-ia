@@ -188,6 +188,39 @@ public class WorkspaceAccessService {
                 throw new IllegalArgumentException("Invalid path: " + path, e);
             }
         }
-        return target;
+        return realPathOfFutureFile(target, path);
+    }
+
+    /**
+     * O caminho canônico de um arquivo que ainda NÃO existe.
+     *
+     * <p>Devolver só {@code toAbsolutePath().normalize()} aqui quebrava dos dois lados, porque a
+     * raiz é registrada com {@code toRealPath()} e um link no meio do caminho nunca casava:
+     *
+     * <ul>
+     *   <li>criar arquivo num workspace alcançado por link era RECUSADO como se estivesse fora
+     *       dele — no macOS {@code /tmp} e {@code /var} são links, então todo projeto ali dentro
+     *       podia ser lido mas não escrito;
+     *   <li>pior, um link DENTRO do workspace apontando para fora era ACEITO: o caminho textual
+     *       começava com a raiz, e a escrita ia parar do lado de fora.
+     * </ul>
+     *
+     * <p>Resolver o ancestral existente mais próximo e reanexar o resto acerta os dois: o destino
+     * passa a ser comparado por onde ele realmente vai cair.
+     */
+    private Path realPathOfFutureFile(Path target, String originalPath) {
+        Path existingAncestor = target.getParent();
+        while (existingAncestor != null && !Files.exists(existingAncestor)) {
+            existingAncestor = existingAncestor.getParent();
+        }
+        if (existingAncestor == null) {
+            return target;
+        }
+        try {
+            Path realAncestor = existingAncestor.toRealPath();
+            return realAncestor.resolve(existingAncestor.relativize(target)).normalize();
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Invalid path: " + originalPath, e);
+        }
     }
 }

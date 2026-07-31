@@ -117,4 +117,56 @@ class ModelNamesTest {
         assertThat(ModelNames.firstNonBlank("  ", "local")).isEqualTo("local");
         assertThat(ModelNames.firstNonBlank(null, null)).isEmpty();
     }
+
+    // --- Qual modelo atende o pedido -------------------------------------------------------
+
+    /** O caso que importa: trocar no seletor do cabeçalho tem de valer na hora. */
+    @Test
+    void honoursTheModelPickedInTheHeaderSelect() {
+        assertThat(ModelNames.chooseChatModel("granite4.1:8b", "", "granite4.1:8b", false))
+                .isEqualTo("granite4.1:8b");
+        assertThat(ModelNames.chooseChatModel("qwen3.5:9b", "", "granite4.1:8b", false))
+                .isEqualTo("qwen3.5:9b");
+    }
+
+    /** Sem escolha no pedido, cai no padrão de configuração. */
+    @Test
+    void fallsBackToTheDefaultWhenNothingIsPicked() {
+        assertThat(ModelNames.chooseChatModel("", "", "granite4.1:8b", false)).isEqualTo("granite4.1:8b");
+        assertThat(ModelNames.chooseChatModel(null, "", "granite4.1:8b", false)).isEqualTo("granite4.1:8b");
+    }
+
+    /** Com modelo gravado em Provedores e nada escolhido, o gravado vale. */
+    @Test
+    void prefersTheStoredModelWhenTheRequestIsSilent() {
+        assertThat(ModelNames.chooseChatModel("", "qwen3.5:9b", "granite4.1:8b", false))
+                .isEqualTo("qwen3.5:9b");
+    }
+
+    /** Escolher OUTRO modelo no seletor vence o gravado — é o caminho comum. */
+    @Test
+    void theSelectBeatsTheStoredModel() {
+        assertThat(ModelNames.chooseChatModel("gemma3:4b", "qwen3.5:9b", "granite4.1:8b", false))
+                .isEqualTo("gemma3:4b");
+    }
+
+    /**
+     * A aresta conhecida: escolher justamente o DEFAULT no seletor, havendo modelo gravado, nao
+     * muda nada — o pedido fica indistinguivel de "o front nao mandou modelo". Travado aqui para
+     * ser comportamento declarado e nao surpresa; hoje provider_settings vazio torna isto inerte.
+     */
+    @Test
+    void pickingTheDefaultCannotOverrideAStoredModel() {
+        assertThat(ModelNames.chooseChatModel("granite4.1:8b", "qwen3.5:9b", "granite4.1:8b", false))
+                .isEqualTo("qwen3.5:9b");
+    }
+
+    /** Na nuvem, um nome local nao serve: o provedor nao conhece familia:tag. */
+    @Test
+    void ignoresALocalNameWhenACloudProviderIsServing() {
+        assertThat(ModelNames.chooseChatModel("qwen3.5:9b", "gemini-2.5-flash", "granite4.1:8b", true))
+                .isEqualTo("gemini-2.5-flash");
+        assertThat(ModelNames.chooseChatModel("gemini-3.1-pro", "gemini-2.5-flash", "granite4.1:8b", true))
+                .isEqualTo("gemini-3.1-pro");
+    }
 }

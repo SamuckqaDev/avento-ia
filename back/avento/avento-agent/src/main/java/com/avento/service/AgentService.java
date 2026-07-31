@@ -460,27 +460,8 @@ public class AgentService implements AgentExecutionEngine {
     private String resolveChatModel(String requestedModel, ArrayNode messages, UUID userId) {
         String configuredModel = modelProviderService != null ? modelProviderService.activeModelName(userId) : "";
 
-        String targetModel;
-        if (transportFor(userId) != null) {
-            if (requestedModel != null && !requestedModel.isBlank() && !ModelNames.isLocalModelName(requestedModel)) {
-                targetModel = requestedModel;
-            } else if (!configuredModel.isBlank()) {
-                targetModel = configuredModel;
-            } else {
-                targetModel = ModelNames.normalizeChatModel(requestedModel, defaultChatModel);
-            }
-        } else {
-            // Se o usuário configurou um modelo na tela de Provedores (front), usa o modelo ativo
-            // gravado a menos que o pedido traga outro modelo específico diferente do default.
-            if (!configuredModel.isBlank()
-                    && (requestedModel == null
-                            || requestedModel.isBlank()
-                            || requestedModel.equalsIgnoreCase(defaultChatModel))) {
-                targetModel = configuredModel;
-            } else {
-                targetModel = ModelNames.normalizeChatModel(requestedModel, defaultChatModel);
-            }
-        }
+        String targetModel = ModelNames.chooseChatModel(
+                requestedModel, configuredModel, defaultChatModel, transportFor(userId) != null);
 
         if (!conversationHasImages(messages)
                 || ModelNames.isVisionModel(targetModel, ModelNames.inferFamily(targetModel))) {

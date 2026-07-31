@@ -37,6 +37,8 @@ este arquivo é o exaustivo, fora da página inicial para ela continuar legível
 - PDF export from Markdown or HTML, linked to the conversation (`generate_pdf` tool).
 - Internet research synthesized into a table or report with cited sources (`/research` skill).
 - Voice transcription and synthesis with configurable support for Portuguese, English, and Spanish.
+- Isolated TerminalCommandPolicy enforcing direct ProcessBuilder execution, strict command allowlists, and human-in-the-loop permission approvals without shell invocation.
+- Dual-model architecture (Qwen 3.5 9B Planner + Granite 4.1 8B Executor) configurable via local profiles for fast tool execution.
 - Permanent deletion of chats, messages, and related generated artifacts.
 
 
@@ -71,5 +73,7 @@ este arquivo é o exaustivo, fora da página inicial para ela continuar legível
 - Exportação de PDF a partir de Markdown ou HTML, vinculada à conversa (ferramenta `generate_pdf`).
 - Pesquisa na internet com síntese em tabela ou relatório e citação de fontes (skill `/research`).
 - Transcrição e síntese de voz com suporte configurável a português, inglês e espanhol.
+- TerminalCommandPolicy isolada aplicando execução direta por ProcessBuilder, allowlists estritas de comandos e aprovações de permissão com controle humano em tempo real sem invocação de shell.
+- Arquitetura de 2 modelos (Planejador Qwen 3.5 9B + Executor Granite 4.1 8B) configurável via perfil local para alta velocidade de execução de ferramentas.
 - Exclusão permanente de chats, mensagens e artefatos gerados relacionados.
 

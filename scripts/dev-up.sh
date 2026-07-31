@@ -538,11 +538,24 @@ if ! docker info >/dev/null 2>&1; then
       warn "Docker Desktop did not become ready. Start it manually or unset AVENTO_DOCKER_CONTEXT."
       exit 1
     fi
+  elif [ -d /Applications/Docker.app ]; then
+    # Docker Desktop primeiro: e o unico que atende o plugin `docker mcp`, entao subir Colima aqui
+    # deixaria o gateway fora sem explicar por que.
+    info "starting Docker Desktop"
+    open -a Docker
+    for _ in $(seq 1 30); do
+      docker info >/dev/null 2>&1 && break
+      sleep 2
+    done
+    if ! docker info >/dev/null 2>&1; then
+      warn "Docker Desktop did not become ready"
+      exit 1
+    fi
   elif command -v colima >/dev/null 2>&1; then
-    info "Docker is not responding; starting Colima"
+    warn "Docker Desktop not installed; starting Colima (the MCP Gateway will stay off)"
     colima start
   else
-    warn "Docker is not responding and Colima is not installed"
+    warn "no Docker runtime responding, and neither Docker Desktop nor Colima is installed"
     exit 1
   fi
 fi

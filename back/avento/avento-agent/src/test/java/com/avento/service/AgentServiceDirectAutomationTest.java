@@ -1390,7 +1390,7 @@ class AgentServiceDirectAutomationTest {
     void handlesStopFrustrationWithoutCallingTheModel() throws Exception {
         String response = detectDirectConversationResponse("Chega, chega, calabou, cata falando merda já.");
 
-        assertEquals("Tá. Vou ficar quieta agora.\n", response);
+        assertEquals("Tá. Vou ficar quieto agora.\n", response);
     }
 
     @Test

@@ -2687,7 +2687,7 @@ public class AgentService implements AgentExecutionEngine {
                 "fica quieta",
                 "falando merda",
                 "falou merda")) {
-            return "Tá. Vou ficar quieta agora.\n";
+            return "Tá. Vou ficar quieto agora.\n";
         }
 
         if (normalized.length() <= 60 && MessageText.containsAny(normalized, "portugues brasileiro natural")) {

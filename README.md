@@ -104,6 +104,11 @@ Type `/skills` in the chat to list the available procedures. Skills with trigger
 | `/manage-memory` | Store, query, and remove knowledge from local memory |
 | `/generate-image` and `/generate-video` | Run the local visual pipelines with the frontend options |
 | `/mac-workflow` | Coordinate apps, tabs, Finder, shortcuts, and capture on macOS |
+| `/tool-registered-but-not-found` | Trace a tool the dispatcher claims not to know, from the round's toolset to duplicate classes |
+| `/model-choice-ignored` | Find where the model picked in the header select is discarded before the round |
+| `/workspace-write-refused` | Read works, write does not: symlinks in the authorized path |
+| `/slow-agent-round` | Split prompt evaluation from generation before tuning anything |
+| `/docker-mcp-gateway-down` | The gateway is a Docker Desktop plugin, not a daemon feature |
 
 Built-in skills live in `back/avento/src/main/resources/agent/skills/`. Skills created through the interface are personal, live in `data/skills/`, and take priority without changing the source code.
 
@@ -531,6 +536,11 @@ palavra-chave), garantindo, por exemplo, que `/generate-video` chegue ao `genera
 | `/manage-memory` | Guardar, consultar e remover conhecimento da memória local |
 | `/generate-image` e `/generate-video` | Executar os pipelines visuais locais com as opções do frontend |
 | `/mac-workflow` | Coordenar apps, abas, Finder, atalhos e captura no macOS |
+| `/tool-registered-but-not-found` | Rastreia ferramenta que o despachante diz nao conhecer, do toolset da rodada a classe duplicada |
+| `/model-choice-ignored` | Descobre onde o modelo escolhido no seletor e descartado antes da rodada |
+| `/workspace-write-refused` | Ler funciona, escrever nao: link simbolico no caminho autorizado |
+| `/slow-agent-round` | Separa avaliacao de prompt de geracao antes de ajustar qualquer coisa |
+| `/docker-mcp-gateway-down` | O gateway e plugin do Docker Desktop, nao recurso do daemon |
 
 As skills embutidas ficam em `back/avento/src/main/resources/agent/skills/`. Skills criadas pela
 interface são pessoais, ficam em `data/skills/` e têm prioridade sem alterar o código-fonte.

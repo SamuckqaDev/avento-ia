@@ -9,8 +9,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import org.springframework.stereotype.Service;
 import java.util.UUID;
+import org.springframework.stereotype.Service;
 
 /**
  * O elo que fecha o loop "editar → verificar → corrigir": detecta o comando canônico de

@@ -2,7 +2,12 @@ package com.avento.service.execution;
 
 import com.avento.config.RedisExecutionProperties;
 import com.avento.model.AgentRunJob;
+import com.avento.model.AgentTimelineEvent;
+import com.avento.model.ScheduledTaskRun;
 import com.avento.repository.AgentRunJobRepository;
+import com.avento.repository.ScheduledTaskRepository;
+import com.avento.repository.ScheduledTaskRunRepository;
+import com.avento.service.AgentTimelineService;
 import com.avento.service.WorkspaceAccessService;
 import com.avento.service.context.ConversationContextCache;
 import com.avento.service.dto.AgentRunSnapshot;
@@ -15,9 +20,11 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -40,13 +47,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import reactor.core.Disposable;
-import com.avento.model.AgentTimelineEvent;
-import com.avento.model.ScheduledTaskRun;
-import com.avento.repository.ScheduledTaskRepository;
-import com.avento.repository.ScheduledTaskRunRepository;
-import com.avento.service.AgentTimelineService;
-import java.time.LocalTime;
-import java.util.Set;
 
 @Service
 public class AgentRunWorker {
@@ -328,8 +328,7 @@ public class AgentRunWorker {
                         scheduledTaskRepository.findById(targetTaskId).ifPresent(t -> {
                             t.setLastRunOutput(outputToSave);
                             t.setLastRunDiagnosis("Execução autônoma concluída com sucesso às "
-                                    + LocalTime.now()
-                                            .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")));
+                                    + LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")));
                             scheduledTaskRepository.save(t);
 
                             // Workflows Encadeados (Disparo de Tarefa Dependente)
@@ -354,8 +353,7 @@ public class AgentRunWorker {
                             }
                         });
 
-                        List<ScheduledTaskRun> runs =
-                                runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(targetTaskId);
+                        List<ScheduledTaskRun> runs = runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(targetTaskId);
                         if (!runs.isEmpty()) {
                             ScheduledTaskRun latestRun = runs.get(0);
                             latestRun.setOutput(outputToSave);

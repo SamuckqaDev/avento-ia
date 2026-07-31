@@ -8,6 +8,7 @@ import com.avento.service.dto.DocumentReadResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -22,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.Arrays;
 
 @RestController
 @RequestMapping("/api/documents")

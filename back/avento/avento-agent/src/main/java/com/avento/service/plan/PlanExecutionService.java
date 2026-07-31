@@ -1,6 +1,7 @@
 package com.avento.service.plan;
 
 import com.avento.model.AgentPlan;
+import com.avento.model.AgentProfile;
 import com.avento.model.AgentRunJob;
 import com.avento.model.AgentTask;
 import com.avento.repository.AgentPlanRepository;
@@ -19,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -30,8 +32,6 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
-import com.avento.model.AgentProfile;
-import java.util.Arrays;
 
 @Slf4j
 @Service

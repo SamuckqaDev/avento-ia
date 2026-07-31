@@ -53,6 +53,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -73,7 +74,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import java.util.LinkedHashSet;
 
 @RestController
 @RequestMapping("/api/mcp")
@@ -802,13 +802,11 @@ public class McpController implements ToolProvider {
      * de chamar {@code activate_tools}.
      */
     @GetMapping("/tools/pinned")
-    public ResponseEntity<BaseResponse<List<String>>> getPinnedTools(
-            @AuthenticationPrincipal AuthPrincipal principal) {
+    public ResponseEntity<BaseResponse<List<String>>> getPinnedTools(@AuthenticationPrincipal AuthPrincipal principal) {
         if (pinnedToolService == null) {
             return ApiResponses.ok(List.of());
         }
-        return ApiResponses.ok(
-                List.copyOf(pinnedToolService.pinnedFor(principal != null ? principal.userId() : null)));
+        return ApiResponses.ok(List.copyOf(pinnedToolService.pinnedFor(principal != null ? principal.userId() : null)));
     }
 
     @PutMapping("/tools/pinned")
@@ -817,11 +815,10 @@ public class McpController implements ToolProvider {
         if (pinnedToolService == null) {
             return ApiResponses.ok(List.of());
         }
-        Set<String> requested = request == null || request.toolNames() == null
-                ? Set.of()
-                : new LinkedHashSet<>(request.toolNames());
-        return ApiResponses.ok(List.copyOf(
-                pinnedToolService.replace(principal != null ? principal.userId() : null, requested)));
+        Set<String> requested =
+                request == null || request.toolNames() == null ? Set.of() : new LinkedHashSet<>(request.toolNames());
+        return ApiResponses.ok(
+                List.copyOf(pinnedToolService.replace(principal != null ? principal.userId() : null, requested)));
     }
 
     public JsonNode executeToolInternal(String name, Map<String, Object> payload) throws Exception {

@@ -1,20 +1,20 @@
 package com.avento.service.execution;
 
 import com.avento.model.ScheduledTask;
+import com.avento.model.ScheduledTaskRun;
 import com.avento.repository.ScheduledTaskRepository;
+import com.avento.repository.ScheduledTaskRunRepository;
 import com.avento.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import com.avento.model.ScheduledTaskRun;
-import com.avento.repository.ScheduledTaskRunRepository;
-import java.time.LocalTime;
 
 @Component
 public class CronTaskScheduler {

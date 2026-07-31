@@ -12,6 +12,7 @@ import com.avento.service.intent.ImageIntentService;
 import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
 import com.avento.service.orchestration.AgentExecutionEngine;
+import com.avento.service.provider.ModelTransport;
 import com.avento.service.support.HeuristicWordLists;
 import com.avento.service.support.HistoryText;
 import com.avento.service.support.MessageText;
@@ -64,7 +65,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-import com.avento.service.provider.ModelTransport;
 
 @Service
 public class AgentService implements AgentExecutionEngine {

@@ -5,12 +5,12 @@ import com.avento.model.TokenUsage;
 import com.avento.repository.TokenUsageRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -42,8 +42,7 @@ public class TokenUsageService {
     public UsageSummary summary(UUID userId, String range) {
         String normalizedRange = normalizeRange(range);
         if (userId == null) {
-            return new UsageSummary(
-                    normalizedRange, 0, 0, 0, 0, List.of(), List.of(), List.of());
+            return new UsageSummary(normalizedRange, 0, 0, 0, 0, List.of(), List.of(), List.of());
         }
 
         LocalDateTime since = sinceFor(normalizedRange);

@@ -3,16 +3,16 @@ package com.avento.service.orchestration;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.avento.service.AgentTimelineService;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.orchestration.AgentRunRegistry.AgentRunStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-import com.avento.service.AgentTimelineService;
-import java.util.ArrayList;
 
 class AgentOrchestratorTest {
 

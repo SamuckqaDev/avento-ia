@@ -3,10 +3,10 @@ package com.avento.service.tools;
 import com.avento.service.dto.Context;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
-import java.util.List;
 
 /** Stable boundary used by the agent regardless of whether a tool is local or MCP-backed. */
 @Service

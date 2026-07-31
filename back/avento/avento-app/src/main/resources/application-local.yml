@@ -60,13 +60,18 @@ avento:
     default-model: ${AVENTO_IMAGE_DEFAULT_MODEL:x/flux2-klein:4b}
   mcp:
     catalog:
-      # 'fetch' incluido no auto-connect: e o servidor MCP de web (uvx mcp-server-fetch, instalado
-      # nesta maquina) que le paginas/APIs e devolve texto — resolve cotacao, "que horas sao", etc.
-      # sem navegador. Estava fora da lista, por isso o modelo nunca recebia a ferramenta de web.
       # docker-gateway entra por ultimo de proposito: os anteriores ja reservaram seus nomes de
       # ferramenta, entao o que vier do gateway nao os sobrescreve. Ele e ignorado em silencio
       # quando o Docker Desktop nao esta no ar (Colima nao serve o plugin), sem afetar os demais.
-      auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,memory,sequential-thinking,time,macos-automator,apple,playwright,chrome-devtools,puppeteer,fetch,docker-gateway}
+      # Fora do gateway ficam apenas os que um container Linux nao consegue atender:
+      #   filesystem  - o servidor do catalogo Docker exige paths fixos montados como volume, e o
+      #                 Avento entrega os workspaces por chat, dinamicamente;
+      #   markitdown  - mesma limitacao de paths, e o binario local ja atende o read_document;
+      #   macos-automator, apple, chrome-devtools - nem existem no catalogo Docker: dependem de
+      #                 AppleScript e do Chrome do host.
+      # O resto (fetch, time, memory, sequential-thinking, playwright, puppeteer, git) vem do
+      # gateway, cada um em container isolado. Habilitar/desabilitar e no Docker Desktop.
+      auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,macos-automator,apple,chrome-devtools,docker-gateway}
     docker-gateway:
       # Vazio = os servidores habilitados no Docker Desktop (MCP Toolkit). Nenhum habilitado
       # significa gateway conectado sem ferramentas — inofensivo — ate voce escolher na interface.

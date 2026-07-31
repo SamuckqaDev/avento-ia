@@ -10,8 +10,8 @@ memory...) já sobem no boot e não precisam de gatilho aqui.
 
 ## Developer
 
-### git
-Gatilhos: git, commit, branch, rebase, merge, stash, checkout, pull request, versionamento, repositorio
+<!-- git saiu daqui: agora vem do docker-gateway, que conecta no boot. Manter o gatilho subiria uma
+     segunda copia via npx e duas ferramentas com o mesmo nome disputando a rodada. -->
 
 ## Data
 
@@ -20,8 +20,7 @@ Gatilhos: banco de dados, database, consulta sql, sql, query no banco, dbhub, po
 
 ## Web
 
-### fetch
-Gatilhos: cotacao, cotacoes, dolar, euro, libra, iene, cambio, moeda, bitcoin, acao, bolsa, http, https, url, site, pagina, busca na web, buscar na web, pesquisa na web, pesquisar online, consulta online, noticia, noticias, clima, previsao do tempo
+<!-- fetch idem: vem do gateway desde o boot, nao precisa de gatilho. -->
 
 ## Advanced
 

@@ -111,11 +111,12 @@ AVENTO_MCP_SEARXNG_URL=http://127.0.0.1:8080
 # Fallback global usado apenas quando o chat nao possui workspace.
 AVENTO_MCP_DBHUB_DSN=postgres://avento:senha@127.0.0.1:5432/avento?sslmode=disable
 
-# Perfil criado no Docker MCP Toolkit.
-AVENTO_MCP_DOCKER_GATEWAY_PROFILE=avento-local
+# Opcional. Vazio = usa os servidores habilitados no Docker Desktop (registry.yaml do Toolkit).
+# Preencher fixa um subconjunto: AVENTO_MCP_DOCKER_GATEWAY_SERVERS=github,postgres
+AVENTO_MCP_DOCKER_GATEWAY_SERVERS=
 ```
 
-`Fetch` acessa URLs fornecidas pelo modelo e pode alcancar enderecos internos. Ele nao conecta automaticamente. DBHub conecta automaticamente quando o workspace ativo fornece uma configuracao reconhecida; sem workspace, usa somente o fallback global. Docker Gateway fica desligado enquanto sua configuracao estiver vazia.
+`Fetch` acessa URLs fornecidas pelo modelo e pode alcancar enderecos internos. Ele nao conecta automaticamente. DBHub conecta automaticamente quando o workspace ativo fornece uma configuracao reconhecida; sem workspace, usa somente o fallback global. Docker Gateway agrega servidores MCP em containers isolados, em vez de processos npx/uvx soltos na maquina. Ele nao tem gatilho de intencao — nao e uma ferramenta sobre Docker, e o transporte que serve outros servidores — entao conecte-o com `connect_mcp_server`. Requer o Docker Desktop em execucao com o MCP Toolkit habilitado.
 
 O catalogo usa exclusivamente o SDK Java oficial. Os pacotes npm possuem versoes fixas em
 `application.yml`, sem `@latest`; isso deixa a instalacao reproduzivel e permite atualizar cada

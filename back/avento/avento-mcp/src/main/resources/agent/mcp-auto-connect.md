@@ -25,5 +25,7 @@ Gatilhos: cotacao, cotacoes, dolar, euro, libra, iene, cambio, moeda, bitcoin, a
 
 ## Advanced
 
-### docker-gateway
-Gatilhos: docker, container, dockerfile, docker-compose, imagem docker
+<!-- O docker-gateway NAO tem gatilho de propósito. Ele nao e uma ferramenta sobre Docker: e o
+     transporte que serve OUTROS servidores MCP, em containers isolados. Acionar por "dockerfile"
+     subia o gateway a toa, e precisar de um servidor agregado nele nao disparava nada. Conecte-o
+     explicitamente com connect_mcp_server. -->

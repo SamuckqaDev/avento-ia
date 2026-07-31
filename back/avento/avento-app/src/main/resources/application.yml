@@ -209,7 +209,9 @@ avento:
     searxng:
       url: ${AVENTO_MCP_SEARXNG_URL:}
     docker-gateway:
-      profile: ${AVENTO_MCP_DOCKER_GATEWAY_PROFILE:}
+      # Vazio = usa os servidores habilitados no Docker Desktop (registry.yaml do Toolkit).
+      # Preencher com uma lista separada por virgula fixa um subconjunto.
+      servers: ${AVENTO_MCP_DOCKER_GATEWAY_SERVERS:}
   voice:
     ffmpeg-path: /opt/homebrew/bin/ffmpeg
     whisper-binary: ""

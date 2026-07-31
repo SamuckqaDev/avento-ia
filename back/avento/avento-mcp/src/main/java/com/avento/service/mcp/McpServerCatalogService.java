@@ -352,13 +352,24 @@ public class McpServerCatalogService {
                                         : "Nenhum banco foi detectado no workspace deste chat."));
             }
             case "docker-gateway" -> {
-                String profile = environment
-                        .getProperty("avento.mcp.docker-gateway.profile", "")
+                // `--profile` NAO existe no CLI do Docker MCP Toolkit: o comando morria em
+                // "unknown flag: --profile". E como o perfil nunca vinha configurado, o gateway
+                // ficava "indisponivel" antes de chegar a falhar — dois motivos empilhados para
+                // algo que nunca subiu.
+                //
+                // Sem `--servers`, o gateway usa o registry.yaml que o Docker Desktop gerencia, ou
+                // seja, exatamente os servidores que o usuario habilitou na interface do Toolkit.
+                // Esse e o padrao util; a lista explicita continua disponivel para fixar um
+                // subconjunto.
+                List<String> command = new ArrayList<>(List.of("docker", "mcp", "gateway", "run"));
+                String servers = environment
+                        .getProperty("avento.mcp.docker-gateway.servers", "")
                         .trim();
-                yield profile.isBlank()
-                        ? ServerLaunch.unavailable("Configure AVENTO_MCP_DOCKER_GATEWAY_PROFILE.")
-                        : executable(
-                                "docker", List.of("docker", "mcp", "gateway", "run", "--profile", profile), Map.of());
+                if (!servers.isBlank()) {
+                    command.add("--servers");
+                    command.add(servers);
+                }
+                yield executable("docker", List.copyOf(command), Map.of());
             }
             default -> ServerLaunch.unavailable("Servidor nao implementado.");
         };

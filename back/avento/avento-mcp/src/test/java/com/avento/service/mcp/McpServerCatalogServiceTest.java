@@ -47,7 +47,6 @@ class McpServerCatalogServiceTest {
         assertTrue(catalog.stream().anyMatch(server -> server.id().equals("memory") && server.local()));
         assertTrue(catalog.stream().anyMatch(server -> server.id().equals("dbhub") && !server.available()));
         assertTrue(catalog.stream().anyMatch(server -> server.id().equals("searxng") && !server.available()));
-        assertTrue(catalog.stream().anyMatch(server -> server.id().equals("docker-gateway") && !server.available()));
         assertFalse(catalog.isEmpty());
     }
 
@@ -148,6 +147,56 @@ class McpServerCatalogServiceTest {
                 Set<String> reservedToolNames) {
             connectCalls++;
             return ConnectionResult.failedFor(serverName, "Nao deveria reconectar.");
+        }
+    }
+
+    /**
+     * O comando do gateway, fixado.
+     *
+     * <p>O codigo de producao chamava {@code docker mcp gateway run --profile <perfil>}, e essa flag
+     * nao existe no CLI do Docker MCP Toolkit — o processo morria em "unknown flag: --profile". O
+     * teste de integracao ao lado ja usava {@code --servers}, o correto, mas esta atras de uma
+     * variavel de ambiente e nunca rodou, entao a divergencia passou batida. Este roda sempre.
+     */
+    @Test
+    void launchesTheDockerGatewayWithFlagsThatExist() {
+        RecordingManager manager = new RecordingManager();
+        new McpServerCatalogService(manager, configuredEnvironment(), new ProjectDatabaseDiscoveryService())
+                .connect(List.of("docker-gateway"), List.of());
+
+        assertEquals(List.of("docker", "mcp", "gateway", "run"), manager.command);
+    }
+
+    /** Com a lista configurada, ela vira {@code --servers}; sem ela, o gateway usa o registry. */
+    @Test
+    void passesTheConfiguredServerListToTheGateway() {
+        RecordingManager manager = new RecordingManager();
+        new McpServerCatalogService(
+                        manager,
+                        configuredEnvironment().withProperty("avento.mcp.docker-gateway.servers", "github,postgres"),
+                        new ProjectDatabaseDiscoveryService())
+                .connect(List.of("docker-gateway"), List.of());
+
+        assertEquals(List.of("docker", "mcp", "gateway", "run", "--servers", "github,postgres"), manager.command);
+    }
+
+    private static final class RecordingManager extends McpClientManager {
+
+        private List<String> command = List.of();
+
+        private RecordingManager() {
+            super(new ObjectMapper(), Duration.ofSeconds(1));
+        }
+
+        @Override
+        public synchronized ConnectionResult connect(
+                String scope,
+                String serverName,
+                List<String> command,
+                Map<String, String> environment,
+                Set<String> reservedToolNames) {
+            this.command = List.copyOf(command);
+            return ConnectionResult.failedFor(serverName, "nao conecta de verdade no teste");
         }
     }
 }

@@ -69,3 +69,6 @@ piper_tts/test.wav
 back/whisper.cpp/
 back/whisper.cpp/build/
 back/whisper.cpp/models/*.bin
+
+# Cache do otimizador de dependencias do Vite: especifico da maquina, regerado a cada dev.
+front/.vite/

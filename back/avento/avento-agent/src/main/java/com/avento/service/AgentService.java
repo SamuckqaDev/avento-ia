@@ -2675,10 +2675,6 @@ public class AgentService implements AgentExecutionEngine {
             return null;
         }
 
-        if (normalized.length() <= 40 && isShortGreeting(normalized)) {
-            return "Oi! Sou o Avento. Como posso ajudar?\n";
-        }
-
         if (MessageText.containsAny(
                 normalized,
                 "chega",
@@ -2694,47 +2690,8 @@ public class AgentService implements AgentExecutionEngine {
             return "Tá. Vou ficar quieta agora.\n";
         }
 
-        if (normalized.length() <= 40
-                && MessageText.containsAny(
-                        normalized,
-                        "comervais",
-                        "comer vais",
-                        "como vai",
-                        "como vais",
-                        "como voce esta",
-                        "como vc esta",
-                        "como voce ta",
-                        "como vc ta")) {
-            return "Tudo bem por aqui. E por aí?\n";
-        }
-
-        if (normalized.length() <= 120 && isCapabilityQuestion(normalized)) {
-            return capabilityResponse();
-        }
-
-        if (normalized.length() <= 160 && isIdentityQuestion(normalized)) {
-            return identityResponse();
-        }
-
         if (normalized.length() <= 60 && MessageText.containsAny(normalized, "portugues brasileiro natural")) {
             return "Estou te ouvindo em português brasileiro. Pode falar o pedido normalmente.\n";
-        }
-
-        if (normalized.length() <= 80
-                && MessageText.containsAny(
-                        normalized,
-                        "bom dia",
-                        "boa tarde",
-                        "boa noite",
-                        "boanoite",
-                        "boho noici",
-                        "boho noite",
-                        "bona noite",
-                        "boa noici",
-                        "noici")) {
-            if (normalized.contains("bom dia")) return "Bom dia! Como posso ajudar?\n";
-            if (normalized.contains("boa tarde")) return "Boa tarde! Como posso ajudar?\n";
-            return "Boa noite. Como posso ajudar?\n";
         }
 
         return null;

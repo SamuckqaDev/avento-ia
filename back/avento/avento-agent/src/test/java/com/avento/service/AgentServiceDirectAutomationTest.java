@@ -114,13 +114,10 @@ class AgentServiceDirectAutomationTest {
             "qwen2.5vl:7b");
 
     @Test
-    void streamChatAnswersIdentityInputWithoutCallingModelOrAutomation() {
-        ArrayNode messages = userMessages("Avento. Explica para o meu amigo quem é você?");
+    void streamChatRoutesIdentityInputToTheModel() throws Exception {
+        String directResponse = detectDirectConversationResponse("Avento. Explica para o meu amigo quem é você?");
 
-        String firstChunk = service.streamChat("llama3.2:latest", messages).blockFirst(Duration.ofSeconds(2));
-
-        assertNotNull(firstChunk);
-        assertTrue(firstChunk.contains("Sou o Avento"));
+        assertNull(directResponse);
     }
 
     @Test
@@ -470,13 +467,10 @@ class AgentServiceDirectAutomationTest {
     }
 
     @Test
-    void backendAnswersTheRealToolCountWithoutCallingTheModel() {
-        String firstChunk = service.streamChat("qwen3:8b", userMessages("Quantas ferramentas você tem?"))
-                .blockFirst(Duration.ofSeconds(2));
+    void passesToolCountQuestionToTheModel() throws Exception {
+        String directResponse = detectDirectConversationResponse("Quantas ferramentas você tem?");
 
-        assertNotNull(firstChunk);
-        assertTrue(firstChunk.contains(
-                "Neste momento tenho " + toolGateway.listTools().size() + " ferramentas"));
+        assertNull(directResponse);
     }
 
     @Test
@@ -1400,21 +1394,21 @@ class AgentServiceDirectAutomationTest {
     }
 
     @Test
-    void handlesNoisyGoodNightWithoutCallingTheModel() throws Exception {
+    void passesNoisyGoodNightToTheModel() throws Exception {
         String response = detectDirectConversationResponse("Od si boho noici.");
 
-        assertEquals("Boa noite. Como posso ajudar?\n", response);
+        assertNull(response);
     }
 
     @Test
-    void handlesShortGreetingWithoutCallingTheModel() throws Exception {
+    void passesShortGreetingToTheModel() throws Exception {
         String response = detectDirectConversationResponse("oi");
 
-        assertEquals("Oi! Sou o Avento. Como posso ajudar?\n", response);
+        assertNull(response);
     }
 
     @Test
-    void handlesContextWrappedShortGreetingWithoutCallingTheModel() throws Exception {
+    void passesContextWrappedShortGreetingToTheModel() throws Exception {
         String response = detectDirectConversationResponse("""
                 [Local Environment]
                 OS: macOS
@@ -1426,7 +1420,7 @@ class AgentServiceDirectAutomationTest {
                 oi
                 """);
 
-        assertEquals("Bom dia! Como posso ajudar?\n", response);
+        assertNull(response);
     }
 
     @Test
@@ -1452,11 +1446,11 @@ class AgentServiceDirectAutomationTest {
     }
 
     @Test
-    void handlesNoisyHowAreYouWithoutOpeningFinder() throws Exception {
+    void passesNoisyHowAreYouToTheModelWithoutOpeningFinder() throws Exception {
         String response = detectDirectConversationResponse("Comervais?");
         Object toolCall = detectOptionalToolCall("Comervais?");
 
-        assertEquals("Tudo bem por aqui. E por aí?\n", response);
+        assertNull(response);
         assertNull(toolCall);
     }
 
@@ -1468,54 +1462,38 @@ class AgentServiceDirectAutomationTest {
     }
 
     @Test
-    void answersCapabilityQuestionWithoutOpeningFinder() throws Exception {
+    void passesCapabilityQuestionToTheModelWithoutOpeningFinder() throws Exception {
         String response = detectDirectConversationResponse("Avento, fala para mim o que mais você pode fazer.");
         Object toolCall = detectOptionalToolCall("Avento, fala para mim o que mais você pode fazer.");
 
+        assertNull(response);
         assertNull(toolCall);
-        org.assertj.core.api.Assertions.assertThat(response)
-                .contains("projetos e código")
-                .contains("agente e automação")
-                .contains("macOS e navegador");
     }
 
     @Test
-    void answersHelpQuestionWithoutOpeningFinder() throws Exception {
+    void passesHelpQuestionToTheModelWithoutOpeningFinder() throws Exception {
         String response = detectDirectConversationResponse("Avento, fala para mim com o que você pode me ajudar.");
         Object toolCall = detectOptionalToolCall("Avento, fala para mim com o que você pode me ajudar.");
 
+        assertNull(response);
         assertNull(toolCall);
-        org.assertj.core.api.Assertions.assertThat(response)
-                .contains("testes, build e rollback")
-                .contains("autorização e a permissão configuradas");
     }
 
     @Test
-    void answersAbbreviatedHelpQuestionWithoutCallingTheModel() throws Exception {
+    void passesAbbreviatedHelpQuestionToTheModel() throws Exception {
         String response = detectDirectConversationResponse("Com o que vc pode me ajudar?");
 
-        assertNotNull(response);
-        org.assertj.core.api.Assertions.assertThat(response)
-                .contains("Samuel Tomimatu")
-                .contains("engenheiro de software")
-                .contains("projetos e código")
-                .contains("testes, build e rollback")
-                .contains("Whisper.cpp")
-                .contains("ComfyUI");
+        assertNull(response);
     }
 
     @Test
-    void answersIdentityQuestionWithoutOpeningFinder() throws Exception {
+    void passesIdentityQuestionToTheModelWithoutOpeningFinder() throws Exception {
         String message = "Avento. Explica para o meu amigo quem é você?";
         String response = detectDirectConversationResponse(message);
         Object toolCall = detectOptionalToolCall(message);
 
+        assertNull(response);
         assertNull(toolCall);
-        org.assertj.core.api.Assertions.assertThat(response)
-                .contains("Sou o Avento")
-                .contains("Samuel Tomimatu")
-                .contains("engenheiro de software")
-                .contains("modelos locais");
     }
 
     @Test
@@ -1536,11 +1514,11 @@ class AgentServiceDirectAutomationTest {
     }
 
     @Test
-    void handlesGoodNightCorrectionWithoutOpeningApps() throws Exception {
+    void passesGoodNightToTheModelWithoutOpeningApps() throws Exception {
         String response = detectDirectConversationResponse("Eu disse boa noite.");
         Object toolCall = detectOptionalToolCall("Eu disse boa noite Finder.");
 
-        assertEquals("Boa noite. Como posso ajudar?\n", response);
+        assertNull(response);
         assertNull(toolCall);
     }
 

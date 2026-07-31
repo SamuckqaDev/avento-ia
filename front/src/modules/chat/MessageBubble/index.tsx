@@ -37,7 +37,7 @@ import { UiPreviewCard } from '../UiPreviewCard';
 import { ImplPlanCard } from '../ImplPlanCard';
 import { DocumentCard } from '../DocumentCard';
 
-import { CaretDown, Check, Copy, FileCode, FileText, CaretRight, ImageSquare, Lightning, Brain } from '@phosphor-icons/react';
+import { CaretDown, Check, Copy, FileCode, FileText, CaretRight, ImageSquare, Lightning, Brain, Sparkle } from '@phosphor-icons/react';
 import { api } from '../../../services/apiClient';
 
 export interface Message {
@@ -330,7 +330,7 @@ function MessageBubbleComponent({
       <BubbleContainer $isUser={isUser} $hasWideArtifact={containsUiPreview}>
         {!isUser && (
           <Header>
-            <span className="ai-icon">A</span>
+            <Sparkle size={16} weight="duotone" />
             <span className="ai-name">Avento</span>
             {message.content && (
               <HeaderActions>

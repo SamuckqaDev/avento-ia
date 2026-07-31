@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title>Avento IA — Agentic AI Coding Harness (Local-First)</title>
     <meta name="description" content="Avento IA é um assistente agêntico local-first de alta performance para desenvolvedores, criado por Samuel Tomimatu.">
     <!-- Google Fonts -->
@@ -14,9 +14,9 @@
         :root {
             --bg: #081C19;
             --surface: #102A26;
-            --surface-card: rgba(16, 42, 38, 0.65);
+            --surface-card: rgba(16, 42, 38, 0.7);
             --border: #21433D;
-            --border-glow: rgba(102, 230, 200, 0.3);
+            --border-glow: rgba(102, 230, 200, 0.35);
             --primary: #104E45;
             --mint: #66E6C8;
             --mint-hover: #80ebd3;
@@ -24,7 +24,7 @@
             --pink-hover: #e55a86;
             --text: #F2FFFB;
             --text-muted: #9FB8B1;
-            --glass-bg: rgba(8, 28, 25, 0.75);
+            --glass-bg: rgba(8, 28, 25, 0.85);
             --radius-lg: 20px;
             --radius-md: 12px;
             --radius-sm: 8px;
@@ -37,8 +37,12 @@
             padding: 0;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             line-height: 1.6;
@@ -47,6 +51,7 @@
                 radial-gradient(circle at 15% 15%, rgba(102, 230, 200, 0.08) 0%, transparent 40%),
                 radial-gradient(circle at 85% 65%, rgba(217, 70, 117, 0.07) 0%, transparent 45%);
             background-attachment: fixed;
+            -webkit-font-smoothing: antialiased;
         }
 
         h1, h2, h3, h4, .font-heading {
@@ -55,6 +60,7 @@
 
         /* Container */
         .container {
+            width: 100%;
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 24px;
@@ -67,8 +73,8 @@
             left: 0;
             right: 0;
             z-index: 100;
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             background: var(--glass-bg);
             border-bottom: 1px solid var(--border);
         }
@@ -83,7 +89,7 @@
         .logo {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             text-decoration: none;
             color: var(--text);
             font-weight: 700;
@@ -91,18 +97,17 @@
             font-family: 'Outfit', sans-serif;
         }
 
-        .logo-mark {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, var(--mint), var(--primary));
+        .logo-svg {
+            width: 42px;
+            height: 42px;
             border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--bg);
-            font-weight: 900;
-            font-size: 1.2rem;
-            box-shadow: 0 4px 12px rgba(102, 230, 200, 0.25);
+            box-shadow: 0 4px 16px rgba(102, 230, 200, 0.25);
+            transition: var(--transition);
+        }
+
+        .logo:hover .logo-svg {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(102, 230, 200, 0.4);
         }
 
         .nav-links {
@@ -118,6 +123,7 @@
             font-weight: 500;
             font-size: 0.95rem;
             transition: var(--transition);
+            padding: 8px 0;
         }
 
         .nav-links a:hover {
@@ -127,7 +133,7 @@
         .nav-actions {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
         }
 
         /* Buttons */
@@ -136,7 +142,7 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
-            padding: 12px 24px;
+            padding: 12px 22px;
             border-radius: var(--radius-md);
             font-weight: 600;
             font-size: 0.95rem;
@@ -144,6 +150,8 @@
             transition: var(--transition);
             cursor: pointer;
             border: none;
+            min-height: 44px;
+            touch-action: manipulation;
         }
 
         .btn-primary {
@@ -183,7 +191,7 @@
 
         /* Hero Section */
         .hero {
-            padding: 180px 0 100px;
+            padding: 160px 0 80px;
             text-align: center;
             position: relative;
         }
@@ -192,7 +200,7 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 16px;
+            padding: 8px 18px;
             border-radius: 30px;
             background: rgba(102, 230, 200, 0.1);
             border: 1px solid var(--border-glow);
@@ -219,7 +227,7 @@
         }
 
         .hero-title {
-            font-size: 3.8rem;
+            font-size: clamp(2.2rem, 5vw, 3.8rem);
             font-weight: 800;
             line-height: 1.15;
             margin-bottom: 24px;
@@ -233,9 +241,9 @@
         }
 
         .hero-subtitle {
-            font-size: 1.25rem;
+            font-size: clamp(1rem, 2vw, 1.25rem);
             color: var(--text-muted);
-            max-width: 720px;
+            max-width: 740px;
             margin: 0 auto 40px;
             font-weight: 400;
         }
@@ -249,7 +257,7 @@
         }
 
         .hero-author {
-            margin-top: 32px;
+            margin-top: 28px;
             font-size: 0.95rem;
             color: var(--text-muted);
         }
@@ -260,7 +268,7 @@
 
         /* Showcase Preview Frame */
         .showcase {
-            margin-top: 60px;
+            margin-top: 50px;
             position: relative;
         }
 
@@ -299,6 +307,7 @@
             color: var(--text-muted);
             margin-left: 12px;
             font-family: 'Fira Code', monospace;
+            word-break: break-all;
         }
 
         .app-mockup-grid {
@@ -330,18 +339,6 @@
             margin-bottom: 16px;
             color: var(--text-muted);
         }
-
-        .mock-code {
-            background: #040e0c;
-            padding: 12px;
-            border-radius: 6px;
-            color: #d4d4d4;
-            line-height: 1.5;
-        }
-
-        .mock-code .keyword { color: #569cd6; }
-        .mock-code .string { color: #ce9178; }
-        .mock-code .add { color: #4ec9b0; }
 
         .mock-plan {
             background: var(--bg);
@@ -377,24 +374,19 @@
             font-weight: bold;
         }
 
-        .task-status-run {
-            color: var(--mint);
-            font-weight: bold;
-        }
-
         /* Features Section */
         .features {
-            padding: 100px 0;
+            padding: 80px 0;
         }
 
         .section-header {
             text-align: center;
             max-width: 640px;
-            margin: 0 auto 60px;
+            margin: 0 auto 50px;
         }
 
         .section-title {
-            font-size: 2.5rem;
+            font-size: clamp(1.8rem, 3.5vw, 2.5rem);
             font-weight: 700;
             margin-bottom: 16px;
         }
@@ -406,7 +398,7 @@
 
         .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
             gap: 24px;
         }
 
@@ -414,7 +406,7 @@
             background: var(--surface-card);
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
-            padding: 32px;
+            padding: 28px;
             transition: var(--transition);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
@@ -427,8 +419,8 @@
         }
 
         .feature-icon {
-            width: 52px;
-            height: 52px;
+            width: 50px;
+            height: 50px;
             border-radius: var(--radius-md);
             background: rgba(102, 230, 200, 0.1);
             border: 1px solid var(--border-glow);
@@ -440,7 +432,7 @@
         }
 
         .feature-title {
-            font-size: 1.25rem;
+            font-size: 1.2rem;
             font-weight: 600;
             margin-bottom: 12px;
         }
@@ -453,14 +445,14 @@
 
         /* Metrics Section */
         .metrics {
-            padding: 80px 0;
+            padding: 60px 0;
             background: linear-gradient(180deg, transparent, rgba(16, 42, 38, 0.4), transparent);
         }
 
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
             text-align: center;
         }
 
@@ -468,49 +460,49 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
-            padding: 32px 20px;
+            padding: 28px 16px;
         }
 
         .metric-value {
-            font-size: 3rem;
+            font-size: clamp(2.2rem, 4vw, 3rem);
             font-weight: 800;
             color: var(--mint);
             font-family: 'Outfit', sans-serif;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .metric-label {
             color: var(--text-muted);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 500;
         }
 
         /* Author Section */
         .author-section {
-            padding: 100px 0;
+            padding: 80px 0;
         }
 
         .author-card {
             background: var(--surface-card);
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
-            padding: 48px;
+            padding: 40px;
             display: flex;
             align-items: center;
-            gap: 40px;
+            gap: 36px;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
         }
 
         .author-avatar {
-            width: 120px;
-            height: 120px;
+            width: 110px;
+            height: 110px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--mint), var(--pink));
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 3rem;
+            font-size: 2.8rem;
             font-weight: 800;
             color: var(--bg);
             flex-shrink: 0;
@@ -518,39 +510,40 @@
         }
 
         .author-info h3 {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             font-weight: 700;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
         .author-role {
             color: var(--mint);
             font-weight: 600;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
         }
 
         .author-bio {
             color: var(--text-muted);
-            font-size: 1rem;
+            font-size: 0.95rem;
             line-height: 1.6;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         /* Footer */
         footer {
             border-top: 1px solid var(--border);
-            padding: 40px 0;
+            padding: 36px 0;
             text-align: center;
             color: var(--text-muted);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         .footer-links {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 24px;
-            margin-bottom: 16px;
+            gap: 20px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
         }
 
         .footer-links a {
@@ -563,12 +556,58 @@
             color: var(--mint);
         }
 
-        /* Responsive */
-        @media (max-width: 900px) {
-            .hero-title { font-size: 2.8rem; }
-            .app-mockup-grid { grid-template-columns: 1fr; }
-            .author-card { flex-direction: column; text-align: center; }
-            .nav-links { display: none; }
+        /* Fully Responsive Breakpoints */
+        @media (max-width: 992px) {
+            .app-mockup-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-container {
+                height: 70px;
+            }
+            .nav-links {
+                display: none;
+            }
+            .hero {
+                padding: 130px 0 60px;
+            }
+            .author-card {
+                flex-direction: column;
+                text-align: center;
+                padding: 28px 20px;
+            }
+            .hero-cta {
+                width: 100%;
+                flex-direction: column;
+            }
+            .hero-cta .btn {
+                width: 100%;
+            }
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 16px;
+            }
+            .logo span {
+                font-size: 1.2rem;
+            }
+            .logo-svg {
+                width: 36px;
+                height: 36px;
+            }
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            .badge {
+                font-size: 0.75rem;
+                padding: 6px 14px;
+            }
         }
     </style>
 </head>
@@ -578,7 +617,26 @@
     <header>
         <div class="container nav-container">
             <a href="#" class="logo">
-                <div class="logo-mark">A</div>
+                <!-- SVG Oficial da Marca Avento -->
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Avento Logo">
+                  <defs>
+                    <linearGradient id="avento-bg" x1="14" y1="10" x2="82" y2="86" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#E8FFF7"/>
+                      <stop offset="0.45" stop-color="#66E6C8"/>
+                      <stop offset="1" stop-color="#D94675"/>
+                    </linearGradient>
+                    <linearGradient id="avento-mark" x1="25" y1="18" x2="70" y2="78" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#F2FFFB"/>
+                      <stop offset="1" stop-color="#BDF7EA"/>
+                    </linearGradient>
+                  </defs>
+                  <rect width="96" height="96" rx="22" fill="#104E45"/>
+                  <path fill="url(#avento-bg)" d="M17 68.8 43.8 18c1.8-3.5 6.8-3.5 8.6 0L79 68.8c1.7 3.2-.7 7.2-4.3 7.2H61.5a4.9 4.9 0 0 1-4.3-2.6L48 55.5l-9.2 17.9a4.9 4.9 0 0 1-4.3 2.6H21.3c-3.6 0-6-4-4.3-7.2Z"/>
+                  <path fill="url(#avento-mark)" d="M38.6 48.4 46 33.8c.8-1.6 3.1-1.6 3.9 0l7.6 14.6H38.6Z"/>
+                  <path fill="#104E45" d="M33.3 58.9c0-2.2 1.8-4 4-4h21.5c2.2 0 4 1.8 4 4s-1.8 4-4 4H37.3c-2.2 0-4-1.8-4-4Z"/>
+                  <circle cx="48" cy="58.9" r="5.8" fill="#D94675"/>
+                  <circle cx="48" cy="58.9" r="2.3" fill="#F2FFFB"/>
+                </svg>
                 <span>Avento IA</span>
             </a>
             <ul class="nav-links">
@@ -632,19 +690,12 @@
                     </div>
                     <div class="app-mockup-grid">
                         <div class="mock-chat">
-                            <div class="mock-prompt">💬 > Refatore a classe TerminalCommandPolicy e crie os testes unitários</div>
+                            <div class="mock-prompt">💬 > Refatore a arquitetura e execute a suíte de testes</div>
                             <div class="mock-think">
                                 💭 &lt;think&gt;<br>
-                                Analisando segurança da execução de comandos de terminal...<br>
-                                Isolando allowlist e ProcessBuilder contra injeção de shell.<br>
-                                Modelo ativo: granite4.1:8b
-                            </div>
-                            <div class="mock-code">
-                                <span class="keyword">public final class</span> <span class="add">TerminalCommandPolicy</span> {<br>
-                                &nbsp;&nbsp;<span class="keyword">public static boolean</span> isAllowed(<span class="keyword">String</span> cmd) {<br>
-                                &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">return</span> ALLOWLIST.contains(cmd);<br>
-                                &nbsp;&nbsp;}<br>
-                                }
+                                Analisando regras de segurança e isolamento de processos...<br>
+                                Executando TerminalCommandPolicy sem invocação de shell.<br>
+                                Modelo ativo: granite4.1:8b (Local)
                             </div>
                         </div>
                         <div class="mock-plan">
@@ -654,11 +705,11 @@
                             </div>
                             <div class="task-item">
                                 <span class="task-status-done">✓</span>
-                                <span>1. Extrair TerminalCommandPolicy</span>
+                                <span>1. Isolar TerminalCommandPolicy</span>
                             </div>
                             <div class="task-item">
                                 <span class="task-status-done">✓</span>
-                                <span>2. Rodar 608 testes automatizados</span>
+                                <span>2. Validar 608 testes automatizados</span>
                             </div>
                         </div>
                     </div>

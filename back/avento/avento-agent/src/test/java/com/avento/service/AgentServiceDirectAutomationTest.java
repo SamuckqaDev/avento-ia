@@ -467,10 +467,17 @@ class AgentServiceDirectAutomationTest {
     }
 
     @Test
-    void passesToolCountQuestionToTheModel() throws Exception {
+    void answersTheRealToolCountWithoutAskingTheModel() throws Exception {
+        // O modelo nao tem como saber quantas ferramentas existem no registro: perguntar a ele
+        // devolve um numero inventado. Esta e a unica pergunta que o backend ainda responde
+        // sozinho — saudacao, identidade e capacidades vao para o modelo de proposito.
         String directResponse = detectDirectConversationResponse("Quantas ferramentas você tem?");
 
-        assertNull(directResponse);
+        assertNotNull(directResponse);
+        assertTrue(
+                directResponse.contains(
+                        "Neste momento tenho " + toolGateway.listTools().size() + " ferramentas"),
+                "a contagem tem de vir do registro, nao do modelo: " + directResponse);
     }
 
     @Test

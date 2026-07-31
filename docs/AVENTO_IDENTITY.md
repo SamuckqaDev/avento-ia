@@ -111,8 +111,9 @@ integracoes web e APIs opcionais podem enviar dados para servicos externos.
 ## Fontes de verdade
 
 - Identidade do modelo: `agent/instructions/identity.md`.
-- Respostas diretas de apresentacao: `agent/responses/identity-pt.md` e
-  `agent/responses/capabilities-pt.md`.
+- Apresentacao e capacidades: respondidas pelo modelo, nao por texto pronto. Os fatos que ele usa
+  vem de `agent/instructions/product.md`, injetado no prompt quando a conversa pergunta sobre o
+  proprio Avento.
 - Fatos tecnicos compactos: `agent/instructions/product.md`.
 - Personalidade: `agent/instructions/personality.md`.
 - Arquitetura detalhada: [`ARCHITECTURE.md`](ARCHITECTURE.md).

@@ -83,8 +83,6 @@ public class AgentService implements AgentExecutionEngine {
     // The model-facing instructions live in editable resource files rather than a
     // large Java string. Keep this loader as the single authoritative composition
     // point because frontend system messages are intentionally discarded later.
-    private static final String IDENTITY_RESPONSE_PT = loadAgentResource("agent/responses/identity-pt.md");
-    private static final String CAPABILITY_RESPONSE_PT = loadAgentResource("agent/responses/capabilities-pt.md");
 
     private static String loadAgentResource(String resource) {
         try {
@@ -2675,6 +2673,16 @@ public class AgentService implements AgentExecutionEngine {
             return null;
         }
 
+        // Unico atalho factual que sobrou: o modelo NAO tem como saber quantas ferramentas existem
+        // no registro, entao perguntar a ele produz um numero inventado. Saudacao, identidade e
+        // "o que voce pode fazer" vao para o modelo de proposito — dialogo pronto foi removido.
+        if (isToolCountQuestion(normalized)) {
+            return "Neste momento tenho " + toolGateway.listTools().size()
+                    + " ferramentas registradas. Registro nao significa que todas estejam conectadas:"
+                    + " eu confiro configuracao, conexao e resultado real antes de afirmar que uma"
+                    + " acao funcionou.\n";
+        }
+
         if (MessageText.containsAny(
                 normalized,
                 "chega",
@@ -2863,25 +2871,6 @@ public class AgentService implements AgentExecutionEngine {
         return "";
     }
 
-    private boolean isShortGreeting(String normalizedMessage) {
-        return normalizedMessage.equals("oi")
-                || normalizedMessage.startsWith("oi ")
-                || normalizedMessage.equals("ola")
-                || normalizedMessage.startsWith("ola ")
-                || normalizedMessage.equals("e ai")
-                || normalizedMessage.startsWith("e ai ")
-                || normalizedMessage.equals("fala")
-                || normalizedMessage.startsWith("fala ")
-                || normalizedMessage.equals("salve")
-                || normalizedMessage.startsWith("salve ")
-                || normalizedMessage.equals("hey")
-                || normalizedMessage.startsWith("hey ")
-                || normalizedMessage.equals("hello")
-                || normalizedMessage.startsWith("hello ")
-                || normalizedMessage.equals("hi")
-                || normalizedMessage.startsWith("hi ");
-    }
-
     private boolean isKnownBrowser(String appName) {
         return "Brave Browser".equals(appName) || "Google Chrome".equals(appName) || "Safari".equals(appName);
     }
@@ -2993,64 +2982,9 @@ public class AgentService implements AgentExecutionEngine {
                 "noici");
     }
 
-    private boolean isCapabilityQuestion(String normalizedMessage) {
+    private boolean isToolCountQuestion(String normalizedMessage) {
         return MessageText.containsAny(
-                normalizedMessage,
-                "o que voce pode fazer",
-                "o que vc pode fazer",
-                "o q voce pode fazer",
-                "o q vc pode fazer",
-                "que voce pode fazer",
-                "que vc pode fazer",
-                "o que mais voce pode fazer",
-                "o que mais vc pode fazer",
-                "com o que voce pode me ajudar",
-                "com o que vc pode me ajudar",
-                "com o q voce pode me ajudar",
-                "com o q vc pode me ajudar",
-                "com que voce pode me ajudar",
-                "com que vc pode me ajudar",
-                "com q voce pode me ajudar",
-                "com q vc pode me ajudar",
-                "no que voce pode me ajudar",
-                "no que vc pode me ajudar",
-                "no q voce pode me ajudar",
-                "no q vc pode me ajudar",
-                "como voce pode me ajudar",
-                "como vc pode me ajudar",
-                "fala para mim o que voce pode",
-                "fala pra mim o que voce pode",
-                "quantas ferramentas",
-                "quantas ferramentes",
-                "numero de ferramentas");
-    }
-
-    private boolean isIdentityQuestion(String normalizedMessage) {
-        return MessageText.containsAny(
-                normalizedMessage,
-                "quem e voce",
-                "quem voce e",
-                "fala pra mim quem e voce",
-                "fala para mim quem e voce",
-                "me diga quem e voce",
-                "me fala quem e voce",
-                "o que e voce",
-                "o que voce e",
-                "explica para meu amigo",
-                "explica para o meu amigo",
-                "apresenta voce",
-                "se apresenta");
-    }
-
-    private String capabilityResponse() {
-        return CAPABILITY_RESPONSE_PT.replace(
-                        "{{toolCount}}",
-                        Integer.toString(toolGateway.listTools().size()))
-                + "\n";
-    }
-
-    private String identityResponse() {
-        return IDENTITY_RESPONSE_PT + "\n";
+                normalizedMessage, "quantas ferramentas", "quantas ferramentes", "numero de ferramentas");
     }
 
     private boolean hasExplicitAppAutomationIntent(

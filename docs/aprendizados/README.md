@@ -28,6 +28,14 @@ Segue o OS no claro/escuro.
   nunca em paralelo), as quatro mudanças exatas, e como a triagem de ferramentas por intenção
   evita alucinação — incluindo o bug que deixa o PDF invisível pro modelo.
 
+- **[03 — Cinco defeitos que nenhum teste pegava](03-cinco-defeitos-que-nenhum-teste-pegava.html)** —
+  o projeto tinha 589 testes verdes e 41 ferramentas, e nenhuma delas jamais fora executada de ponta
+  a ponta. Exercitá-las revelou cinco defeitos em sequência: escrita de arquivo escapando do
+  workspace por link simbólico, a busca no código quebrada desde que foi ligada, uma ferramenta
+  registrada que o despachante não reconhecia por classe duplicada entre módulos, o gateway MCP
+  rodando uma flag inexistente, e o seletor de modelo sendo ignorado por um literal escondido num
+  serviço. Inclui o padrão comum aos cinco e os testes que ficaram de guarda.
+
 ## Convenção
 
 - **Visão geral / onboarding:** numeração baixa, explicação de conceito amplo (ex.: `00-visao-geral`).

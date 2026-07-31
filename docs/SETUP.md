@@ -9,7 +9,8 @@ Obrigatorios:
 - Java 21.
 - Maven.
 - Node.js, npm e npx.
-- Docker Desktop, Docker Engine ou Colima.
+- Docker. **Docker Desktop** e o recomendado: o Docker MCP Gateway e um plugin dele. Colima,
+  OrbStack e Rancher rodam a stack (PostgreSQL e Redis) sem problema, so nao servem o gateway.
 - Ollama.
 
 Recomendados:
@@ -27,7 +28,7 @@ Voce pode checar o ambiente com:
 
 ## Fluxo Rapido
 
-Para subir o ambiente local com Colima/Docker, Redis, backend e frontend:
+Para subir o ambiente local com Docker, Redis, backend e frontend:
 
 ```sh
 ./scripts/dev-up.sh
@@ -35,11 +36,20 @@ Para subir o ambiente local com Colima/Docker, Redis, backend e frontend:
 
 O script:
 
-- Inicia o Colima se o Docker nao estiver respondendo e o Colima estiver instalado.
+- Resolve o runtime quando nenhum daemon responde, nesta ordem: reaproveita o Docker Desktop se ele
+  ja estiver no ar (descartando um `DOCKER_HOST` obsoleto que aponte para outro runtime), inicia o
+  Docker Desktop se estiver instalado, e so entao cai no Colima — avisando que o gateway ficara
+  desligado nesse caso.
+- Respeita `AVENTO_DOCKER_CONTEXT` para escolher o contexto. A troca e explicita porque **volumes
+  nao sao compartilhados entre contextos**: apontar para outro contexto sobe um PostgreSQL VAZIO, e
+  as conversas ficam no banco do contexto que as criou.
 - Sobe PostgreSQL e Redis Stack com identidade Docker estavel pelo script `prepare-docker-stack.sh`.
 - Migra automaticamente dados persistentes de containers criados pela antiga pasta do projeto, mantendo os volumes de origem como backup.
-- Prepara o Docker MCP Gateway oficial em modo compativel com Colima antes de iniciar o backend.
-- Configura o backend para usar o PostgreSQL local do Docker/Colima.
+- Prepara o Docker MCP Gateway quando o Docker Desktop esta rodando. Sob outro runtime ele e pulado
+  com o motivo na tela — o plugin vive dentro do `Docker.app` e fala com o backend do Desktop, nao
+  com o daemon, entao responde "Docker Desktop is not running" ate no `--dry-run`. Os demais
+  servidores MCP nao dependem dele.
+- Configura o backend para usar o PostgreSQL local do Docker.
 - Reutiliza o Ollama nativo quando ele ja esta respondendo ou inicia `ollama serve` automaticamente, com logs em `tmp/dev/ollama.log`.
 - Detecta o ComfyUI em `~/ComfyUI`, inicia a API em `127.0.0.1:8188` quando encontrado e registra logs em `tmp/dev/comfyui.log`.
 - Confere os modelos WAN 2.1 de video e, na primeira subida, baixa aproximadamente 9,8 GB com retomada automatica.
@@ -69,7 +79,7 @@ O Ollama usa `http://127.0.0.1:11434` por padrão. `dev-up.sh` inicia `ollama se
 
 ## PostgreSQL e Redis
 
-O ambiente Docker/Colima sobe dois servicos:
+O ambiente Docker sobe dois servicos:
 
 - PostgreSQL para usuarios, sessoes, historico de tokens/acessos, chats e dados relacionais.
 - Redis Stack para fila do agente, eventos em tempo real, contexto recente, RAG e caches locais.
@@ -87,7 +97,7 @@ Suba com:
 ./scripts/prepare-docker-stack.sh
 ```
 
-No macOS com Colima, suba o runtime antes:
+Com um runtime que nao seja o Docker Desktop, suba-o antes (exemplo com Colima):
 
 ```sh
 colima start
@@ -102,7 +112,28 @@ docker compose ps
 
 O projeto Compose sempre usa o nome `avento-ia`, independentemente do nome da pasta do clone. Os volumes persistentes tambem possuem nomes estaveis: `avento-postgres-data` e `avento-redis-data`. Na primeira subida apos uma migracao da estrutura antiga, o script para somente os containers legados, copia os dados para esses volumes, recria os containers e preserva os volumes antigos como backup.
 
-O Avento usa `docker mcp gateway run --servers docker` para expor o Docker ao agente. Em Colima ou Docker Engine sem Docker Desktop, define `DOCKER_MCP_IN_CONTAINER=1`, conforme suportado pelo gateway oficial. A primeira execucao pode baixar a imagem `docker:cli`; o `dev-up.sh` faz isso antes do backend para evitar timeout no handshake MCP. Para desativar somente essa integracao, use `AVENTO_MCP_DOCKER_ENABLED=false`.
+### Docker MCP Gateway
+
+O gateway agrega varios servidores MCP em containers isolados, em vez de processos `npx` soltos na
+maquina. Ele **exige o Docker Desktop em execucao**: o `docker mcp` e um plugin que vive dentro do
+`Docker.app` e conversa com o backend do Desktop, nao com o daemon. Sob Colima, OrbStack ou Rancher
+os containers rodam normalmente, mas o plugin responde "Docker Desktop is not running" ate no
+`--dry-run` — nesse caso o `dev-up.sh` pula a preparacao dizendo o motivo, e os outros servidores
+MCP seguem intactos.
+
+Quais servidores ele expoe e decisao do Docker Desktop, nao do Avento:
+
+```sh
+docker mcp catalog show docker-mcp     # o catalogo (centenas de servidores)
+docker mcp server ls                   # os habilitados
+docker mcp server enable fetch         # habilita um
+```
+
+`AVENTO_MCP_DOCKER_GATEWAY_SERVERS` restringe a um subconjunto; vazio significa "os habilitados no
+Docker Desktop". `AVENTO_MCP_DOCKER_ENABLED=false` desliga so essa integracao.
+
+A primeira execucao baixa as imagens dos servidores habilitados; o `dev-up.sh` faz isso antes do
+backend para evitar timeout no handshake MCP.
 
 ## Ollama
 

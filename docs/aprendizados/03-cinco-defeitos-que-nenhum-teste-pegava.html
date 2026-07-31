@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avento — Cinco defeitos que nenhum teste pegava</title>
+<style>
+  :root {
+    --bg: #F4F7F3;
+    --surface: #FFFFFF;
+    --ink: #14231F;
+    --muted: #566661;
+    --accent: #147E6A;
+    --accent-soft: #E3F2ED;
+    --mint: #3BB79E;
+    --pop: #D6497A;
+    --pop-soft: #FBE7EE;
+    --border: #DCE6E0;
+    --code-bg: #EDF3EF;
+    --shadow: 0 1px 2px rgba(20,35,31,.05), 0 8px 24px rgba(20,35,31,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B1512;
+      --surface: #12201C;
+      --ink: #E9F1ED;
+      --muted: #9CB0A8;
+      --accent: #4FD1B4;
+      --accent-soft: #15302A;
+      --mint: #5CDDC1;
+      --pop: #F384AB;
+      --pop-soft: #2A1721;
+      --border: #21322C;
+      --code-bg: #16241F;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F4F7F3; --surface: #FFFFFF; --ink: #14231F; --muted: #566661;
+    --accent: #147E6A; --accent-soft: #E3F2ED; --mint: #3BB79E; --pop: #D6497A;
+    --pop-soft: #FBE7EE; --border: #DCE6E0; --code-bg: #EDF3EF;
+    --shadow: 0 1px 2px rgba(20,35,31,.05), 0 8px 24px rgba(20,35,31,.05);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B1512; --surface: #12201C; --ink: #E9F1ED; --muted: #9CB0A8;
+    --accent: #4FD1B4; --accent-soft: #15302A; --mint: #5CDDC1; --pop: #F384AB;
+    --pop-soft: #2A1721; --border: #21322C; --code-bg: #16241F;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 22px 96px; }
+
+  /* Header */
+  header.top { padding: 64px 0 40px; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    font-size: .72rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(2rem, 5.5vw, 3rem); line-height: 1.08; margin: 0 0 18px;
+    letter-spacing: -.02em; font-weight: 800; text-wrap: balance;
+  }
+  .lede { font-size: 1.12rem; color: var(--muted); margin: 0; max-width: 62ch; }
+  .lede strong { color: var(--ink); font-weight: 650; }
+
+  /* Sections */
+  section { padding-top: 52px; }
+  h2 {
+    font-size: 1.55rem; letter-spacing: -.01em; margin: 0 0 6px; font-weight: 750;
+    display: flex; align-items: baseline; gap: 12px; text-wrap: balance;
+  }
+  h2 .n {
+    font-size: .82rem; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums; background: var(--accent-soft);
+    padding: 3px 9px; border-radius: 999px; flex: 0 0 auto; transform: translateY(-2px);
+  }
+  h3 { font-size: 1.05rem; margin: 26px 0 6px; font-weight: 700; }
+  p { margin: 12px 0; }
+  .muted { color: var(--muted); }
+  a { color: var(--accent); }
+
+  strong.key { color: var(--pop); font-weight: 700; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: .88em; background: var(--code-bg); padding: 1px 6px; border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+
+  /* Analogy / plain-language callout */
+  .plain {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 18px 0;
+  }
+  .plain .lbl { font-weight: 750; color: var(--accent); }
+
+  /* "You saw this today" callout */
+  .saw {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin: 20px 0; box-shadow: var(--shadow);
+    position: relative;
+  }
+  .saw::before {
+    content: "VOCÊ VIU ISSO HOJE"; display: inline-block;
+    font-size: .64rem; letter-spacing: .14em; font-weight: 800; color: var(--pop);
+    background: var(--pop-soft); padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+  }
+  .saw p { margin: 6px 0; font-size: .96rem; }
+  .saw p:first-of-type { margin-top: 0; }
+
+  /* Diagram */
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 22px 0;
+  }
+  .step {
+    flex: 1 1 120px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .step .st { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .step .sd { font-size: .9rem; margin-top: 4px; }
+  .arrow { align-self: center; color: var(--muted); font-weight: 700; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--border); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: .94rem; min-width: 460px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; background: var(--code-bg); }
+  tr:last-child td { border-bottom: none; }
+  td strong { color: var(--ink); }
+
+  /* Layers stack */
+  .layers { display: flex; flex-direction: column; gap: 8px; margin: 20px 0; }
+  .layer {
+    display: flex; align-items: baseline; gap: 14px; padding: 13px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+  }
+  .layer .tag {
+    font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); flex: 0 0 96px;
+  }
+  .layer .desc { font-size: .93rem; }
+  .layer .desc b { font-weight: 700; }
+
+  .divider { height: 1px; background: var(--border); border: 0; margin: 8px 0; }
+
+  footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
+
+  ul.clean { padding-left: 20px; }
+  ul.clean li { margin: 7px 0; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <p class="eyebrow">Aprendizado 03</p>
+  <h1>Cinco defeitos que nenhum teste pegava</h1>
+  <p class="lede">O Avento tinha 589 testes verdes e 41 ferramentas. Ninguém nunca tinha
+  <strong>executado</strong> uma ferramenta de ponta a ponta. Ao fazer isso, cinco defeitos
+  apareceram em sequência — e cada um sobreviveu por um motivo diferente.</p>
+
+  <div class="divider"></div>
+
+  <h2>1. Escrever arquivo podia escapar do workspace</h2>
+  <p><code>write_file</code> era <strong>recusado</strong> dentro de um workspace legítimo. A raiz é
+  registrada com <code>toRealPath()</code>, que resolve link simbólico; mas um arquivo que ainda não
+  existe não tem como ser resolvido, e ficava só em <code>toAbsolutePath().normalize()</code>. No
+  macOS <code>/tmp</code> e <code>/var</code> são links — projeto ali dentro podia ser lido e nunca
+  escrito.</p>
+  <p class="key">O lado grave era o inverso: um link <strong>dentro</strong> do workspace apontando
+  para fora era <strong>aceito</strong> para arquivo novo. O caminho textual começava com a raiz, e
+  a escrita ia parar do lado de fora.</p>
+  <p>Conserto: resolver o ancestral existente mais próximo e reanexar o resto, para a verificação
+  comparar <em>onde a escrita realmente cai</em>.</p>
+
+  <div class="divider"></div>
+
+  <h2>2. A busca no código nunca funcionou</h2>
+  <p><code>codebase_vector_search</code> resolvia os trechos com
+  <code>computeIfAbsent(path, this::indexAndGetChunks)</code>, e a indexação grava
+  <em>nesse mesmo mapa</em>. O <code>ConcurrentHashMap</code> proíbe alterar a si mesmo de dentro da
+  função de mapeamento e lança <code>IllegalStateException("Recursive update")</code>.</p>
+  <p class="key">Isso acontece na primeira busca de qualquer workspace — ou seja, sempre que o índice
+  está frio, que é sempre, porque nenhuma busca jamais completou. A ferramenta estava 100% quebrada
+  desde que foi ligada.</p>
+
+  <div class="divider"></div>
+
+  <h2>3. Uma ferramenta registrada que o despachante não conhecia</h2>
+  <p>Existiam <strong>duas classes</strong> <code>com.avento.service.tools.LocalToolNames</code>, uma
+  em <code>avento-agent</code> e outra em <code>avento-mcp</code>, diferindo por exatamente uma
+  entrada: <code>schedule_task</code>. Mesmo pacote, mesmo nome, dois jars — quem vence é a ordem do
+  classpath, e venceu a que não tinha.</p>
+  <p class="key">Nada avisa sobre isso: nem o compilador, nem a IDE, nem os testes. O agente
+  respondia <em>"Tool not found"</em> para uma ferramenta registrada, documentada e exposta ao
+  modelo.</p>
+  <p>A varredura em busca de outras encontrou <strong>mais 22 duplicatas</strong>, todas ainda
+  idênticas. O teste que ficou no lugar não proíbe duplicar — proíbe <strong>divergir</strong>.</p>
+
+  <div class="divider"></div>
+
+  <h2>4. O gateway rodava uma flag que não existe</h2>
+  <p>O <code>docker-gateway</code> é o servidor que agrega os outros em containers isolados. Nunca
+  subiu, por dois motivos empilhados: lançava
+  <code>docker mcp gateway run --profile &lt;perfil&gt;</code>, e <code>--profile</code> não é flag
+  do CLI do Docker MCP Toolkit; e antes disso o perfil nunca era configurado, então o catálogo o
+  marcava como indisponível e o erro real ficava escondido atrás de um erro de configuração.</p>
+  <p class="key">O teste de integração ao lado <strong>já usava a flag certa</strong>
+  (<code>--servers</code>), mas está atrás de uma variável de ambiente e nunca rodou. Código de
+  produção e teste divergiram em silêncio.</p>
+
+  <div class="divider"></div>
+
+  <h2>5. Trocar o modelo no seletor não trocava nada</h2>
+  <p>O log mostrou em duas linhas seguidas:</p>
+  <pre class="plain">run starting for chat 2 with model granite4.1:8b   ← a escolha chegou
+Agent round 1 starting build for model qwen3.5:9b  ← rodou outro</pre>
+  <p>Também dois defeitos que precisavam se encontrar. Um literal
+  <code>"qwen3.5:9b"</code> chumbado em <code>ModelProviderService</code>, contradizendo o
+  <code>avento.agent.default-model</code> e garantindo que o método nunca devolvesse vazio. E uma
+  heurística que tratava <em>"pediu exatamente o default"</em> como <em>"não pediu nada"</em>.</p>
+  <p class="key">Escolher <code>granite4.1:8b</code> — que <strong>é</strong> o default — era lido
+  como ausência de escolha, e o literal vencia. Sem aviso nenhum.</p>
+
+  <div class="divider"></div>
+
+  <h2>O padrão por trás dos cinco</h2>
+  <table>
+    <tr><th>Defeito</th><th>Por que sobreviveu</th></tr>
+    <tr><td>Escape por symlink</td><td>Nenhum teste usava caminho com link</td></tr>
+    <tr><td>Busca no código</td><td>Nenhum teste chamava a ferramenta</td></tr>
+    <tr><td>Classe duplicada</td><td>Não é erro de compilação</td></tr>
+    <tr><td>Flag do gateway</td><td>O teste que sabia estava desligado</td></tr>
+    <tr><td>Seletor de modelo</td><td>Literal escondido dentro de um serviço</td></tr>
+  </table>
+  <p class="key">Três causas de raiz: <strong>ferramenta que ninguém executa</strong>,
+  <strong>teste que existe mas não roda</strong>, e <strong>configuração contradita por um literal
+  no código</strong>. Suíte verde não é o mesmo que comportamento verificado.</p>
+
+  <div class="divider"></div>
+
+  <h2>O que ficou de guarda</h2>
+  <ul>
+    <li><code>ToolSmokeTest</code> — executa as ferramentas auto-contidas num workspace temporário</li>
+    <li><code>ToolIntegrationTest</code> — as que precisam de banco, Redis e catálogo MCP reais</li>
+    <li><code>SystemAutomationLiveTest</code> — as que abrem janela, atrás de <code>-Davento.livetools=true</code></li>
+    <li><code>NoDuplicateClassNamesTest</code> — quebra o build se duas cópias divergirem</li>
+    <li><code>PromptPrefixStabilityTest</code> — trava o prefixo do prompt, que já custou ~50s por resposta</li>
+  </ul>
+  <p class="muted">Cada correção foi verificada desligando o conserto e confirmando que o teste
+  falha. Teste que passa nos dois estados não protege nada — um deles, o do contador de tokens,
+  precisou ser reescrito justamente por isso.</p>
+</div>
+
+</body>
+</html>

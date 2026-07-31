@@ -30,7 +30,7 @@
 
 <p align="center">
   <a href="https://github.com/SamuckqaDev/avento-ia/actions/workflows/ci.yml"><img src="https://github.com/SamuckqaDev/avento-ia/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/tests-608%20backend%20%C2%B7%2027%20web-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-653%20backend%20%C2%B7%2027%20web-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/Java-21-orange" alt="Java 21">
   <img src="https://img.shields.io/badge/React-19-61dafb" alt="React 19">
 </p>
@@ -452,7 +452,7 @@ Avento is local-first, but it performs real actions on the computer. Before allo
 
 <p align="center">
   <a href="https://github.com/SamuckqaDev/avento-ia/actions/workflows/ci.yml"><img src="https://github.com/SamuckqaDev/avento-ia/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/testes-608%20backend%20%C2%B7%2027%20web-brightgreen" alt="Testes">
+  <img src="https://img.shields.io/badge/testes-653%20backend%20%C2%B7%2027%20web-brightgreen" alt="Testes">
   <img src="https://img.shields.io/badge/Java-21-orange" alt="Java 21">
   <img src="https://img.shields.io/badge/React-19-61dafb" alt="React 19">
 </p>

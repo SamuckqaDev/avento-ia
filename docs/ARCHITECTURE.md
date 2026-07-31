@@ -24,9 +24,11 @@ flowchart TB
 
     subgraph BACK["Backend - Parent POM Multi-Módulo Maven"]
         AUTH_MOD["avento-auth - Spring Security & JWT"]
-        AGENT_MOD["avento-agent - AgentOrchestrator, AgentService & PlanBuilder"]
+        AGENT_MOD["avento-agent - AgentOrchestrator & AgentService (laço de rodadas)"]
+        AGENT_SUP["avento-agent/support - ModelNames, MessageText, HistoryText,<br/>TextualToolCallParser, ProviderErrorTranslator"]
+        AGENT_SVC["avento-agent - ModelCatalogService, PromptAssemblyService,<br/>ImageIntentService, PlanBuilder"]
         EXEC_MOD["avento-execution - AgentRunWorker, Outbox & Streams"]
-        MCP_MOD["avento-mcp - McpClientManager & Server Catalog"]
+        MCP_MOD["avento-mcp - McpClientManager, Server Catalog<br/>& TerminalCommandPolicy"]
         RAG_MOD["avento-rag - Ingestão, Embeddings & VectorStore"]
         MEDIA_MOD["avento-media - Jobs de imagem e vídeo ComfyUI"]
         VOICE_MOD["avento-voice - Whisper.cpp & Piper TTS"]
@@ -152,6 +154,7 @@ sequenceDiagram
     participant W as AgentRunWorker
     participant O as AgentOrchestrator
     participant A as AgentService
+    participant PA as PromptAssemblyService
     participant L as Ollama
     participant P as Permission Engine
     participant T as ToolExecutionGateway
@@ -165,6 +168,8 @@ sequenceDiagram
     R->>W: Worker consome pelo consumer group
     W->>O: Inicia uma execucao com o mesmo runId
     O->>A: Conduz a execucao com o runId persistido
+    A->>PA: Monta o system prompt (prefixo estavel, ver nota abaixo)
+    PA-->>A: Instrucoes, politica, workspace, memoria
     A->>L: Envia mensagens, skills e ferramentas disponiveis
     L-->>A: Texto ou chamada de ferramenta
 
@@ -273,6 +278,37 @@ As politicas e os procedimentos internos diretamente ligados a imagem e traducao
 melhor aderencia de instruction-following em modelos locais. Essa escolha e interna: a identidade do
 agente ainda determina que a resposta acompanhe o idioma do usuario.
 
+## O que vive fora do AgentService
+
+O `AgentService` era um arquivo de 4.788 linhas. Hoje ele guarda o laco de rodadas
+(`streamChat` -> `runTurn` -> `finishTurn`), as aprovacoes e o ciclo de vida da run; o resto foi
+separado por capacidade. A regra da divisao: **funcao pura sai como estatica, colaborador com
+configuracao sai como servico.**
+
+| Onde | O que responde |
+|---|---|
+| `support/ModelNames` | O que da para saber de um modelo pelo nome: visao, imagem, familia, tamanho, e qual modelo atende o pedido |
+| `support/MessageText` | O que o usuario escreveu de fato, separado dos blocos de contexto injetados em volta |
+| `support/HistoryText` | O que sobrevive no historico: narracao cortada e resultado de ferramenta truncado com aviso |
+| `support/TextualToolCallParser` | Recupera a chamada de ferramenta que o modelo escreveu como texto em vez de emitir no campo nativo |
+| `support/ProviderErrorTranslator` | Transforma o muro de JSON de um erro de provedor na frase que o usuario consegue agir |
+| `ModelCatalogService` | Os modelos oferecidos aos seletores, sempre vindos de quem vai atender a conversa |
+| `PromptAssemblyService` | O texto do system prompt: instrucoes, politica, workspace, memoria, continuidade |
+| `intent/ImageIntentService` | Se a mensagem pede imagem, e com que prompt |
+| `tools/TerminalCommandPolicy` | O que o agente pode rodar no terminal, e por quanto tempo |
+
+### Duas regras que um teste protege
+
+**O prefixo do prompt tem de ser estavel.** O cache do Ollama casa por prefixo de tokens: se o
+comeco muda, ele reavalia os ~8192 tokens inteiros. Um `LocalDateTime.now()` no bloco de ambiente
+custava cerca de 50 segundos por resposta. `PromptPrefixStabilityTest` trava isso — e um benchmark
+isolado NAO pega o defeito, porque manda sempre o mesmo prompt e sempre acerta o cache.
+
+**Duas copias da mesma classe nao podem divergir.** `com.avento.service.tools.LocalToolNames`
+existia em dois modulos, as copias divergiram por uma entrada, e o classpath escolheu a defasada:
+`schedule_task` ficou inalcancavel. `NoDuplicateClassNamesTest` quebra o build quando qualquer
+classe duplicada entre modulos deixa de ser identica.
+
 ## Agente, ferramentas e MCP
 
 O modelo nao executa uma ferramenta diretamente. O fluxo atual passa por estas camadas:
@@ -285,8 +321,32 @@ O modelo nao executa uma ferramenta diretamente. O fluxo atual passa por estas c
 6. `McpClientManager` inicia servidores MCP, descobre schemas e faz chamadas pelo SDK Java oficial.
 
 MCP significa Model Context Protocol. No Avento, ele e o protocolo usado para conectar ferramentas;
-nao e o modelo, a memoria nem o orquestrador. Os servidores MCP normalmente rodam como processos
-separados e conversam com o backend por entrada e saida padrao (`stdio`).
+nao e o modelo, a memoria nem o orquestrador. Os servidores MCP conversam com o backend por entrada
+e saida padrao (`stdio`), e chegam por dois caminhos.
+
+### Processo local ou container
+
+**Processo local (`npx`/`uvx`)** — o servidor roda direto na maquina, com o mesmo acesso que o
+backend tem. E o unico caminho possivel para quem depende do host:
+
+| Servidor | Por que nao vai para container |
+|---|---|
+| `filesystem` | O servidor do catalogo Docker exige paths fixos montados como volume, decididos quando o gateway sobe; o Avento entrega os workspaces por chat |
+| `markitdown` | Mesma limitacao de paths, e o binario local ja atende o `read_document` |
+| `macos-automator`, `apple`, `chrome-devtools` | Nem existem no catalogo Docker: dependem de AppleScript e do Chrome do host |
+
+**Docker MCP Gateway** — um unico servidor que agrega varios outros, cada um em container isolado
+(`no-new-privileges`, 1 CPU, 2Gb), levantado sob demanda e removido depois. Por ele passam `fetch`,
+`time`, `memory`, `sequential-thinking`, `playwright`, `puppeteer` e `git`.
+
+O gateway conecta **por ultimo** no boot, de proposito: quem conecta antes reserva o nome da
+ferramenta, e o que agrega servidores de terceiros nunca deve tomar um nome ja usado. Colisao nao e
+rejeitada — o `McpClientManager` renomeia com prefixo (`servidor__ferramenta`).
+
+Ele e um plugin do **Docker Desktop**: vive dentro do `Docker.app` e fala com o backend do Desktop,
+nao com o daemon. Sob Colima, OrbStack ou Rancher os containers rodam normalmente, mas o plugin
+responde "Docker Desktop is not running" ate no `--dry-run`. Nesse caso o catalogo marca o gateway
+como indisponivel com essa explicacao, e os demais servidores seguem funcionando.
 
 ## Imagem e video
 

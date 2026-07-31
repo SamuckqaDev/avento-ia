@@ -12,6 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import com.avento.model.ScheduledTaskRun;
+import com.avento.repository.ScheduledTaskRunRepository;
+import java.time.LocalTime;
 
 @Component
 public class CronTaskScheduler {
@@ -22,7 +25,7 @@ public class CronTaskScheduler {
     private final ScheduledTaskService taskService;
     private final AgentRunSubmissionService submissionService;
     private final NotificationService notificationService;
-    private final com.avento.repository.ScheduledTaskRunRepository runRepository;
+    private final ScheduledTaskRunRepository runRepository;
     private final ObjectMapper objectMapper;
 
     public CronTaskScheduler(
@@ -30,7 +33,7 @@ public class CronTaskScheduler {
             ScheduledTaskService taskService,
             AgentRunSubmissionService submissionService,
             NotificationService notificationService,
-            com.avento.repository.ScheduledTaskRunRepository runRepository,
+            ScheduledTaskRunRepository runRepository,
             ObjectMapper objectMapper) {
         this.repository = repository;
         this.taskService = taskService;
@@ -94,11 +97,11 @@ public class CronTaskScheduler {
 
             // Sucesso na submissão do job
             String logMessage = "Execução autônoma iniciada às "
-                    + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))
+                    + LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))
                     + ".\nComando/Instrução: " + task.getPrompt();
             taskService.markRunCompleted(
                     task, true, null, "Execução iniciada no motor de agentes com sucesso.", logMessage);
-            runRepository.save(new com.avento.model.ScheduledTaskRun(
+            runRepository.save(new ScheduledTaskRun(
                     task.getId(),
                     com.avento.model.ScheduledTask.RunStatus.SUCCESS,
                     task.getPrompt(),
@@ -113,7 +116,7 @@ public class CronTaskScheduler {
             String errorDiag = "Causa Raiz: " + e.getMessage()
                     + "\nSugestão: Verifique as permissões da sandbox e a conectividade com o modelo de IA.";
             taskService.markRunCompleted(task, false, e.getMessage(), errorDiag);
-            runRepository.save(new com.avento.model.ScheduledTaskRun(
+            runRepository.save(new ScheduledTaskRun(
                     task.getId(),
                     com.avento.model.ScheduledTask.RunStatus.FAILED,
                     task.getPrompt(),

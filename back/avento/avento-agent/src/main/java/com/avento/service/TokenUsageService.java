@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -42,7 +43,7 @@ public class TokenUsageService {
         String normalizedRange = normalizeRange(range);
         if (userId == null) {
             return new UsageSummary(
-                    normalizedRange, 0, 0, 0, 0, java.util.List.of(), java.util.List.of(), java.util.List.of());
+                    normalizedRange, 0, 0, 0, 0, List.of(), List.of(), List.of());
         }
 
         LocalDateTime since = sinceFor(normalizedRange);

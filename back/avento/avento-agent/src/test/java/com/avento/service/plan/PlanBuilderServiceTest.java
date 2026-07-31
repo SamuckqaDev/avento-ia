@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import reactor.core.publisher.Mono;
+import com.avento.model.AgentProfile;
 
 class PlanBuilderServiceTest {
 
@@ -58,8 +59,8 @@ class PlanBuilderServiceTest {
                 workspaceAccessService,
                 mapper,
                 agentRoutingService);
-        com.avento.model.AgentProfile routedAgent =
-                new com.avento.model.AgentProfile(userId, "Generalista", "", "", "", "", null, true);
+        AgentProfile routedAgent =
+                new AgentProfile(userId, "Generalista", "", "", "", "", null, true);
         routedAgent.setId(1L);
         when(agentRoutingService.pick(any(), any())).thenReturn(new AgentRoutingService.Routed(routedAgent, "default"));
         AgentPlan saved = new AgentPlan(userId, chatId, "goal", AgentPlan.STATUS_DRAFT, "[]");

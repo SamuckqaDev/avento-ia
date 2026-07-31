@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import java.util.UUID;
 
 /**
  * O elo que fecha o loop "editar → verificar → corrigir": detecta o comando canônico de
@@ -47,7 +48,7 @@ public class ProjectVerificationService {
      * Verifica com um userId explícito. Necessário quando roda fora da thread da requisição — ex.:
      * a execução de plano em background, onde o contexto de execução não tem o usuário atual.
      */
-    public VerificationResult verify(java.util.UUID userId, String path) {
+    public VerificationResult verify(UUID userId, String path) {
         return verifyDir(workspaceAccessService.requireAuthorized(userId, path));
     }
 

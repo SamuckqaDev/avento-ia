@@ -1,6 +1,7 @@
 package com.avento.service.dto;
 
 import java.util.Locale;
+import java.util.Set;
 
 public record TranscriptionResult(String text, String detectedLanguage) {
     public boolean placeholder() {
@@ -10,8 +11,8 @@ public record TranscriptionResult(String text, String detectedLanguage) {
                 .trim());
     }
 
-    public static final java.util.Set<String> INVALID_TRANSCRIPT_PLACEHOLDERS =
-            java.util.Set.of("[BLANK_AUDIO]", "[silence]");
+    public static final Set<String> INVALID_TRANSCRIPT_PLACEHOLDERS =
+            Set.of("[BLANK_AUDIO]", "[silence]");
 
     public TranscriptionResult withoutPlaceholder() {
         return placeholder() ? new TranscriptionResult("", detectedLanguage) : this;

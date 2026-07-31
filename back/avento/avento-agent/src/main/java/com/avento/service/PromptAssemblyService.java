@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import java.util.UUID;
 
 /**
  * Monta o system prompt de uma rodada.
@@ -88,7 +89,7 @@ public class PromptAssemblyService {
      * <p>A ordem dos blocos é o prefixo cacheável: instruções fixas primeiro, e o que varia por
      * conversa (memória, continuidade) por último.
      */
-    public String systemPrompt(ArrayNode messages, List<String> workspaceRoots, java.util.UUID userId) {
+    public String systemPrompt(ArrayNode messages, List<String> workspaceRoots, UUID userId) {
         return AGENT_SYSTEM_PROMPT
                 + productFactsBlock(messages)
                 + "\n\n[Local Environment]\nData atual: "
@@ -113,7 +114,7 @@ public class PromptAssemblyService {
     }
 
     /** Só os fatos ACTIVE pertencentes ao usuário autenticado. */
-    private String memoryBlock(java.util.UUID userId) {
+    private String memoryBlock(UUID userId) {
         if (userId == null || userMemoryService == null) {
             return "";
         }

@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
+import java.util.Set;
 
 /**
  * Transporte do Gemini: traduz a requisição canônica do agente e devolve a resposta no formato
@@ -154,7 +155,7 @@ public class GeminiModelTransport implements ModelTransport {
      * de proibidos nunca fecha — o JSON Schema tem dezenas de palavras que a API do Google nao
      * conhece, e basta uma para invalidar TODAS as ferramentas, nao so a que a trouxe.
      */
-    private static final java.util.Set<String> GEMINI_SCHEMA_FIELDS = java.util.Set.of(
+    private static final Set<String> GEMINI_SCHEMA_FIELDS = Set.of(
             "type",
             "format",
             "title",

@@ -18,6 +18,8 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Configuração de provedor: um provedor ativo por usuário, com o TIPO dirigindo o comportamento.
@@ -42,7 +44,7 @@ public class ModelProviderService {
     private final ProviderSettingsRepository repository;
     private final SecretCipher cipher;
     private final ProviderModelCatalog modelCatalog;
-    private final java.util.Map<String, Integer> contextLimitCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, Integer> contextLimitCache = new ConcurrentHashMap<>();
 
     public ModelProviderService(
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,

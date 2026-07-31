@@ -12,6 +12,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import java.util.Locale;
 
 /**
  * Lista os modelos consultando o provedor de verdade, em vez de manter nomes escritos no código.
@@ -103,14 +104,14 @@ public class ProviderModelCatalog {
             for (JsonNode model : body.path("models")) {
                 String name = model.path("name").asText("").replaceFirst("^models/", "");
                 // Imagen expoe "predict"; os de conversa expoem generateContent.
-                if (name.toLowerCase(java.util.Locale.ROOT).contains("imagen") || supportsPredict(model)) {
+                if (name.toLowerCase(Locale.ROOT).contains("imagen") || supportsPredict(model)) {
                     addIfPresent(models, name);
                 }
             }
         } else if (kind == ProviderKind.OPENAI_COMPATIBLE) {
             for (JsonNode model : body.path("data")) {
                 String id = model.path("id").asText("");
-                String lower = id.toLowerCase(java.util.Locale.ROOT);
+                String lower = id.toLowerCase(Locale.ROOT);
                 if (lower.contains("dall-e") || lower.contains("image") || lower.contains("flux")) {
                     addIfPresent(models, id);
                 }
@@ -255,7 +256,7 @@ public class ProviderModelCatalog {
 
     /** O Google marca o modelo aposentado na propria descricao antes de recusa-lo. */
     static boolean isRetired(JsonNode model) {
-        String description = model.path("description").asText("").toLowerCase(java.util.Locale.ROOT);
+        String description = model.path("description").asText("").toLowerCase(Locale.ROOT);
         return description.contains("no longer available")
                 || description.contains("deprecated")
                 || description.contains("has been retired");

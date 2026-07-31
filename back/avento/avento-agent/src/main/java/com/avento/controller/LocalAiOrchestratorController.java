@@ -99,7 +99,7 @@ public class LocalAiOrchestratorController {
     @GetMapping(value = "/models/images", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<BaseResponse<List<LocalModelInfo>>>> getImageModelDetails(
             @AuthenticationPrincipal AuthPrincipal principal) {
-        java.util.UUID userId = principal == null ? null : principal.userId();
+        UUID userId = principal == null ? null : principal.userId();
         return modelCatalogService.getImageModelDetails(userId).flatMap(providerModels -> {
             // Provedor remoto ativo manda sozinho: somar os checkpoints do ComfyUI local aqui faria
             // o seletor oferecer modelos que o provedor ativo nao conhece — o mesmo defeito que o

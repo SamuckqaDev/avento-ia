@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import java.util.List;
 
 /** Stable boundary used by the agent regardless of whether a tool is local or MCP-backed. */
 @Service
@@ -40,7 +41,7 @@ public class ToolExecutionGateway {
     }
 
     /** Tool catalog for a round plus the MCP servers auto-connected for this specific request. */
-    public record ToolListing(ArrayNode tools, java.util.List<String> autoConnectedServers) {}
+    public record ToolListing(ArrayNode tools, List<String> autoConnectedServers) {}
 
     /**
      * Lista as ferramentas depois de conectar sob demanda os servidores MCP relevantes ao pedido —
@@ -49,7 +50,7 @@ public class ToolExecutionGateway {
      * execução (escopo do chat), como a listagem.
      */
     public ArrayNode listTools(
-            UUID userId, Long chatId, String runId, String requestText, java.util.List<String> workspaceRoots) {
+            UUID userId, Long chatId, String runId, String requestText, List<String> workspaceRoots) {
         return listToolsWithAutoConnect(userId, chatId, runId, requestText, workspaceRoots)
                 .tools();
     }
@@ -61,12 +62,12 @@ public class ToolExecutionGateway {
      * dólar"), mas o filtro de intenção não conhecia essas palavras e escondia as ferramentas.
      */
     public ToolListing listToolsWithAutoConnect(
-            UUID userId, Long chatId, String runId, String requestText, java.util.List<String> workspaceRoots) {
+            UUID userId, Long chatId, String runId, String requestText, List<String> workspaceRoots) {
         try {
             return executionContext.call(new Context(userId, chatId, runId), () -> {
-                java.util.List<String> connected = autoConnectService != null
+                List<String> connected = autoConnectService != null
                         ? autoConnectService.connectRelevant(requestText, workspaceRoots)
-                        : java.util.List.of();
+                        : List.of();
                 return new ToolListing(toolProvider.listTools(), connected);
             });
         } catch (Exception exception) {

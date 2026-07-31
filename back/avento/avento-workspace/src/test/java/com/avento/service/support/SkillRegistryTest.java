@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import java.util.Locale;
 
 class SkillRegistryTest {
 
@@ -167,8 +168,8 @@ class SkillRegistryTest {
 
         assertTrue(video.triggers().contains("gera um video"));
         assertTrue(video.triggers().contains("anima essa imagem"));
-        assertFalse(video.body().toLowerCase(java.util.Locale.ROOT).contains("gatilhos:"));
-        assertFalse(video.body().toLowerCase(java.util.Locale.ROOT).contains("ferramenta:"));
+        assertFalse(video.body().toLowerCase(Locale.ROOT).contains("gatilhos:"));
+        assertFalse(video.body().toLowerCase(Locale.ROOT).contains("ferramenta:"));
         assertTrue(video.body().contains("generate_video com o argumento"));
     }
 

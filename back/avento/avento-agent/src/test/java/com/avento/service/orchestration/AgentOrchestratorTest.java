@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
+import com.avento.service.AgentTimelineService;
+import java.util.ArrayList;
 
 class AgentOrchestratorTest {
 
@@ -49,14 +51,14 @@ class AgentOrchestratorTest {
      */
     @Test
     void alwaysPublishesATerminalEventWhenTheStreamEnds() {
-        List<String> published = new java.util.ArrayList<>();
+        List<String> published = new ArrayList<>();
         AgentRunRegistry registry = new AgentRunRegistry(mapper);
         FailingToolEngine engine = new FailingToolEngine(registry);
         AgentOrchestrator orchestrator = new AgentOrchestrator(
                 engine,
                 registry,
                 mapper,
-                new com.avento.service.AgentTimelineService(java.util.Optional.empty()),
+                new AgentTimelineService(java.util.Optional.empty()),
                 (runId, userId, chatId, raw) -> published.add(raw));
         ArrayNode messages = mapper.createArrayNode();
         messages.addObject().put("role", "user").put("content", "pesquisa isso pra mim");

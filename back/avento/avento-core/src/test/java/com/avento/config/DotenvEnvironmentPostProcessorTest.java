@@ -10,6 +10,7 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
+import java.util.Map;
 
 class DotenvEnvironmentPostProcessorTest {
 
@@ -47,7 +48,7 @@ class DotenvEnvironmentPostProcessorTest {
         environment
                 .getPropertySources()
                 .addFirst(new org.springframework.core.env.MapPropertySource(
-                        "systemEnvironment", java.util.Map.of("AVENTO_AUTH_ROOT_PASSWORD", "from-real-env")));
+                        "systemEnvironment", Map.of("AVENTO_AUTH_ROOT_PASSWORD", "from-real-env")));
 
         processor.postProcessEnvironment(environment, null);
 

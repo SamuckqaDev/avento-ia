@@ -30,6 +30,8 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
+import com.avento.model.AgentProfile;
+import java.util.Arrays;
 
 @Slf4j
 @Service
@@ -273,7 +275,7 @@ public class PlanExecutionService {
             UUID userId, AgentPlan plan, AgentTask task, List<String> roots, String idempotencyKey) {
         // Resolve o agente (persona) desta tarefa: manual > roteamento automático > default.
         AgentRoutingService.Routed routed = agentRoutingService.pick(userId, task);
-        com.avento.model.AgentProfile agent = routed.agent();
+        AgentProfile agent = routed.agent();
         String persona = agent.getSystemInstructions() == null
                         || agent.getSystemInstructions().isBlank()
                 ? ""
@@ -338,7 +340,7 @@ public class PlanExecutionService {
         if (csv == null || csv.isBlank()) {
             return List.of();
         }
-        return java.util.Arrays.stream(csv.split(","))
+        return Arrays.stream(csv.split(","))
                 .map(String::strip)
                 .filter(value -> !value.isBlank())
                 .distinct()

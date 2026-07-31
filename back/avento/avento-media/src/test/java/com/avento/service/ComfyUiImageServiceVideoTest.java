@@ -250,7 +250,7 @@ class ComfyUiImageServiceVideoTest {
                 true,
                 false,
                 presetCatalog.forModel("flux-2-klein-4b.safetensors"),
-                new java.util.ArrayList<String>());
+                new ArrayList<String>());
 
         Method workflowAccessor = prepared.getClass().getDeclaredMethod("workflow");
         workflowAccessor.setAccessible(true);

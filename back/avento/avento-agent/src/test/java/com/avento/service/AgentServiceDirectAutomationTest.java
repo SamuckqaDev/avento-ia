@@ -37,6 +37,7 @@ import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import java.util.UUID;
 
 class AgentServiceDirectAutomationTest {
 
@@ -460,7 +461,7 @@ class AgentServiceDirectAutomationTest {
         // Ganhou o userId: o modelo de visao passou a vir da TELA de provedores, com o valor de
         // configuracao so como padrao. Sem usuario configurado, o padrao continua valendo.
         Method method = AgentService.class.getDeclaredMethod(
-                "resolveChatModel", String.class, ArrayNode.class, java.util.UUID.class);
+                "resolveChatModel", String.class, ArrayNode.class, UUID.class);
         method.setAccessible(true);
 
         String resolved = (String) method.invoke(service, "qwen3:8b", userMessagesWithImage("analisa pra mim"), null);

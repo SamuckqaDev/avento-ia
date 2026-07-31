@@ -73,6 +73,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.LinkedHashSet;
 
 @RestController
 @RequestMapping("/api/mcp")
@@ -801,25 +802,25 @@ public class McpController implements ToolProvider {
      * de chamar {@code activate_tools}.
      */
     @GetMapping("/tools/pinned")
-    public ResponseEntity<BaseResponse<java.util.List<String>>> getPinnedTools(
+    public ResponseEntity<BaseResponse<List<String>>> getPinnedTools(
             @AuthenticationPrincipal AuthPrincipal principal) {
         if (pinnedToolService == null) {
-            return ApiResponses.ok(java.util.List.of());
+            return ApiResponses.ok(List.of());
         }
         return ApiResponses.ok(
-                java.util.List.copyOf(pinnedToolService.pinnedFor(principal != null ? principal.userId() : null)));
+                List.copyOf(pinnedToolService.pinnedFor(principal != null ? principal.userId() : null)));
     }
 
     @PutMapping("/tools/pinned")
-    public ResponseEntity<BaseResponse<java.util.List<String>>> updatePinnedTools(
+    public ResponseEntity<BaseResponse<List<String>>> updatePinnedTools(
             @RequestBody PinnedToolsRequest request, @AuthenticationPrincipal AuthPrincipal principal) {
         if (pinnedToolService == null) {
-            return ApiResponses.ok(java.util.List.of());
+            return ApiResponses.ok(List.of());
         }
-        java.util.Set<String> requested = request == null || request.toolNames() == null
-                ? java.util.Set.of()
-                : new java.util.LinkedHashSet<>(request.toolNames());
-        return ApiResponses.ok(java.util.List.copyOf(
+        Set<String> requested = request == null || request.toolNames() == null
+                ? Set.of()
+                : new LinkedHashSet<>(request.toolNames());
+        return ApiResponses.ok(List.copyOf(
                 pinnedToolService.replace(principal != null ? principal.userId() : null, requested)));
     }
 
@@ -2158,7 +2159,7 @@ public class McpController implements ToolProvider {
      */
     @GetMapping("/processes")
     public ResponseEntity<BaseResponse<JsonNode>> listProcesses(@AuthenticationPrincipal AuthPrincipal principal) {
-        java.util.UUID owner = principal != null ? principal.userId() : null;
+        UUID owner = principal != null ? principal.userId() : null;
         ArrayNode processes = mapper.createArrayNode();
         for (ManagedProcess managed : managedProcesses.values()) {
             if (owner != null && !owner.equals(managed.ownerId())) {

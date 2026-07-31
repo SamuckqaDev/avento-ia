@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.springframework.core.task.TaskExecutor;
+import com.avento.model.AgentProfile;
 
 class PlanExecutionServiceTest {
 
@@ -72,8 +73,8 @@ class PlanExecutionServiceTest {
                 eventPublisher,
                 agentRoutingService,
                 directExecutor);
-        com.avento.model.AgentProfile defaultAgent =
-                new com.avento.model.AgentProfile(userId, "Generalista", "", "", "", "", null, true);
+        AgentProfile defaultAgent =
+                new AgentProfile(userId, "Generalista", "", "", "", "", null, true);
         defaultAgent.setId(1L);
         when(agentRoutingService.pick(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new AgentRoutingService.Routed(defaultAgent, "default"));

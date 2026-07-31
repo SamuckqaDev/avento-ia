@@ -40,6 +40,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import reactor.core.Disposable;
+import com.avento.model.AgentTimelineEvent;
+import com.avento.model.ScheduledTaskRun;
+import com.avento.repository.ScheduledTaskRepository;
+import com.avento.repository.ScheduledTaskRunRepository;
+import com.avento.service.AgentTimelineService;
+import java.time.LocalTime;
+import java.util.Set;
 
 @Service
 public class AgentRunWorker {
@@ -56,9 +63,9 @@ public class AgentRunWorker {
     private final ObjectMapper mapper;
     private final RedisExecutionProperties properties;
     private final com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry;
-    private final com.avento.repository.ScheduledTaskRepository scheduledTaskRepository;
-    private final com.avento.repository.ScheduledTaskRunRepository runRepository;
-    private final com.avento.service.AgentTimelineService timelineService;
+    private final ScheduledTaskRepository scheduledTaskRepository;
+    private final ScheduledTaskRunRepository runRepository;
+    private final AgentTimelineService timelineService;
     private final com.avento.service.execution.CronTaskScheduler cronTaskScheduler;
     private final WorkspaceAccessService workspaceAccessService;
     private final String consumerName = "agent-" + UUID.randomUUID().toString().substring(0, 8);
@@ -75,9 +82,9 @@ public class AgentRunWorker {
             ObjectMapper mapper,
             RedisExecutionProperties properties,
             com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry,
-            com.avento.repository.ScheduledTaskRepository scheduledTaskRepository,
-            com.avento.repository.ScheduledTaskRunRepository runRepository,
-            com.avento.service.AgentTimelineService timelineService,
+            ScheduledTaskRepository scheduledTaskRepository,
+            ScheduledTaskRunRepository runRepository,
+            AgentTimelineService timelineService,
             com.avento.service.execution.CronTaskScheduler cronTaskScheduler,
             WorkspaceAccessService workspaceAccessService) {
         this.jobRepository = jobRepository;
@@ -220,7 +227,7 @@ public class AgentRunWorker {
             // Restricts this run's toolset to the agent's allow-list, if the plan sent one.
             List<String> allowedTools = stringList(request.path("allowedTools"));
             if (!allowedTools.isEmpty()) {
-                toolPolicyRegistry.allow(job.getRunId(), java.util.Set.copyOf(allowedTools));
+                toolPolicyRegistry.allow(job.getRunId(), Set.copyOf(allowedTools));
             }
             // Execução sem ninguém olhando: não há para quem pedir aprovação. Sem esta marca a run
             // pararia no primeiro pedido de permissão e morreria no timeout de inatividade — de
@@ -279,9 +286,9 @@ public class AgentRunWorker {
                 submissionService.markCompleted(current);
                 try {
                     StringBuilder sb = new StringBuilder();
-                    List<com.avento.model.AgentTimelineEvent> events = timelineService.eventsForRun(job.getRunId());
+                    List<AgentTimelineEvent> events = timelineService.eventsForRun(job.getRunId());
                     if (events != null && !events.isEmpty()) {
-                        for (com.avento.model.AgentTimelineEvent e : events) {
+                        for (AgentTimelineEvent e : events) {
                             if (e.getDetail() != null && !e.getDetail().isBlank()) {
                                 sb.append("[").append(e.getEventType()).append("] ");
                                 if (e.getToolName() != null)
@@ -321,7 +328,7 @@ public class AgentRunWorker {
                         scheduledTaskRepository.findById(targetTaskId).ifPresent(t -> {
                             t.setLastRunOutput(outputToSave);
                             t.setLastRunDiagnosis("Execução autônoma concluída com sucesso às "
-                                    + java.time.LocalTime.now()
+                                    + LocalTime.now()
                                             .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")));
                             scheduledTaskRepository.save(t);
 
@@ -347,10 +354,10 @@ public class AgentRunWorker {
                             }
                         });
 
-                        List<com.avento.model.ScheduledTaskRun> runs =
+                        List<ScheduledTaskRun> runs =
                                 runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(targetTaskId);
                         if (!runs.isEmpty()) {
-                            com.avento.model.ScheduledTaskRun latestRun = runs.get(0);
+                            ScheduledTaskRun latestRun = runs.get(0);
                             latestRun.setOutput(outputToSave);
                             runRepository.save(latestRun);
                         }

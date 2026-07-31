@@ -48,6 +48,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/chats")
@@ -143,10 +146,10 @@ public class ChatController {
         if (query == null || query.isBlank()) {
             return ApiResponses.ok(List.of());
         }
-        java.util.UUID userId = principal == null ? null : principal.userId();
+        UUID userId = principal == null ? null : principal.userId();
         List<Message> matching = messageRepository.searchMessagesForUser(userId, query.trim());
-        List<ChatSearchResult> results = new java.util.ArrayList<>();
-        java.util.Set<Long> seenChats = new java.util.HashSet<>();
+        List<ChatSearchResult> results = new ArrayList<>();
+        Set<Long> seenChats = new HashSet<>();
         for (Message msg : matching) {
             if (seenChats.add(msg.getChatId())) {
                 chatRepository.findById(msg.getChatId()).ifPresent(chat -> {

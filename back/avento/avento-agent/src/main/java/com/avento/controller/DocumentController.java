@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.Arrays;
 
 @RestController
 @RequestMapping("/api/documents")
@@ -33,7 +34,7 @@ public class DocumentController {
     private static Set<String> loadSupportedExtensions() {
         try (var in = new org.springframework.core.io.ClassPathResource("agent/policies/supported_extensions.txt")
                 .getInputStream()) {
-            return java.util.Arrays.stream(
+            return Arrays.stream(
                             new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split("\\r?\\n"))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
@@ -42,7 +43,7 @@ public class DocumentController {
             logger.warn(
                     "Não foi possível carregar a lista de extensões suportadas. O upload de documentos poderá falhar.",
                     e);
-            return java.util.Set.of();
+            return Set.of();
         }
     }
 

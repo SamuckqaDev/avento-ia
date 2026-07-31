@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/plans")
@@ -148,8 +149,8 @@ public class PlanController {
     private List<TaskResponse> mapTasks(List<AgentTask> tasks) {
         // Resolve o nome do agente atribuído a cada tarefa (as tarefas já vêm escopadas por usuário,
         // então os ids atribuídos pertencem ao próprio dono).
-        java.util.Map<Long, String> agentNames = new java.util.HashMap<>();
-        java.util.List<Long> ids = tasks.stream()
+        Map<Long, String> agentNames = new java.util.HashMap<>();
+        List<Long> ids = tasks.stream()
                 .map(AgentTask::getAssignedAgentId)
                 .filter(java.util.Objects::nonNull)
                 .distinct()

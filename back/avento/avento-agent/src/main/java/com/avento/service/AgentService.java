@@ -64,6 +64,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import com.avento.service.provider.ModelTransport;
 
 @Service
 public class AgentService implements AgentExecutionEngine {
@@ -165,7 +166,7 @@ public class AgentService implements AgentExecutionEngine {
     // Lista, nao um unico bean: o despacho escolhe pelo TIPO do provedor ativo. Com um so, um
     // usuario em OPENAI_COMPATIBLE seria atendido pela traducao do Gemini.
     @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private java.util.List<com.avento.service.provider.ModelTransport> modelTransports;
+    private List<ModelTransport> modelTransports;
 
     // Progressive tool discovery (activate_tools persists per run in Redis). Optional for the same
     // reason as the field above: tests build AgentService through the constructor.
@@ -581,7 +582,7 @@ public class AgentService implements AgentExecutionEngine {
     /**
      * Aviso para o caso de o provedor escolhido estar sem transporte, vazio no caminho normal.
      *
-     * <p>Todo tipo suportado tem o seu {@link com.avento.service.provider.ModelTransport} hoje, entao
+     * <p>Todo tipo suportado tem o seu {@link ModelTransport} hoje, entao
      * este texto so aparece se um bean de transporte faltar no contexto. Sem ele, a requisicao cai no
      * WebClient local e o usuario recebe a resposta de um modelo que nao foi o que ele escolheu — sem
      * jeito de perceber.
@@ -1526,7 +1527,7 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private Flux<String> streamFromProvider(ObjectNode canonicalRequest, UUID userId) {
-        com.avento.service.provider.ModelTransport transport = transportFor(userId);
+        ModelTransport transport = transportFor(userId);
         if (transport != null) {
             return transport.stream(
                     canonicalRequest,
@@ -1549,7 +1550,7 @@ public class AgentService implements AgentExecutionEngine {
                 .bodyToFlux(String.class);
     }
 
-    private com.avento.service.provider.ModelTransport transportFor(UUID userId) {
+    private ModelTransport transportFor(UUID userId) {
         if (modelTransports == null || modelProviderService == null) {
             return null;
         }

@@ -361,6 +361,13 @@ public class McpServerCatalogService {
                 // seja, exatamente os servidores que o usuario habilitou na interface do Toolkit.
                 // Esse e o padrao util; a lista explicita continua disponivel para fixar um
                 // subconjunto.
+                if (!dockerDesktopRunning()) {
+                    yield ServerLaunch.unavailable(
+                            "O gateway e um plugin do Docker Desktop e exige que ele esteja em execucao."
+                                    + " Um daemon alternativo (Colima, OrbStack, Rancher) roda containers"
+                                    + " normalmente, mas nao atende o `docker mcp`. Os demais servidores MCP"
+                                    + " do catalogo nao dependem disto.");
+                }
                 List<String> command = new ArrayList<>(List.of("docker", "mcp", "gateway", "run"));
                 String servers = environment
                         .getProperty("avento.mcp.docker-gateway.servers", "")
@@ -431,6 +438,19 @@ public class McpServerCatalogService {
             }
         }
         return false;
+    }
+
+    /**
+     * Se o Docker Desktop esta no ar — nao apenas se ha um daemon Docker.
+     *
+     * <p>O {@code docker mcp} e um plugin que vive dentro do Docker.app e conversa com o backend do
+     * Desktop, nao com o daemon. Com Colima, OrbStack ou Rancher os containers sobem normalmente e o
+     * plugin ainda responde "Docker Desktop is not running" — ate no {@code --dry-run}. O socket
+     * proprio do Desktop e o sinal barato e confiavel; rodar {@code docker mcp} so para perguntar
+     * custaria um processo a cada listagem do catalogo.
+     */
+    private boolean dockerDesktopRunning() {
+        return Files.exists(Path.of(System.getProperty("user.home"), ".docker", "run", "docker.sock"));
     }
 
     private boolean isMacOs() {

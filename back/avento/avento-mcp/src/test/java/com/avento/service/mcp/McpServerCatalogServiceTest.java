@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -159,6 +161,7 @@ class McpServerCatalogServiceTest {
      * variavel de ambiente e nunca rodou, entao a divergencia passou batida. Este roda sempre.
      */
     @Test
+    @EnabledIf("dockerDesktopRunning")
     void launchesTheDockerGatewayWithFlagsThatExist() {
         RecordingManager manager = new RecordingManager();
         new McpServerCatalogService(manager, configuredEnvironment(), new ProjectDatabaseDiscoveryService())
@@ -169,6 +172,7 @@ class McpServerCatalogServiceTest {
 
     /** Com a lista configurada, ela vira {@code --servers}; sem ela, o gateway usa o registry. */
     @Test
+    @EnabledIf("dockerDesktopRunning")
     void passesTheConfiguredServerListToTheGateway() {
         RecordingManager manager = new RecordingManager();
         new McpServerCatalogService(
@@ -198,5 +202,28 @@ class McpServerCatalogServiceTest {
             this.command = List.copyOf(command);
             return ConnectionResult.failedFor(serverName, "nao conecta de verdade no teste");
         }
+    }
+
+    static boolean dockerDesktopRunning() {
+        return java.nio.file.Files.exists(
+                java.nio.file.Path.of(System.getProperty("user.home"), ".docker", "run", "docker.sock"));
+    }
+
+    /**
+     * Sem o Docker Desktop, o gateway tem de explicar POR QUE — nao devolver "comando nao
+     * encontrado", que e falso: o binario `docker` existe e o daemon (Colima) esta funcionando.
+     */
+    @Test
+    @DisabledIf("dockerDesktopRunning")
+    void explainsThatTheGatewayNeedsDockerDesktopAndNotJustADaemon() {
+        RecordingManager manager = new RecordingManager();
+        List<ConnectionResult> results = new McpServerCatalogService(
+                        manager, configuredEnvironment(), new ProjectDatabaseDiscoveryService())
+                .connect(List.of("docker-gateway"), List.of());
+
+        assertFalse(results.getFirst().connected());
+        assertTrue(results.getFirst().error().contains("Docker Desktop"));
+        assertTrue(results.getFirst().error().contains("Colima"));
+        assertEquals(List.of(), manager.command, "nao deve nem tentar lancar o processo");
     }
 }

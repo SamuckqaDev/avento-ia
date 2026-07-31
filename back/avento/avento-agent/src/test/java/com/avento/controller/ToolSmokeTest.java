@@ -230,4 +230,66 @@ class ToolSmokeTest {
         assertSucceeded(run("delete_skill", "name", "teste-fumaca"), "delete_skill");
         assertThat(run("list_skills").toString()).doesNotContain("teste-fumaca");
     }
+
+    /**
+     * Ciclo de vida de um processo longo: sobe, aparece na lista, tem log, e para.
+     *
+     * <p>{@code npm run dev} e o caso real; aqui usa-se {@code npm --version}, que passa pela mesma
+     * allowlist de comando longo e termina sozinho.
+     */
+    @Test
+    void startsListsLogsAndStopsAManagedProcess() throws Exception {
+        JsonNode started = run("terminal_start", "path", workspace.toString(), "command", "npm --version");
+        assertSucceeded(started, "terminal_start");
+        String processId = started.toString().replaceAll(".*\"processId\"\\s*:\\s*\"([^\"]+)\".*", "$1");
+        assertThat(processId).as("terminal_start tem de devolver um processId").isNotBlank();
+
+        JsonNode listed = run("terminal_list");
+        assertSucceeded(listed, "terminal_list");
+        assertThat(listed.toString()).contains(processId);
+
+        Thread.sleep(1_200); // deixa o processo produzir saida antes de ler o log
+
+        assertSucceeded(run("terminal_logs", "processId", processId), "terminal_logs");
+        assertSucceeded(run("terminal_stop", "processId", processId), "terminal_stop");
+    }
+
+    /** Busca lexical no codigo do workspace, sem embedding nem Redis. */
+    @Test
+    void searchesTheCodebaseByToken() throws Exception {
+        Files.createDirectories(workspace.resolve("src"));
+        Files.writeString(
+                workspace.resolve("src/Pagamento.java"),
+                "public class Pagamento {\n  void autorizarCobranca() {}\n}\n");
+        ReflectionTestUtils.setField(controller, "codebaseRagService", new com.avento.service.rag.CodebaseRagService());
+
+        JsonNode result = run("codebase_vector_search", "path", workspace.toString(), "query", "autorizarCobranca");
+
+        assertSucceeded(result, "codebase_vector_search");
+        assertThat(result.toString()).contains("Pagamento");
+    }
+
+    /** Le um documento via markitdown. Sem o binario, tem de degradar com mensagem, nao estourar. */
+    @Test
+    void readsADocumentOrSaysWhyItCannot() throws Exception {
+        Path doc = Files.writeString(workspace.resolve("nota.md"), "# Titulo\n\nCorpo do documento.");
+        ReflectionTestUtils.setField(
+                controller,
+                "documentReaderService",
+                new com.avento.service.DocumentReaderService(
+                        (WorkspaceAccessService) ReflectionTestUtils.getField(controller, "workspaceAccessService"),
+                        System.getProperty("user.home") + "/.avento/tools/mcp/bin/markitdown",
+                        java.time.Duration.ofSeconds(60),
+                        200_000,
+                        org.springframework.util.unit.DataSize.ofMegabytes(100)));
+
+        JsonNode result = run("read_document", "path", doc.toString());
+
+        assertThat(result).isNotNull();
+        if (result.has("error")) {
+            assertThat(result.path("error").asText()).isNotBlank();
+        } else {
+            assertThat(result.toString()).contains("Corpo do documento");
+        }
+    }
 }

@@ -56,7 +56,15 @@ public class CodebaseRagService {
     public List<SearchResult> search(String workspacePath, String query, int maxResults) {
         if (workspacePath == null || query == null || query.isBlank()) return List.of();
 
-        List<CodeChunk> chunks = workspaceChunksMap.computeIfAbsent(workspacePath, this::indexAndGetChunks);
+        // Indexar FORA do computeIfAbsent, de proposito. indexWorkspace grava neste mesmo mapa, e
+        // o ConcurrentHashMap proibe alterar o mapa de dentro da funcao de mapeamento — o que dava
+        // IllegalStateException("Recursive update") na PRIMEIRA busca de cada workspace, ou seja,
+        // sempre que o indice estava frio.
+        List<CodeChunk> chunks = workspaceChunksMap.get(workspacePath);
+        if (chunks == null) {
+            indexWorkspace(workspacePath);
+            chunks = workspaceChunksMap.getOrDefault(workspacePath, List.of());
+        }
         if (chunks == null || chunks.isEmpty()) return List.of();
 
         String normQuery = query.toLowerCase(Locale.ROOT).trim();
@@ -80,11 +88,6 @@ public class CodebaseRagService {
 
         results.sort((a, b) -> Double.compare(b.score(), a.score()));
         return results.subList(0, Math.min(results.size(), maxResults > 0 ? maxResults : 5));
-    }
-
-    private List<CodeChunk> indexAndGetChunks(String path) {
-        indexWorkspace(path);
-        return workspaceChunksMap.getOrDefault(path, List.of());
     }
 
     private void chunkFile(String filePath, List<String> lines, List<CodeChunk> outChunks) {

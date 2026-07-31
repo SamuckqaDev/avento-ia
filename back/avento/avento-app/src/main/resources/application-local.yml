@@ -63,7 +63,14 @@ avento:
       # 'fetch' incluido no auto-connect: e o servidor MCP de web (uvx mcp-server-fetch, instalado
       # nesta maquina) que le paginas/APIs e devolve texto — resolve cotacao, "que horas sao", etc.
       # sem navegador. Estava fora da lista, por isso o modelo nunca recebia a ferramenta de web.
-      auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,memory,sequential-thinking,time,macos-automator,apple,playwright,chrome-devtools,puppeteer,fetch}
+      # docker-gateway entra por ultimo de proposito: os anteriores ja reservaram seus nomes de
+      # ferramenta, entao o que vier do gateway nao os sobrescreve. Ele e ignorado em silencio
+      # quando o Docker Desktop nao esta no ar (Colima nao serve o plugin), sem afetar os demais.
+      auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,memory,sequential-thinking,time,macos-automator,apple,playwright,chrome-devtools,puppeteer,fetch,docker-gateway}
+    docker-gateway:
+      # Vazio = os servidores habilitados no Docker Desktop (MCP Toolkit). Nenhum habilitado
+      # significa gateway conectado sem ferramentas — inofensivo — ate voce escolher na interface.
+      servers: ${AVENTO_MCP_DOCKER_GATEWAY_SERVERS:}
     filesystem:
       enabled: ${AVENTO_MCP_FILESYSTEM_ENABLED:true}
     desktop-commander:

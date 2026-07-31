@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,9 @@ class ToolIntegrationTest {
 
     @Autowired
     private WorkspaceAccessService workspaceAccess;
+
+    @Autowired
+    private org.springframework.core.env.Environment environment;
 
     @Autowired
     private com.avento.service.tools.ToolExecutionContext executionContext;
@@ -191,5 +195,46 @@ class ToolIntegrationTest {
         assertThat(activated).as("activate_tools devolveu null").isNotNull();
 
         assertSucceeded(run("disconnect_mcp_server", "serverId", "time"), "disconnect_mcp_server");
+    }
+
+    /**
+     * O gateway participa do boot como qualquer outro servidor.
+     *
+     * <p>Ele entra por ultimo na lista de propósito: os anteriores ja reservaram seus nomes de
+     * ferramenta, entao nada que venha do gateway sobrescreve o que ja existe.
+     */
+    @Test
+    void theDockerGatewayIsPartOfTheBootSequence() {
+        // A ordem e o contrato: quem conecta antes reserva o nome da ferramenta. O gateway agrega
+        // servidores de terceiros, entao vem por ultimo para nunca tomar o nome de um ja existente.
+        List<String> autoConnect = java.util.Arrays.stream(environment
+                        .getProperty("avento.mcp.catalog.auto-connect", "")
+                        .split(","))
+                .map(String::trim)
+                .filter(id -> !id.isBlank())
+                .toList();
+
+        assertThat(autoConnect).contains("docker-gateway");
+        assertThat(autoConnect.get(autoConnect.size() - 1)).isEqualTo("docker-gateway");
+    }
+
+    /**
+     * Conecta o gateway de verdade e confirma que as ferramentas dos servidores agregados chegam.
+     *
+     * <p>Precisa do Docker Desktop: o plugin nao atende Colima. Sem ele o catalogo marca o servidor
+     * como indisponivel — comportamento que o McpServerCatalogServiceTest cobre — e este teste e
+     * pulado em vez de falhar.
+     */
+    @Test
+    @EnabledIf("dockerDesktopIsRunning")
+    void connectsTheDockerGatewayAndBringsItsAggregatedTools() throws Exception {
+        JsonNode connected = run("connect_mcp_server", "serverId", "docker-gateway");
+
+        assertSucceeded(connected, "connect_mcp_server(docker-gateway)");
+        assertSucceeded(run("disconnect_mcp_server", "serverId", "docker-gateway"), "disconnect_mcp_server");
+    }
+
+    static boolean dockerDesktopIsRunning() {
+        return Files.exists(Path.of(System.getProperty("user.home"), ".docker", "run", "docker.sock"));
     }
 }

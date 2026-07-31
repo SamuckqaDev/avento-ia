@@ -199,4 +199,35 @@ class ToolSmokeTest {
             }
         }
     }
+
+    /**
+     * As skills sao arquivos .md numa pasta, entao dao para exercitar de verdade: o agente cria a
+     * sua propria skill em tempo de execucao e ela tem de aparecer na listagem e sumir ao ser
+     * apagada.
+     */
+    @Test
+    void createsListsAndDeletesASkill() throws Exception {
+        ReflectionTestUtils.setField(
+                controller,
+                "skillRegistry",
+                new com.avento.service.support.SkillRegistry(
+                        workspace.resolve("skills").toString()));
+
+        JsonNode created = run(
+                "create_skill",
+                "name",
+                "teste-fumaca",
+                "description",
+                "Skill criada pelo teste de fumaca",
+                "instructions",
+                "1. Ler o pedido.\n2. Responder.");
+        assertSucceeded(created, "create_skill");
+
+        JsonNode listed = run("list_skills");
+        assertSucceeded(listed, "list_skills");
+        assertThat(listed.toString()).contains("teste-fumaca");
+
+        assertSucceeded(run("delete_skill", "name", "teste-fumaca"), "delete_skill");
+        assertThat(run("list_skills").toString()).doesNotContain("teste-fumaca");
+    }
 }

@@ -218,7 +218,31 @@ public class SystemAutomationService {
             return new SystemActionResult("failed", command, -1, false, 0.0, exception.getMessage());
         }
 
-        return runMacCommand(command);
+        return explainScreenRecordingPermission(runMacCommand(command));
+    }
+
+    /**
+     * Traduz a recusa do macOS por falta de permissão de Gravação de Tela.
+     *
+     * <p>O {@code screencapture} devolve "could not create image from display", que não diz o que
+     * fazer. O agente repassa essa frase ao usuário como se fosse uma falha do Avento, quando o
+     * conserto é uma caixa de seleção nas Configurações do Sistema.
+     */
+    private SystemActionResult explainScreenRecordingPermission(SystemActionResult result) {
+        String output = result.output() == null ? "" : result.output();
+        if (result.exitCode() == 0 || !output.contains("could not create image from display")) {
+            return result;
+        }
+        return new SystemActionResult(
+                result.status(),
+                result.command(),
+                result.exitCode(),
+                result.timedOut(),
+                result.durationSeconds(),
+                "O macOS recusou a captura por falta de permissão de Gravação de Tela. Conceda em"
+                        + " Ajustes do Sistema > Privacidade e Segurança > Gravação de Tela para o"
+                        + " aplicativo que executa o Avento (Terminal, IDE ou o app empacotado) e"
+                        + " reinicie esse aplicativo. Saída original: " + output.trim());
     }
 
     private SystemActionResult runMacCommand(List<String> command) {

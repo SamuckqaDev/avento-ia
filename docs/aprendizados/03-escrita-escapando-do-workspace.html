@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Avento — Cinco defeitos que nenhum teste pegava</title>
+<title>Avento — Escrever arquivo escapava do workspace</title>
 <style>
   :root {
     --bg: #F4F7F3;
@@ -158,106 +158,46 @@
 </style>
 </head>
 <body>
-
 <div class="wrap">
   <p class="eyebrow">Aprendizado 03</p>
-  <h1>Cinco defeitos que nenhum teste pegava</h1>
-  <p class="lede">O Avento tinha 589 testes verdes e 41 ferramentas. Ninguém nunca tinha
-  <strong>executado</strong> uma ferramenta de ponta a ponta. Ao fazer isso, cinco defeitos
-  apareceram em sequência — e cada um sobreviveu por um motivo diferente.</p>
+  <h1>Escrever arquivo escapava do workspace</h1>
+  <p class="lede">Ler um arquivo funcionava. Escrever, no mesmo diretório, era recusado com
+  <em>"path is outside the authorized workspace"</em> — sendo que estava dentro. E o mesmo defeito,
+  visto pelo outro lado, deixava uma escrita cair <strong>fora</strong> da raiz autorizada.</p>
 
   <div class="divider"></div>
 
-  <h2>1. Escrever arquivo podia escapar do workspace</h2>
-  <p><code>write_file</code> era <strong>recusado</strong> dentro de um workspace legítimo. A raiz é
-  registrada com <code>toRealPath()</code>, que resolve link simbólico; mas um arquivo que ainda não
-  existe não tem como ser resolvido, e ficava só em <code>toAbsolutePath().normalize()</code>. No
-  macOS <code>/tmp</code> e <code>/var</code> são links — projeto ali dentro podia ser lido e nunca
-  escrito.</p>
-  <p class="key">O lado grave era o inverso: um link <strong>dentro</strong> do workspace apontando
-  para fora era <strong>aceito</strong> para arquivo novo. O caminho textual começava com a raiz, e
-  a escrita ia parar do lado de fora.</p>
-  <p>Conserto: resolver o ancestral existente mais próximo e reanexar o resto, para a verificação
-  comparar <em>onde a escrita realmente cai</em>.</p>
+  <h2>O sintoma</h2>
+  <p>Num workspace legítimo, <code>read_file</code> e <code>directory_tree</code> respondiam normal.
+  <code>write_file</code> e <code>create_directory</code> falhavam com <code>SecurityException</code>,
+  apontando um caminho que visivelmente estava dentro da raiz registrada.</p>
 
-  <div class="divider"></div>
+  <h2>A causa raiz</h2>
+  <p>A raiz é registrada com <code>toRealPath()</code>, que resolve link simbólico. Mas um arquivo
+  que <strong>ainda não existe</strong> não pode ser resolvido — só normalizado:</p>
+  <pre class="plain">Path target = Paths.get(path).toAbsolutePath().normalize();
+if (Files.exists(target)) {
+    return target.toRealPath();   // arquivo existente: link resolvido
+}
+return target;                    // arquivo novo: link NÃO resolvido</pre>
+  <p>No macOS, <code>/tmp</code> e <code>/var</code> são links para <code>/private/...</code>. A raiz
+  virava <code>/private/var/.../projeto</code> e o arquivo novo continuava
+  <code>/var/.../projeto/novo.txt</code>. O prefixo nunca casava.</p>
 
-  <h2>2. A busca no código nunca funcionou</h2>
-  <p><code>codebase_vector_search</code> resolvia os trechos com
-  <code>computeIfAbsent(path, this::indexAndGetChunks)</code>, e a indexação grava
-  <em>nesse mesmo mapa</em>. O <code>ConcurrentHashMap</code> proíbe alterar a si mesmo de dentro da
-  função de mapeamento e lança <code>IllegalStateException("Recursive update")</code>.</p>
-  <p class="key">Isso acontece na primeira busca de qualquer workspace — ou seja, sempre que o índice
-  está frio, que é sempre, porque nenhuma busca jamais completou. A ferramenta estava 100% quebrada
-  desde que foi ligada.</p>
+  <p class="key">O lado grave é o inverso. Um link <strong>dentro</strong> do workspace apontando
+  para fora era <strong>aceito</strong> para arquivo novo: o caminho textual começava com a raiz, a
+  verificação passava, e a escrita ia parar do lado de fora. Um agente que cria arquivos podia
+  escrever fora da área autorizada.</p>
 
-  <div class="divider"></div>
-
-  <h2>3. Uma ferramenta registrada que o despachante não conhecia</h2>
-  <p>Existiam <strong>duas classes</strong> <code>com.avento.service.tools.LocalToolNames</code>, uma
-  em <code>avento-agent</code> e outra em <code>avento-mcp</code>, diferindo por exatamente uma
-  entrada: <code>schedule_task</code>. Mesmo pacote, mesmo nome, dois jars — quem vence é a ordem do
-  classpath, e venceu a que não tinha.</p>
-  <p class="key">Nada avisa sobre isso: nem o compilador, nem a IDE, nem os testes. O agente
-  respondia <em>"Tool not found"</em> para uma ferramenta registrada, documentada e exposta ao
-  modelo.</p>
-  <p>A varredura em busca de outras encontrou <strong>mais 22 duplicatas</strong>, todas ainda
-  idênticas. O teste que ficou no lugar não proíbe duplicar — proíbe <strong>divergir</strong>.</p>
-
-  <div class="divider"></div>
-
-  <h2>4. O gateway rodava uma flag que não existe</h2>
-  <p>O <code>docker-gateway</code> é o servidor que agrega os outros em containers isolados. Nunca
-  subiu, por dois motivos empilhados: lançava
-  <code>docker mcp gateway run --profile &lt;perfil&gt;</code>, e <code>--profile</code> não é flag
-  do CLI do Docker MCP Toolkit; e antes disso o perfil nunca era configurado, então o catálogo o
-  marcava como indisponível e o erro real ficava escondido atrás de um erro de configuração.</p>
-  <p class="key">O teste de integração ao lado <strong>já usava a flag certa</strong>
-  (<code>--servers</code>), mas está atrás de uma variável de ambiente e nunca rodou. Código de
-  produção e teste divergiram em silêncio.</p>
-
-  <div class="divider"></div>
-
-  <h2>5. Trocar o modelo no seletor não trocava nada</h2>
-  <p>O log mostrou em duas linhas seguidas:</p>
-  <pre class="plain">run starting for chat 2 with model granite4.1:8b   ← a escolha chegou
-Agent round 1 starting build for model qwen3.5:9b  ← rodou outro</pre>
-  <p>Também dois defeitos que precisavam se encontrar. Um literal
-  <code>"qwen3.5:9b"</code> chumbado em <code>ModelProviderService</code>, contradizendo o
-  <code>avento.agent.default-model</code> e garantindo que o método nunca devolvesse vazio. E uma
-  heurística que tratava <em>"pediu exatamente o default"</em> como <em>"não pediu nada"</em>.</p>
-  <p class="key">Escolher <code>granite4.1:8b</code> — que <strong>é</strong> o default — era lido
-  como ausência de escolha, e o literal vencia. Sem aviso nenhum.</p>
-
-  <div class="divider"></div>
-
-  <h2>O padrão por trás dos cinco</h2>
-  <table>
-    <tr><th>Defeito</th><th>Por que sobreviveu</th></tr>
-    <tr><td>Escape por symlink</td><td>Nenhum teste usava caminho com link</td></tr>
-    <tr><td>Busca no código</td><td>Nenhum teste chamava a ferramenta</td></tr>
-    <tr><td>Classe duplicada</td><td>Não é erro de compilação</td></tr>
-    <tr><td>Flag do gateway</td><td>O teste que sabia estava desligado</td></tr>
-    <tr><td>Seletor de modelo</td><td>Literal escondido dentro de um serviço</td></tr>
-  </table>
-  <p class="key">Três causas de raiz: <strong>ferramenta que ninguém executa</strong>,
-  <strong>teste que existe mas não roda</strong>, e <strong>configuração contradita por um literal
-  no código</strong>. Suíte verde não é o mesmo que comportamento verificado.</p>
-
-  <div class="divider"></div>
-
-  <h2>O que ficou de guarda</h2>
-  <ul>
-    <li><code>ToolSmokeTest</code> — executa as ferramentas auto-contidas num workspace temporário</li>
-    <li><code>ToolIntegrationTest</code> — as que precisam de banco, Redis e catálogo MCP reais</li>
-    <li><code>SystemAutomationLiveTest</code> — as que abrem janela, atrás de <code>-Davento.livetools=true</code></li>
-    <li><code>NoDuplicateClassNamesTest</code> — quebra o build se duas cópias divergirem</li>
-    <li><code>PromptPrefixStabilityTest</code> — trava o prefixo do prompt, que já custou ~50s por resposta</li>
-  </ul>
-  <p class="muted">Cada correção foi verificada desligando o conserto e confirmando que o teste
-  falha. Teste que passa nos dois estados não protege nada — um deles, o do contador de tokens,
-  precisou ser reescrito justamente por isso.</p>
+  <h2>Como foi resolvido</h2>
+  <p>Resolver o <strong>ancestral existente mais próximo</strong> e reanexar o resto. A verificação
+  passa a comparar por onde a escrita realmente vai cair, não por como o caminho foi escrito.</p>
+  <p>Cinco testes cobrem os dois sentidos. Um detalhe quase enganou: o teste do escape
+  <strong>passava mesmo com o bug</strong>, porque o <code>@TempDir</code> vive sob <code>/var</code>
+  e a recusa vinha pelo motivo errado. Foi preciso resolver o diretório temporário primeiro, para
+  isolar o link deliberado.</p>
+  <p class="muted">Lição: um teste que passa nos dois estados não protege nada. Desligue o conserto
+  e confirme que ele falha.</p>
 </div>
-
 </body>
 </html>

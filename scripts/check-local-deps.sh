@@ -61,6 +61,11 @@ if docker info >/dev/null 2>&1; then
   ok "docker daemon responding (context: $(docker context show 2>/dev/null))"
 else
   warn "no docker daemon responding on the active context ($(docker context show 2>/dev/null))"
+  # DOCKER_HOST tem precedencia sobre `docker context use`: enquanto ele apontar para um runtime
+  # desligado, trocar de contexto nao muda nada e o erro fica sem explicacao.
+  if [ -n "${DOCKER_HOST:-}" ]; then
+    warn "  DOCKER_HOST=$DOCKER_HOST overrides the context — check your shell profile"
+  fi
   missing_optional=$((missing_optional + 1))
 fi
 

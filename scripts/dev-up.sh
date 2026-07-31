@@ -538,9 +538,24 @@ if ! docker info >/dev/null 2>&1; then
       warn "Docker Desktop did not become ready. Start it manually or unset AVENTO_DOCKER_CONTEXT."
       exit 1
     fi
+  elif [ -S "$HOME/.docker/run/docker.sock" ]; then
+    # Docker Desktop JA esta no ar, mas o daemon nao responde no endereco atual. Quase sempre e um
+    # DOCKER_HOST exportado no shell (tipico de quem usou Colima antes): ele tem precedencia sobre
+    # `docker context use`, entao trocar o contexto nao adianta enquanto a variavel existir.
+    if [ -n "${DOCKER_HOST:-}" ]; then
+      warn "DOCKER_HOST=$DOCKER_HOST points at a daemon that is not answering; ignoring it"
+      warn "  it likely lives in your shell profile — remove it if you no longer use that runtime"
+      unset DOCKER_HOST
+    fi
+    export DOCKER_CONTEXT=desktop-linux
+    if ! docker info >/dev/null 2>&1; then
+      warn "Docker Desktop is running but its daemon did not answer"
+      exit 1
+    fi
+    info "using Docker Desktop (context: desktop-linux)"
   elif [ -d /Applications/Docker.app ]; then
-    # Docker Desktop primeiro: e o unico que atende o plugin `docker mcp`, entao subir Colima aqui
-    # deixaria o gateway fora sem explicar por que.
+    # E o unico runtime que atende o plugin `docker mcp`, entao subir Colima aqui deixaria o
+    # gateway fora sem explicar por que.
     info "starting Docker Desktop"
     open -a Docker
     for _ in $(seq 1 30); do

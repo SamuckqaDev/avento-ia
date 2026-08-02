@@ -482,6 +482,36 @@ evita casar chamadas (`new Foo()` nao entra como definicao de `Foo`). Retorna ar
 texto da definicao — o agente usa para entender e navegar o projeto antes de editar, sem reler tudo.
 E read-only (auto-aprovada) e faz parte do kit fixo de chats de projeto. Zero dependencia externa.
 
+## Busca no codigo: vetorial com queda para literal
+
+A ferramenta `search_code` entra pelo `CodeSearchService` (avento-rag), que decide entre dois
+caminhos e diz no resultado qual usou (campo `matching`):
+
+- **Vetorial** (`RagService`) quando o indice do projeto esta pronto. Redis VectorStore, embeddings
+  `nomic-embed-text`, chunks de 500 tokens, `topK 30 -> 5`, cache por query. O indice e por RAIZ de
+  projeto: quando o modelo busca numa subpasta, a consulta vai na raiz e os resultados sao
+  recortados de volta para a subpasta pedida.
+- **Literal** (`CodebaseRagService`) enquanto o indice nao esta pronto, quando o vetorial nao
+  devolve nada, ou quando ele falha (Redis fora, modelo de embedding fora). Pontua por token
+  presente no trecho.
+
+Quem aquece o indice e o `WorkspaceIndexingService`: `WorkspaceAccessService` publica
+`WorkspaceRootRegisteredEvent` na PRIMEIRA vez que uma raiz e registrada num escopo, e o indexador
+reage numa unica thread de prioridade minima, fora da requisicao. A primeira passada de um projeto
+real custa minutos, entao nada espera por ela — por isso o caminho literal existe.
+
+A reindexacao e disparada por **salvar arquivo** (`write_file` e `edit_file` chamam
+`noteFileChanged`), com debounce de 15s para juntar uma rajada de edicoes numa passada so. E barato
+porque a indexacao e incremental por hash de arquivo: so o arquivo que mudou volta a ser embedado.
+Nao e disparada por mensagem — isso varreria a arvore inteira para descobrir que nada mudou.
+
+Numeros medidos nesta maquina com `nomic-embed-text`: 100 ms por chunk sozinho, 51 ms em lotes de 8,
+48 ms em lotes de 32 (dai em diante nao melhora) — por isso `avento.rag.embedding-batch-size: 32` e
+lote sequencial, nao paralelo: numa maquina de 16 GB o modelo de embedding disputa RAM com o de chat.
+O limiar de similaridade e `0.45`, nao o `0.62` herdado de RAG sobre prosa: medindo 15 chunks reais
+do repo contra 4 perguntas, o chunk CERTO pontuou entre 0,489 e 0,734, entao 0.62 descartava a
+resposta certa em metade das buscas.
+
 ## Modo Plano de Implementacao (planejar antes de codar)
 
 Para uma tarefa de codigo, a skill `implementation-plan` coloca o agente em MODO PLANO: ela declara

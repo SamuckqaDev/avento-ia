@@ -53,6 +53,12 @@ Segue o OS no claro/escuro.
   um literal `"qwen3.5:9b"` chumbado num serviço, contradizendo a configuração, mais uma heurística
   que lia "pediu o default" como "não pediu nada". Sozinho nenhum dos dois causaria o sintoma.
 
+- **[08 — O RAG existia e ninguém chamava](08-rag-existia-e-ninguem-chamava.html)** —
+  busca vetorial completa de um lado, ferramenta que fazia `contains(token)` do outro, e nenhuma
+  ligação entre as duas: o único chamador do RAG real era um controller REST. Sem sintoma nenhum —
+  a ferramenta respondia. Inclui a medição que derrubou o limiar de similaridade de 0.62 para 0.45
+  (o corte herdado de prosa descartava a resposta certa em metade das buscas em código).
+
 ### O que os cinco tinham em comum
 
 Todos sobreviveram a uma suíte de 589 testes verdes. Três causas de raiz se repetem:

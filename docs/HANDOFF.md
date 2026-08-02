@@ -1,143 +1,124 @@
-# Handoff — sessão de 31/07 a 01/08/2026
+# Handoff — sessão de 02/08/2026
 
-Contexto para retomar em outra conversa. Escrito no fim de uma sessão longa; **tudo aqui foi
-verificado rodando comando**, e onde não foi está marcado como não verificado.
+Contexto para retomar em outra conversa. **Tudo aqui foi verificado rodando comando**, e onde não
+foi está marcado como não verificado. O handoff anterior (31/07–01/08) foi absorvido: o que ficou de
+pendência dele está na seção "Pendências", o resto virou doc.
 
 ---
 
 ## Estado do repositório
 
-- Branch `master`, sincronizado com `origin/master`
-- **653 testes, 0 falhas** (`cd back/avento && mvn clean test`)
-- CI no GitHub Actions passando (`.github/workflows/ci.yml`)
-- Frontend: 27 testes, `npm run validate` limpo
+- Branch `master`
+- **672 testes, 0 falhas, 8 pulados** (`cd back/avento && mvn clean test`) — eram 653, mais 19 novos
+- Frontend não foi tocado nesta sessão
 
 ---
 
 ## O que mudou nesta sessão
 
-### Ambiente
-- **Ambiente espacial/VR removido** (~9.200 LOC, 65 arquivos). Backup em
-  `~/avento-spatial-backup-2026-07-30.tar.gz`. Bundle caiu de 1,70 MB para 1,17 MB.
-- **Colima desligado**, Docker Desktop virou o runtime. Volumes do Colima preservados (contêm 16
-  chats antigos). Voltar: `colima start && docker context use colima`.
-- ⚠️ **`~/.zshrc` linha 11** exporta `DOCKER_HOST` apontando para o socket do Colima, que está
-  parado. Tem precedência sobre `docker context use`. O `dev-up.sh` contorna, mas a linha deveria
-  sair.
+### O RAG foi ligado ao agente (a tarefa que estava marcada como "próxima")
 
-### MCP
-- **Docker MCP Gateway ligado**, com 7 servidores migrados para container: `fetch`, `time`,
-  `memory`, `sequentialthinking`, `playwright`, `puppeteer`, `git`.
-- **5 continuam nativos** por impossibilidade: `filesystem` e `markitdown` (exigem paths fixos
-  montados; o Avento entrega workspace por chat), `macos-automator`, `apple`, `chrome-devtools`
-  (não existem no catálogo Docker — dependem de AppleScript e do Chrome do host).
-- O gateway é **plugin do Docker Desktop**: com Colima ele não sobe, nem com `--dry-run`.
+O problema era ausência de ligação, não código errado: `RagService` tinha busca vetorial completa e
+só o `RagController` (REST) a chamava, então o índice do projeto aberto ficava vazio para sempre,
+enquanto a ferramenta do agente usava `CodebaseRagService` (`conteudo.contains(token)`).
 
-### AgentService dividido
-De 4.788 para 3.668 linhas. Extraídos: `ModelNames`, `MessageText`, `HistoryText`,
-`TextualToolCallParser`, `ProviderErrorTranslator`, `ModelCatalogService`, `PromptAssemblyService`,
-`ImageIntentService`, `TerminalCommandPolicy`.
+O que foi feito:
 
-Regra usada: função pura vira estática em `support/`; colaborador com configuração vira serviço.
+- `WorkspaceAccessService` publica `WorkspaceRootRegisteredEvent` na **primeira** vez que uma raiz é
+  registrada num escopo (a mesma pasta é re-registrada a cada mensagem; anunciar sempre viraria uma
+  varredura por mensagem).
+- `WorkspaceIndexingService` (novo, avento-rag) escuta e aquece o índice numa thread só, prioridade
+  mínima, fora da requisição. Estados: `UNKNOWN`/`INDEXING`/`READY`/`FAILED` — `FAILED` é retentado,
+  porque a causa comum é o modelo de embedding fora do ar.
+- `CodeSearchService` (novo) é a junção: vetorial quando o índice está pronto, **literal** enquanto
+  não está, quando o vetorial vem vazio, ou quando ele estoura. A resposta carrega `matching` dizendo
+  qual dos dois respondeu — sem isso o modelo não sabe se vazio é "não existe" ou "não bate
+  literalmente".
+- Índice é por raiz de projeto; busca em subpasta consulta a raiz e recorta os resultados de volta.
+- Reindexação disparada por **salvar arquivo** (`write_file`/`edit_file`), debounce de 15s. Não por
+  mensagem.
+- `vectorStore.add` passou a ir em lotes sequenciais de 32.
+- Descrição de `search_code` atualizada para descrever os dois modos honestamente.
 
----
+### O limiar de similaridade estava herdado de prosa
 
-## Bugs encontrados e corrigidos (6)
+Medido com `nomic-embed-text` sobre 15 chunks reais deste repo e 4 perguntas:
 
-Todos com teste que **falha sem a correção** — verificado desligando cada conserto.
+| Busca | Score do chunk certo | Passava em 0.62? |
+|---|---:|---|
+| "onde verifico se um caminho está dentro do workspace" | 0,615 (1º lugar) | Não |
+| "onde fica o backup antes de sobrescrever" | 0,734 (1º lugar) | Sim |
+| `requireAuthorized` — nome exato do método | 0,489 (1º lugar) | Não |
 
-1. **Escape de workspace por symlink.** Escrita de arquivo novo através de link dentro do workspace
-   ia parar fora da raiz autorizada. E o inverso: projeto sob `/tmp` ou `/var` (links no macOS)
-   podia ser lido mas não escrito. → `WorkspaceSymlinkAuthorizationTest`
-2. **`codebase_vector_search` lançava `Recursive update`** na primeira busca de qualquer workspace —
-   `computeIfAbsent` com função que grava no próprio mapa. Quebrado desde que foi ligado.
-3. **`schedule_task` inalcançável.** Duas classes `LocalToolNames` em módulos diferentes, divergindo
-   por uma entrada; o classpath escolheu a defasada. → `NoDuplicateClassNamesTest` proíbe divergência
-   (há 22 outras duplicatas, todas idênticas hoje).
-4. **Docker MCP Gateway com flag inexistente.** Rodava `--profile`, que não existe no CLI.
-5. **`capture_screen`** devolvia erro cru do macOS em vez de dizer que falta permissão de Gravação
-   de Tela.
-6. **Seletor de modelo ignorado.** Um literal `"qwen3.5:9b"` chumbado em `ModelProviderService`
-   contradizia `avento.agent.default-model`, mais uma heurística que lia "pediu o default" como "não
-   pediu nada". Escolher granite no seletor não trocava o modelo. → `ModelNames.chooseChatModel`
+Faixa observada: 0,317–0,734, mediana 0,484. **0.62 descartava a resposta certa em metade das
+buscas**, inclusive com o nome exato de um método escrito no arquivo. Novo padrão: **0.45**.
 
-Documentados em `docs/aprendizados/03` a `07` (HTML) e como 5 skills acionáveis por sintoma
-(`tool-registered-but-not-found`, `model-choice-ignored`, `workspace-write-refused`,
-`slow-agent-round`, `docker-mcp-gateway-down`).
+**Medido e descartado:** `nomic-embed-text` é treinado com prefixo de tarefa (`search_query:` /
+`search_document:`) e o Spring AI não aplica nenhum. Com prefixo todos os scores sobem alguns
+centésimos mas a separação **piora** — margem média entre o chunk certo e o melhor errado cai de
++0,039 para +0,012. Não vale implementar.
 
----
+### Onde as chaves novas moram (cuidado)
 
-## Performance — o que foi MEDIDO
+As chaves `avento.rag.*` foram para `application.yml` (base). O app roda com
+`--spring.profiles.active=local`, então `application-local.yml` **sobrescreveria** o base — mas hoje
+ele não tem bloco `rag:` nenhum (verificado), então os valores do base valem. Se um dia aparecer um
+`rag:` no local, é lá que `similarity-threshold`, `embedding-batch-size` e `auto-index` passam a ser
+decididos. Já aconteceu antes com `num-ctx` e `default-model`: editar só o base não mudou nada.
 
-| Rodada | Prompt | Tempo |
-|---|---:|---:|
-| `tools(0)` | 4.327 tokens | 17,9s |
-| `tools(12)` | 7.546 tokens | 32,0s |
+### Colima saiu do caminho
 
-**As 12 ferramentas custam 3.219 tokens e 14 segundos.** O custo dos servidores MCP não está na RAM
-que ocupam (0,13 GB em 15 processos, contra 6 GB do Ollama) — está nos **schemas que injetam no
-prompt**, reavaliados a 4-5 ms por token a cada rodada.
+- `~/.zshrc`: removido o `export DOCKER_HOST` apontando para o socket do Colima (pendência do
+  handoff anterior). O contexto ativo é `desktop-linux`.
+- `dev-up.sh`: removido o fallback que subia Colima quando o Docker Desktop não está instalado. Ele
+  não atende o plugin `docker mcp`, então subir Colima ali deixava a stack de pé com sete servidores
+  MCP faltando em silêncio. Agora falha dizendo o que está errado.
+- A VM do Colima continua parada e **os volumes seguem no disco** (`~/.colima/default`) — contêm 16
+  chats antigos. Não apagar sem decidir o que fazer com eles.
 
-Schemas dos servidores tirados do boot: playwright ~4.858 tokens (24 ferramentas), memory ~2.875,
-sequential-thinking ~1.176, puppeteer ~648, fetch ~290. Total ~9.800 tokens, 42 ferramentas.
+### Medições de embedding (nesta máquina, M2 Pro 16 GB)
 
-**Não medido:** comparação direta antes/depois das mudanças. Várias coisas mudaram juntas.
+| Lote | Tempo | Por chunk |
+|---:|---:|---:|
+| 1 | 0,10s | 100,3 ms |
+| 8 | 0,41s | 50,6 ms |
+| 32 | 1,55s | 48,4 ms |
 
-### Alavanca não usada
-Rodando `qwen3.5:9b` com `num-ctx: 32768`. A config define `granite4.1:8b` como padrão, e a
-anotação do usuário registra `granite4.1:8b @ 8192 ≈ 2,8s em regime` contra `qwen3.5:9b @ 16384 =
-34-46s`. Trocar o modelo no seletor **agora funciona** (bug 6 corrigido), mas exige restart do
-backend. O `num-ctx` precisa de edição no yml.
+Platô a partir de ~8. Daí `embedding-batch-size: 32` e lote sequencial: paralelizar faria o modelo
+de embedding disputar RAM com o de chat, e o chat é quem o usuário está esperando.
 
 ---
 
-## TAREFA SEGUINTE: consertar o RAG
+## NÃO medido / não validado
 
-### O problema
-Existem dois caminhos de busca no código e eles não se encontram:
-
-- **`RagService`** (avento-rag) — RAG vetorial de verdade: Redis VectorStore, `nomic-embed-text`,
-  chunks de 500 tokens, similaridade ≥ 0.62, topK 30 → 5 resultados, cache por query, indexação
-  **incremental por hash de arquivo** com IDs determinísticos.
-  **Só o `RagController` (REST) chama `searchContext` e `indexProject`. O agente não alcança, e o
-  índice está vazio.**
-- **`CodebaseRagService`** — o que a ferramenta do agente usa. Pontua com
-  `if (conteudo.contains(token)) score += 1.0`. Busca literal, não vetorial.
-
-### O que já foi feito
-A ferramenta foi renomeada de `codebase_vector_search` para **`search_code`**, com descrição
-honesta (casa termo literal, não linguagem natural; aponta `find_symbol` para definição e
-`search_files` para nome de arquivo). Antes a descrição prometia "busca semântica (RAG) em
-linguagem natural" e entregava casamento de token — mentia para o modelo.
-
-### O plano acordado
-**Ligar a indexação ao registro do workspace**, assíncrona, e fazer a busca tentar o vetorial e cair
-no literal enquanto o índice não estiver pronto.
-
-Pontos que importam:
-- A indexação é **incremental por hash** — a primeira passada é cara (milhares de chunks), as
-  seguintes só tocam arquivos editados. O custo por busca é **um** embedding, o da pergunta.
-- Mandar embeddings em lote, concorrência 1 ou 2 — mais que isso compete com o modelo de chat pela
-  RAM numa máquina de 16 GB.
-- Gatilho de reindexação deve ser salvar arquivo, não mandar mensagem.
-- O limiar 0.62 precisa ser calibrado com código, que embeda diferente de prosa.
-- Não adicionar ferramenta nova: aproveitar o `search_code` que já existe, para não crescer o
-  orçamento de prompt.
-
-**Pré-requisito:** Ollama de pé, para validar que `nomic-embed-text` responde e medir a primeira
-indexação.
+- **Primeira indexação de um projeto real de ponta a ponta.** O custo por chunk está medido, mas o
+  total de chunks de um projeto grande não — a estimativa (~48 ms × N) não foi confirmada com o
+  backend de pé.
+- **Nenhuma busca vetorial rodou de verdade pelo agente.** Os testes cobrem a lógica de decisão com
+  o `RagService` mockado; o caminho Redis + Ollama real não foi exercitado nesta sessão.
+- O limiar 0.45 vem de uma amostra pequena (15 chunks, 4 perguntas). É melhor que 0.62 com margem
+  larga, mas não é um número calibrado com rigor.
 
 ---
 
-## Pendências menores
+## Alavanca de performance ainda não usada
 
-- `~/.zshrc` linha 11: remover o `export DOCKER_HOST` do Colima
+Continua valendo do handoff anterior: rodando `qwen3.5:9b` com `num-ctx: 32768`, enquanto a config
+define `granite4.1:8b` como padrão e a anotação do usuário registra `granite4.1:8b @ 8192 ≈ 2,8s em
+regime` contra `qwen3.5:9b @ 16384 = 34-46s`. O seletor de modelo **funciona** desde que o bug 6 foi
+corrigido, mas exige restart do backend; o `num-ctx` precisa de edição no yml.
+
+---
+
+## Pendências
+
 - `capture_screen`: precisa de permissão de Gravação de Tela nos Ajustes do Sistema
 - FIXME em `image-prompt-signals.txt`: quatro literais com "pitbull" — fixture de teste que vazou
   para produção. O certo é um padrão `<verbo> <artigo> <assunto> que (eu) pedi`.
 - Gatilho duplicado pré-existente: `research.md` e `web-research.md` compartilham
   "buscar na internet" e "pesquise na web"
-- 22 classes duplicadas entre módulos (idênticas hoje, o teste impede divergirem)
+- 22 classes duplicadas entre módulos (idênticas hoje, o teste impede divergirem) — entre elas
+  `Manifest`, `ScannedFile` e `DocumentReadResult`, duplicadas entre avento-workspace e avento-rag
 - Ferramentas nunca exercitadas: `generate_video`, `open/close_browser_tab`, `create_vite_project`,
   `run_shortcut`
 

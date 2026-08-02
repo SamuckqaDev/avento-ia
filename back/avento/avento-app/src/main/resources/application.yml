@@ -119,9 +119,24 @@ avento:
     extraction-context-messages: ${AVENTO_MEMORY_EXTRACTION_CONTEXT_MESSAGES:12}
     extraction-max-suggestions: ${AVENTO_MEMORY_EXTRACTION_MAX_SUGGESTIONS:4}
   rag:
-    similarity-threshold: ${AVENTO_RAG_SIMILARITY_THRESHOLD:0.62}
+    # 0.45, não 0.62. O 0.62 veio de prosa; código embeda mais baixo. Medido com nomic-embed-text
+    # sobre 15 chunks reais deste repo e 4 perguntas: o chunk CERTO pontuou entre 0,489 e 0,734 —
+    # ou seja, 0.62 descartava a resposta correta em 2 das 4 perguntas, inclusive quando a busca era
+    # o nome exato de um método que está escrito no arquivo (requireAuthorized, 0,489). A faixa toda
+    # observada foi 0,317–0,734, mediana 0,484. Quem filtra de verdade é o topK 30 → 5; o limiar só
+    # serve de piso contra lixo.
+    similarity-threshold: ${AVENTO_RAG_SIMILARITY_THRESHOLD:0.45}
     candidate-limit: ${AVENTO_RAG_CANDIDATE_LIMIT:30}
     result-limit: ${AVENTO_RAG_RESULT_LIMIT:5}
+    # Indexa o projeto assim que ele é registrado como workspace, fora da thread da requisição.
+    # Desligue para voltar ao comportamento antigo: search_code só com casamento literal.
+    auto-index: ${AVENTO_RAG_AUTO_INDEX:true}
+    # Chunks por chamada ao modelo de embedding. Medido com nomic-embed-text nesta máquina: 100 ms
+    # por chunk sozinho, 51 ms em lotes de 8, 48 ms em lotes de 32 — acima disso não melhora, e o
+    # lote maior só aumenta o pico de RAM disputado com o modelo de chat.
+    embedding-batch-size: ${AVENTO_RAG_EMBEDDING_BATCH_SIZE:32}
+    # Silêncio de escrita antes de reindexar. Junta uma rajada de edições numa passada só.
+    reindex-debounce-millis: ${AVENTO_RAG_REINDEX_DEBOUNCE_MILLIS:15000}
   documents:
     markitdown-command: ${AVENTO_MARKITDOWN_COMMAND:${user.home}/.avento/tools/mcp/bin/markitdown}
     markitdown-mcp-command: ${AVENTO_MARKITDOWN_MCP_COMMAND:${user.home}/.avento/tools/mcp/bin/markitdown-mcp}

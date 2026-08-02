@@ -255,25 +255,36 @@ class ToolSmokeTest {
     }
 
     /**
-     * Busca por termo literal no codigo do workspace.
+     * Busca no codigo do workspace com o indice frio.
      *
      * <p>Chamava-se {@code codebase_vector_search} e a descricao prometia "busca semantica (RAG) ...
      * em linguagem natural". A implementacao sempre foi {@code if (conteudo.contains(token))
      * score += 1.0} — casamento literal. O nome e a descricao mentiam para o modelo, que podia
      * perguntar por conceito e receber vazio.
+     *
+     * <p>Hoje existe indice vetorial de verdade atras da mesma ferramenta, mas ele leva minutos para
+     * ficar pronto. Enquanto nao esta, a ferramenta tem de responder pelo caminho literal — que e o
+     * que este teste exerce, com o indexador desligado.
      */
     @Test
-    void searchesTheCodeByLiteralTerm() throws Exception {
+    void searchesTheCodeByLiteralTermWhileTheIndexIsCold() throws Exception {
         Files.createDirectories(workspace.resolve("src"));
         Files.writeString(
                 workspace.resolve("src/Pagamento.java"),
                 "public class Pagamento {\n  void autorizarCobranca() {}\n}\n");
-        ReflectionTestUtils.setField(controller, "codebaseRagService", new com.avento.service.rag.CodebaseRagService());
+        var indexingService = new com.avento.service.rag.WorkspaceIndexingService(null, false, 0);
+        ReflectionTestUtils.setField(
+                controller,
+                "codeSearchService",
+                new com.avento.service.rag.CodeSearchService(
+                        null, new com.avento.service.rag.CodebaseRagService(), indexingService));
+        ReflectionTestUtils.setField(controller, "workspaceIndexingService", indexingService);
 
         JsonNode result = run("search_code", "path", workspace.toString(), "query", "autorizarCobranca");
 
         assertSucceeded(result, "search_code");
         assertThat(result.toString()).contains("Pagamento");
+        assertThat(result.toString()).contains("literal");
     }
 
     /** Le um documento via markitdown. Sem o binario, tem de degradar com mensagem, nao estourar. */

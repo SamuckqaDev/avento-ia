@@ -1,5 +1,6 @@
 package com.avento.service;
 
+import com.avento.service.event.WorkspaceRootRegisteredEvent;
 import com.avento.service.tools.ToolExecutionContext;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -23,6 +25,10 @@ public class WorkspaceAccessService {
 
     private final Map<String, Set<Path>> workspaceRoots = new ConcurrentHashMap<>();
     private ToolExecutionContext executionContext;
+
+    // Optional on purpose: most tests build this service with the no-arg constructor, and a missing
+    // publisher must not turn registering a root into a crash.
+    private ApplicationEventPublisher eventPublisher;
 
     @Value("${avento.workspace.default-root:}")
     private String defaultWorkspaceRoot;
@@ -39,6 +45,11 @@ public class WorkspaceAccessService {
         this.executionContext = executionContext;
     }
 
+    @Autowired(required = false)
+    public void setEventPublisher(ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
+
     public Path registerWorkspaceRoot(String path) {
         return registerWorkspaceRoot((UUID) null, path);
     }
@@ -48,7 +59,13 @@ public class WorkspaceAccessService {
         if (!Files.isDirectory(root)) {
             throw new IllegalArgumentException("Workspace root must be an existing directory");
         }
-        roots(scopeFor(userId)).add(root);
+        boolean isNewRoot = roots(scopeFor(userId)).add(root);
+        if (isNewRoot && eventPublisher != null) {
+            // Only on the first registration of a root in this scope: the same folder is re-registered
+            // on every message of a conversation, and announcing it each time would ask the indexer to
+            // rescan the project per message instead of per project.
+            eventPublisher.publishEvent(new WorkspaceRootRegisteredEvent(root, userId));
+        }
         return root;
     }
 

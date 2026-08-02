@@ -29,7 +29,8 @@ import com.avento.service.dto.SystemActionResult;
 import com.avento.service.dto.ToolDefinition;
 import com.avento.service.mcp.McpClientManager;
 import com.avento.service.mcp.McpServerCatalogService;
-import com.avento.service.rag.CodebaseRagService;
+import com.avento.service.rag.CodeSearchService;
+import com.avento.service.rag.WorkspaceIndexingService;
 import com.avento.service.tools.LocalToolNames;
 import com.avento.service.tools.TerminalCommandPolicy;
 import com.avento.service.tools.ToolCatalogService;
@@ -178,7 +179,10 @@ public class McpController implements ToolProvider {
     private com.avento.service.tools.PinnedToolService pinnedToolService;
 
     @Autowired
-    private CodebaseRagService codebaseRagService;
+    private CodeSearchService codeSearchService;
+
+    @Autowired
+    private WorkspaceIndexingService workspaceIndexingService;
 
     @Value("${avento.mcp.sdk.enabled:true}")
     private boolean mcpSdkEnabled;
@@ -716,12 +720,13 @@ public class McpController implements ToolProvider {
                 List.of("tools")));
         allTools.add(tool(
                 "search_code",
-                "Procura um TERMO LITERAL dentro do codigo do projeto conectado e devolve os trechos"
-                        + " com o arredor. Casa a palavra como ela esta escrita: use nome de metodo,"
-                        + " classe, constante ou mensagem de erro — nao pergunta em linguagem natural."
-                        + " Para achar a DEFINICAO de um simbolo use find_symbol; para achar pelo NOME do"
-                        + " arquivo use search_files. Use este quando souber o que esta escrito no codigo"
-                        + " mas nao onde.",
+                "Procura trechos dentro do codigo do projeto conectado. Quando o indice do projeto ja"
+                        + " esta pronto, casa por SIGNIFICADO e aceita pergunta em linguagem natural;"
+                        + " enquanto o indice esta sendo montado, cai para casamento LITERAL de termo. O"
+                        + " campo 'matching' da resposta diz qual dos dois respondeu: se veio 'literal',"
+                        + " prefira nome exato de metodo, classe, constante ou mensagem de erro. Para"
+                        + " achar a DEFINICAO de um simbolo use find_symbol; para achar pelo NOME do"
+                        + " arquivo use search_files.",
                 Map.of(
                         "path", stringProperty("Diretorio raiz autorizado do projeto."),
                         "query", stringProperty("Pergunta ou termos do que procurar no codigo."),
@@ -1052,12 +1057,18 @@ public class McpController implements ToolProvider {
         String query = requiredString(payload, "query");
         int maxResults = boundedInt(payload.get("maxResults"), 5, 1, 20);
 
-        List<CodebaseRagService.SearchResult> matches = codebaseRagService.search(root.toString(), query, maxResults);
+        CodeSearchService.Result search = codeSearchService.search(root, query, maxResults);
         ObjectNode result = mapper.createObjectNode();
         result.put("query", query);
         result.put("workspace", root.toString());
+        // The model reads the description of this tool once and the result on every call. Saying which
+        // path answered is what lets it know whether a miss means "not in the code" or "matched no
+        // literal token" — the two need different follow-up queries.
+        result.put(
+                "matching",
+                search.strategy() == CodeSearchService.Strategy.VECTOR ? "semantica (indice vetorial)" : "literal");
         ArrayNode hits = result.putArray("results");
-        for (CodebaseRagService.SearchResult match : matches) {
+        for (CodeSearchService.Hit match : search.hits()) {
             ObjectNode hit = hits.addObject();
             hit.put("file", match.filePath());
             hit.put("startLine", match.startLine());
@@ -1065,7 +1076,7 @@ public class McpController implements ToolProvider {
             hit.put("snippet", match.snippet());
             hit.put("score", match.score());
         }
-        if (matches.isEmpty()) {
+        if (search.hits().isEmpty()) {
             result.put("hint", "Nenhum trecho relevante. Tente termos mais especificos ou use search_files.");
         }
         return toolResult(result);
@@ -1406,6 +1417,7 @@ public class McpController implements ToolProvider {
 
         BackupEntry backup = fileBackupService.backupBeforeWrite(file, optionalString(payload, "_runId"));
         Files.writeString(file, content, StandardCharsets.UTF_8);
+        noteIndexableChange(file);
 
         ObjectNode result = mapper.createObjectNode();
         result.put("status", "success");
@@ -1413,6 +1425,19 @@ public class McpController implements ToolProvider {
         result.put("backupId", backup.id());
         result.put("bytesWritten", Files.size(file));
         return toolResult(result);
+    }
+
+    /**
+     * Tells the indexer a file moved under it.
+     *
+     * <p>Saving is the right trigger, not sending a message: the pass is incremental by file hash, so
+     * it re-embeds only what changed, while a pass per message would walk the whole tree to find out
+     * nothing did.
+     */
+    private void noteIndexableChange(Path file) {
+        if (workspaceIndexingService != null) {
+            workspaceIndexingService.noteFileChanged(file);
+        }
     }
 
     private JsonNode executeEditFile(Map<String, Object> payload) throws IOException {
@@ -1452,6 +1477,7 @@ public class McpController implements ToolProvider {
 
         BackupEntry backup = fileBackupService.backupBeforeWrite(file, optionalString(payload, "_runId"));
         Files.writeString(file, updatedContent, StandardCharsets.UTF_8);
+        noteIndexableChange(file);
 
         ObjectNode result = mapper.createObjectNode();
         result.put("status", "success");

@@ -64,6 +64,7 @@ public class RagService {
     private final double similarityThreshold;
     private final int searchCandidateLimit;
     private final int searchResultLimit;
+    private final int embeddingBatchSize;
 
     public RagService(
             VectorStore vectorStore,
@@ -71,13 +72,15 @@ public class RagService {
             ObjectMapper mapper,
             @Value("${avento.rag.similarity-threshold:0.62}") double similarityThreshold,
             @Value("${avento.rag.candidate-limit:30}") int searchCandidateLimit,
-            @Value("${avento.rag.result-limit:5}") int searchResultLimit) {
+            @Value("${avento.rag.result-limit:5}") int searchResultLimit,
+            @Value("${avento.rag.embedding-batch-size:32}") int embeddingBatchSize) {
         this.vectorStore = vectorStore;
         this.redisTemplate = redisTemplate;
         this.mapper = mapper;
         this.similarityThreshold = Math.max(0.0, Math.min(1.0, similarityThreshold));
         this.searchCandidateLimit = Math.max(1, searchCandidateLimit);
         this.searchResultLimit = Math.max(1, Math.min(this.searchCandidateLimit, searchResultLimit));
+        this.embeddingBatchSize = Math.max(1, embeddingBatchSize);
         this.textSplitter = TokenTextSplitter.builder()
                 .withChunkSize(500)
                 .withMinChunkSizeChars(100)
@@ -186,9 +189,7 @@ public class RagService {
             }
         }
 
-        if (!documentsToAdd.isEmpty()) {
-            vectorStore.add(documentsToAdd);
-        }
+        addInBatches(documentsToAdd);
         writeManifest(projectKey, new Manifest(root.toString(), next));
         incrementVersion(projectKey);
         logger.info(
@@ -197,6 +198,25 @@ public class RagService {
                 current.size(),
                 documentsToAdd.size(),
                 previous.files().size() - next.size());
+    }
+
+    /**
+     * Sends the chunks to the vector store in slices, one slice at a time.
+     *
+     * <p>A single {@code add} of the whole project asks the embedding model for thousands of vectors
+     * in one call. Measured against {@code nomic-embed-text} on this machine, the per-chunk cost
+     * stops improving past ~8 chunks per call (100 ms alone, 51 ms at 8, 48 ms at 32), so slicing
+     * costs no throughput. What it buys is a bounded request: the first indexing of a project no
+     * longer competes with the chat model for RAM in one burst.
+     *
+     * <p>Sequential on purpose. Parallel batches on a 16 GB machine make the embedding model and the
+     * chat model fight for the same memory, and the chat is what the user is waiting on.
+     */
+    private void addInBatches(List<Document> documents) {
+        for (int start = 0; start < documents.size(); start += embeddingBatchSize) {
+            int end = Math.min(start + embeddingBatchSize, documents.size());
+            vectorStore.add(documents.subList(start, end));
+        }
     }
 
     private Map<String, ScannedFile> scan(Path root) {

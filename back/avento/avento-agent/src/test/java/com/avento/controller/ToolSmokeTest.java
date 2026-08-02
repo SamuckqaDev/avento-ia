@@ -254,18 +254,25 @@ class ToolSmokeTest {
         assertSucceeded(run("terminal_stop", "processId", processId), "terminal_stop");
     }
 
-    /** Busca lexical no codigo do workspace, sem embedding nem Redis. */
+    /**
+     * Busca por termo literal no codigo do workspace.
+     *
+     * <p>Chamava-se {@code codebase_vector_search} e a descricao prometia "busca semantica (RAG) ...
+     * em linguagem natural". A implementacao sempre foi {@code if (conteudo.contains(token))
+     * score += 1.0} — casamento literal. O nome e a descricao mentiam para o modelo, que podia
+     * perguntar por conceito e receber vazio.
+     */
     @Test
-    void searchesTheCodebaseByToken() throws Exception {
+    void searchesTheCodeByLiteralTerm() throws Exception {
         Files.createDirectories(workspace.resolve("src"));
         Files.writeString(
                 workspace.resolve("src/Pagamento.java"),
                 "public class Pagamento {\n  void autorizarCobranca() {}\n}\n");
         ReflectionTestUtils.setField(controller, "codebaseRagService", new com.avento.service.rag.CodebaseRagService());
 
-        JsonNode result = run("codebase_vector_search", "path", workspace.toString(), "query", "autorizarCobranca");
+        JsonNode result = run("search_code", "path", workspace.toString(), "query", "autorizarCobranca");
 
-        assertSucceeded(result, "codebase_vector_search");
+        assertSucceeded(result, "search_code");
         assertThat(result.toString()).contains("Pagamento");
     }
 

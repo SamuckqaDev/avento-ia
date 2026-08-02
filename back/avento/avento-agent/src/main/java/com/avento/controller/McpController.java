@@ -715,10 +715,13 @@ public class McpController implements ToolProvider {
                 Map.of("tools", arrayNameProperty("Nomes exatos das ferramentas a ativar.")),
                 List.of("tools")));
         allTools.add(tool(
-                "codebase_vector_search",
-                "Busca semantica (RAG) nos arquivos fonte do projeto conectado: encontra trechos de"
-                        + " codigo relevantes para uma pergunta em linguagem natural, sem precisar saber o"
-                        + " nome do arquivo. Use antes de read_file quando nao souber ONDE algo esta.",
+                "search_code",
+                "Procura um TERMO LITERAL dentro do codigo do projeto conectado e devolve os trechos"
+                        + " com o arredor. Casa a palavra como ela esta escrita: use nome de metodo,"
+                        + " classe, constante ou mensagem de erro — nao pergunta em linguagem natural."
+                        + " Para achar a DEFINICAO de um simbolo use find_symbol; para achar pelo NOME do"
+                        + " arquivo use search_files. Use este quando souber o que esta escrito no codigo"
+                        + " mas nao onde.",
                 Map.of(
                         "path", stringProperty("Diretorio raiz autorizado do projeto."),
                         "query", stringProperty("Pergunta ou termos do que procurar no codigo."),
@@ -890,7 +893,7 @@ public class McpController implements ToolProvider {
             case "terminal_stop" -> executeTerminalStop(payload);
             case "search_capabilities" -> executeSearchCapabilities(payload);
             case "activate_tools" -> executeActivateTools(payload);
-            case "codebase_vector_search" -> executeCodebaseVectorSearch(payload);
+            case "search_code" -> executeSearchCode(payload);
             case "schedule_task" -> executeScheduleTask(payload);
             default -> mapper.createObjectNode().put("error", "Unknown local tool: " + name);
         };
@@ -1044,7 +1047,7 @@ public class McpController implements ToolProvider {
         return names;
     }
 
-    private JsonNode executeCodebaseVectorSearch(Map<String, Object> payload) throws IOException {
+    private JsonNode executeSearchCode(Map<String, Object> payload) throws IOException {
         Path root = workspaceAccessService.requireAuthorized(requiredString(payload, "path"));
         String query = requiredString(payload, "query");
         int maxResults = boundedInt(payload.get("maxResults"), 5, 1, 20);

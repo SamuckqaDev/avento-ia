@@ -40,12 +40,12 @@ public class ToolCapabilityRegistry {
                 "Acha ONDE um simbolo (classe/metodo/funcao/tipo) e DEFINIDO no projeto.");
         register(
                 definitions,
-                "codebase_vector_search",
+                "search_code",
                 ToolCategory.FILESYSTEM,
                 ToolRiskLevel.READ_ONLY,
                 ToolApprovalPolicy.AUTO,
                 false,
-                "Realiza busca semantica e vetorial (RAG) nos arquivos fonte do projeto ativo.");
+                "Procura um termo literal dentro do codigo do projeto ativo e devolve os trechos.");
         register(
                 definitions,
                 "search_capabilities",

@@ -566,11 +566,11 @@ if ! docker info >/dev/null 2>&1; then
       warn "Docker Desktop did not become ready"
       exit 1
     fi
-  elif command -v colima >/dev/null 2>&1; then
-    warn "Docker Desktop not installed; starting Colima (the MCP Gateway will stay off)"
-    colima start
   else
-    warn "no Docker runtime responding, and neither Docker Desktop nor Colima is installed"
+    # Deliberately no Colima fallback. It cannot serve the `docker mcp` plugin, so starting it here
+    # would bring the stack up with seven MCP servers silently missing — a half-working setup that
+    # looks like a working one. Failing here says what is actually wrong.
+    warn "no Docker runtime responding; install/start Docker Desktop (the MCP Gateway needs it)"
     exit 1
   fi
 fi

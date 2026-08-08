@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -44,7 +45,13 @@ public class ModelProviderService {
     private final ProviderSettingsRepository repository;
     private final SecretCipher cipher;
     private final ProviderModelCatalog modelCatalog;
+    private final boolean fallbackToLocalEnabled;
     private final Map<String, Integer> contextLimitCache = new ConcurrentHashMap<>();
+    private final Map<String, LoadedContext> loadedContextCache = new ConcurrentHashMap<>();
+    // Cache por endereco, sem validade: um servidor nao troca de protocolo em execucao, e a
+    // deteccao custa uma requisicao que nao pode entrar no caminho de cada rodada.
+    private final Map<String, Boolean> ollamaBehindOpenAiCache = new ConcurrentHashMap<>();
+    private final Map<String, Reachability> reachabilityCache = new ConcurrentHashMap<>();
 
     public ModelProviderService(
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
@@ -52,13 +59,15 @@ public class ModelProviderService {
             ObjectMapper objectMapper,
             ObjectProvider<ProviderSettingsRepository> repositoryProvider,
             ObjectProvider<SecretCipher> cipherProvider,
-            ObjectProvider<ProviderModelCatalog> modelCatalogProvider) {
+            ObjectProvider<ProviderModelCatalog> modelCatalogProvider,
+            @Value("${avento.agent.fallback-to-local-ollama:true}") boolean fallbackToLocalEnabled) {
         this.redisTemplate = redisTemplateProvider.getIfAvailable();
         this.defaultOllamaUrl = defaultOllamaUrl;
         this.objectMapper = objectMapper;
         this.repository = repositoryProvider == null ? null : repositoryProvider.getIfAvailable();
         this.cipher = cipherProvider == null ? null : cipherProvider.getIfAvailable();
         this.modelCatalog = modelCatalogProvider == null ? null : modelCatalogProvider.getIfAvailable();
+        this.fallbackToLocalEnabled = fallbackToLocalEnabled;
     }
 
     // ---------------------------------------------------------------- leitura
@@ -69,8 +78,49 @@ public class ModelProviderService {
         return stored == null ? ProviderKind.OLLAMA : ProviderKind.from(stored.getProviderKind());
     }
 
+    /**
+     * Tipo que vale para DECIDIR comportamento, que nem sempre é o que está gravado.
+     *
+     * <p>Apontar "compatível com OpenAI" para um Ollama é configuração válida e comum — o Ollama
+     * fala os dois protocolos. Só que o formato da OpenAI não tem {@code num_ctx}, então o pedido de
+     * janela do Avento era descartado e o servidor subia com os 4096 padrão dele, truncando o prompt
+     * em silêncio. Custava uma hora de depuração e uma distinção de protocolo que ninguém deveria
+     * precisar conhecer para usar o produto.
+     *
+     * <p>Agora o endereço é perguntado: se responde {@code /api/tags} como Ollama, o tipo efetivo
+     * vira {@code OLLAMA} e a conversa segue pelo caminho nativo, onde a janela pode ser pedida. O
+     * que está gravado não muda — a tela continua mostrando a escolha da pessoa.
+     */
+    public ProviderKind effectiveKind(UUID userId) {
+        ProviderKind stored = activeKind(userId);
+        if (stored != ProviderKind.OPENAI_COMPATIBLE || modelCatalog == null) {
+            return stored;
+        }
+        String baseUrl = activeBaseUrl(userId);
+        Boolean cached = ollamaBehindOpenAiCache.get(baseUrl);
+        if (cached == null) {
+            cached = modelCatalog.looksLikeOllama(baseUrl);
+            ollamaBehindOpenAiCache.put(baseUrl, cached);
+            if (cached) {
+                logger.info("O endereço {} responde como Ollama; usando o caminho nativo", baseUrl);
+            }
+        }
+        return cached ? ProviderKind.OLLAMA : stored;
+    }
+
+    /** Endereço do Ollama do YAML, para quem precisa de um padrão sem ter usuário em mãos. */
+    public String defaultOllamaBaseUrl() {
+        return defaultOllamaUrl;
+    }
+
     /** Endereço do provedor ativo, já com o padrão do tipo quando não informado. */
     public String activeBaseUrl(UUID userId) {
+        String configured = configuredBaseUrl(userId);
+        return fellBackToLocal(userId) ? defaultOllamaUrl : configured;
+    }
+
+    /** O endereço gravado, sem considerar se ele responde. */
+    public String configuredBaseUrl(UUID userId) {
         ProviderSettings stored = findStored(userId);
         if (stored != null
                 && stored.getBaseUrl() != null
@@ -82,12 +132,65 @@ public class ModelProviderService {
     }
 
     /**
+     * Verdadeiro quando o provedor configurado não responde e a conversa foi desviada para o Ollama
+     * deste computador.
+     *
+     * <p>A máquina de inferência desliga, o Tailscale cai, o wifi troca de rede. Antes disso aqui,
+     * cada mensagem virava erro de conexão até alguém abrir as configurações e reapontar à mão —
+     * inclusive com o Avento já rodando e um Ollama local perfeitamente vivo ao lado.
+     *
+     * <p>Só vale para provedor auto-hospedado. Gemini e Anthropic fora do ar são problema deles, e
+     * desviar para um modelo local de 8B sem avisar entregaria outra qualidade com a mesma cara.
+     * Por isso quem cai é anunciado: ver {@code AgentService.cloudProviderNotice}.
+     *
+     * <p>Sondagem com validade curta — o remoto volta, e insistir no local depois disso seria trocar
+     * um problema por outro.
+     */
+    public boolean fellBackToLocal(UUID userId) {
+        if (!fallbackToLocalEnabled) {
+            return false;
+        }
+        ProviderKind kind = activeKind(userId);
+        if (kind.managesItsOwnContext()) {
+            return false;
+        }
+        String configured = configuredBaseUrl(userId);
+        if (configured == null || configured.isBlank() || configured.equals(defaultOllamaUrl)) {
+            return false;
+        }
+        Reachability cached = reachabilityCache.get(configured);
+        if (cached == null || cached.isStale()) {
+            boolean alive = modelCatalog != null && modelCatalog.isReachable(configured);
+            cached = new Reachability(alive, System.nanoTime());
+            reachabilityCache.put(configured, cached);
+            if (!alive) {
+                logger.warn("Provedor {} não respondeu; usando o Ollama local em {}", configured, defaultOllamaUrl);
+            }
+        }
+        return !cached.alive();
+    }
+
+    private record Reachability(boolean alive, long readAtNanos) {
+        private static final long TTL_NANOS = Duration.ofSeconds(20).toNanos();
+
+        boolean isStale() {
+            return System.nanoTime() - readAtNanos > TTL_NANOS;
+        }
+    }
+
+    /**
      * Modelo escolhido no provedor ativo.
      *
      * <p>Num provedor remoto sem escolha, devolve vazio de proposito: cair no padrao LOCAL mandaria
      * um nome de modelo do Ollama para o Gemini, que responde 404 sem explicar.
      */
     public String activeModelName(UUID userId) {
+        // Caiu para o local: o modelo gravado e do OUTRO servidor. Insistir nele daria 404 a cada
+        // mensagem — o Mac nao tem o qwen3.5:35b da maquina de inferencia. Vazio deixa quem chama
+        // usar o default local, que e o unico que existe aqui.
+        if (fellBackToLocal(userId)) {
+            return readSystemField("defaultModel", "");
+        }
         ProviderSettings stored = findStored(userId);
         if (stored != null
                 && stored.getCloudModel() != null
@@ -268,6 +371,9 @@ public class ModelProviderService {
                 repository.save(stored);
             });
             contextLimitCache.clear();
+            reachabilityCache.clear();
+            loadedContextCache.clear();
+            ollamaBehindOpenAiCache.clear();
         } catch (RuntimeException exception) {
             logger.warn(
                     "Falha ao desconectar o provedor: {}", exception.getClass().getSimpleName());
@@ -339,6 +445,38 @@ public class ModelProviderService {
         int limit = modelCatalog.contextLimit(kind, activeBaseUrl(userId), rawApiKey(userId), model);
         contextLimitCache.put(cacheKey, limit);
         return limit;
+    }
+
+    /**
+     * Janela que a instancia do modelo carregou de fato, ou zero quando nao da para saber.
+     *
+     * <p>Cache com validade curta, ao contrario do {@link #activeContextLimit}: o teto do modelo nao
+     * muda nunca, mas a janela carregada muda sozinha — o Ollama descarrega o modelo por ociosidade e
+     * o proximo carregamento pode abrir outro tamanho. Guardar para sempre aqui seria repetir, com
+     * outro nome, o erro de confiar num numero que envelheceu.
+     */
+    public int activeLoadedContextLimit(UUID userId) {
+        if (modelCatalog == null) {
+            return 0;
+        }
+        ProviderKind kind = activeKind(userId);
+        String model = activeModelName(userId);
+        String cacheKey = kind + ":" + model;
+        LoadedContext cached = loadedContextCache.get(cacheKey);
+        if (cached != null && !cached.isStale()) {
+            return cached.tokens();
+        }
+        int loaded = modelCatalog.loadedContextLimit(kind, activeBaseUrl(userId), model);
+        loadedContextCache.put(cacheKey, new LoadedContext(loaded, System.nanoTime()));
+        return loaded;
+    }
+
+    private record LoadedContext(int tokens, long readAtNanos) {
+        private static final long TTL_NANOS = Duration.ofSeconds(30).toNanos();
+
+        boolean isStale() {
+            return System.nanoTime() - readAtNanos > TTL_NANOS;
+        }
     }
 
     // ------------------------------------------------------------------ conexao

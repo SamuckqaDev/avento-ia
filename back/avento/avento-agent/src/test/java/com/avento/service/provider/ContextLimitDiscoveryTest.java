@@ -74,4 +74,46 @@ class ContextLimitDiscoveryTest {
         assertThat(ProviderModelCatalog.declaredInputLimit(MAPPER.readTree(body), "gemini-9.9-inexistente"))
                 .isZero();
     }
+
+    // ---- janela DECLARADA contra janela CARREGADA ------------------------------------------
+
+    /**
+     * O {@code /api/ps} responde o que a instancia abriu de fato, que nao e o teto do modelo: o
+     * mesmo qwen3.5:35b que declara 262144 no /api/show aparece aqui com os 4096 padrao do Ollama.
+     */
+    @Test
+    void readsTheWindowTheRunningModelActuallyLoaded() throws Exception {
+        String body = "{\"models\":[{\"name\":\"qwen3.5:35b\",\"context_length\":4096}]}";
+
+        assertThat(ProviderModelCatalog.loadedContextLength(MAPPER.readTree(body), "qwen3.5:35b"))
+                .isEqualTo(4096);
+    }
+
+    // A tag pode divergir entre o que foi configurado e o que subiu; o nome base ainda casa.
+    @Test
+    void fallsBackToTheModelNameWithoutTheTag() throws Exception {
+        String body = "{\"models\":[{\"name\":\"qwen3.5:35b-instruct\",\"context_length\":32768}]}";
+
+        assertThat(ProviderModelCatalog.loadedContextLength(MAPPER.readTree(body), "qwen3.5:35b"))
+                .isEqualTo(32768);
+    }
+
+    /** Modelo ocioso nao aparece no /api/ps: zero e a resposta honesta, nao um chute. */
+    @Test
+    void returnsZeroWhenTheModelIsNotLoaded() throws Exception {
+        assertThat(ProviderModelCatalog.loadedContextLength(MAPPER.readTree("{\"models\":[]}"), "qwen3.5:35b"))
+                .isZero();
+    }
+
+    /**
+     * Um Ollama noutra maquina da rede e remoto e nao e nuvem: quem decide a janela e o servidor,
+     * nao o provedor pago. Era essa confusao que fazia o Avento acreditar em 262144 tokens.
+     */
+    @Test
+    void onlyManagedProvidersOwnTheirContextWindow() {
+        assertThat(ProviderKind.GEMINI.managesItsOwnContext()).isTrue();
+        assertThat(ProviderKind.ANTHROPIC.managesItsOwnContext()).isTrue();
+        assertThat(ProviderKind.OLLAMA.managesItsOwnContext()).isFalse();
+        assertThat(ProviderKind.OPENAI_COMPATIBLE.managesItsOwnContext()).isFalse();
+    }
 }

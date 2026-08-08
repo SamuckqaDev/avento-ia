@@ -172,6 +172,129 @@ public class ProviderModelCatalog {
         }
     }
 
+    /**
+     * Se o endereco atende agora. Uma requisicao curta, so para separar "fora do ar" de "lento".
+     *
+     * <p>Timeout apertado de proposito: isto roda no caminho da conversa, e esperar cinco segundos
+     * para descobrir que a maquina esta desligada e cinco segundos que o usuario passa olhando para
+     * a tela parada.
+     */
+    public boolean isReachable(String baseUrl) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return false;
+        }
+        String base = baseUrl.replaceAll("/+$", "");
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(base + "/api/tags"))
+                    .GET()
+                    .timeout(Duration.ofSeconds(2))
+                    .build();
+            return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode() / 100 == 2;
+        } catch (Exception exception) {
+            return false;
+        }
+    }
+
+    /**
+     * Se o endereco responde como um Ollama, seja qual for o tipo que o usuario escolheu na tela.
+     *
+     * <p>O Ollama fala os dois protocolos: o proprio em {@code /api/*} e o da OpenAI em {@code /v1}.
+     * Escolher "compativel com OpenAI" apontando para um Ollama e uma configuracao valida e comum —
+     * e silenciosamente pior, porque o formato da OpenAI nao tem {@code num_ctx}, entao o pedido de
+     * janela do Avento e descartado e o servidor sobe com os 4096 padrao dele. Perguntar ao endereco
+     * o que ele e custa uma requisicao e evita que a pessoa precise saber dessa diferenca.
+     */
+    public boolean looksLikeOllama(String baseUrl) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return false;
+        }
+        String base = baseUrl.replaceAll("/+$", "");
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(base + "/api/tags"))
+                    .GET()
+                    .timeout(Duration.ofSeconds(5))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() / 100 == 2 && isOllamaTagsBody(mapper.readTree(response.body()));
+        } catch (Exception exception) {
+            logger.debug(
+                    "Endereco {} nao respondeu como Ollama: {}",
+                    base,
+                    exception.getClass().getSimpleName());
+            return false;
+        }
+    }
+
+    /**
+     * O corpo do {@code /api/tags} do Ollama: {@code models} como lista de objetos com {@code name}.
+     *
+     * <p>Checar so o 200 nao basta — um proxy ou uma pagina de erro tambem responde 200, e promover
+     * o provedor a Ollama com base nisso mandaria a conversa para um endpoint que nao existe.
+     */
+    static boolean isOllamaTagsBody(JsonNode body) {
+        JsonNode models = body.path("models");
+        if (!models.isArray()) {
+            return false;
+        }
+        return models.isEmpty() || models.get(0).hasNonNull("name");
+    }
+
+    /**
+     * Janela que a instancia do modelo REALMENTE carregou, em tokens. Zero quando nao da para saber.
+     *
+     * <p>Numero diferente do {@link #contextLimit}, e a diferenca e a origem de um bug caro: o
+     * {@code /api/show} responde o teto do modelo (262144 no {@code qwen3.5:35b}) e o {@code /api/ps}
+     * responde o que o servidor abriu de fato (4096, o padrao do Ollama). Quando o Avento nao e quem
+     * manda o {@code num_ctx} — o protocolo da OpenAI nao tem esse campo — o segundo numero e o unico
+     * orcamento verdadeiro, e ignora-lo faz o Ollama descartar o excedente do prompt sem avisar.
+     *
+     * <p>So responde por modelo carregado: um modelo ocioso nao aparece no {@code /api/ps}, e ai o
+     * zero e a resposta honesta — a janela sera decidida no proximo carregamento.
+     */
+    public int loadedContextLimit(ProviderKind kind, String baseUrl, String model) {
+        if (kind.managesItsOwnContext() || model == null || model.isBlank()) {
+            return 0;
+        }
+        String base = (baseUrl == null || baseUrl.isBlank() ? kind.defaultBaseUrl() : baseUrl).replaceAll("/+$", "");
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(base + "/api/ps"))
+                    .GET()
+                    .timeout(Duration.ofSeconds(5))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() / 100 == 2 ? loadedContextLength(mapper.readTree(response.body()), model) : 0;
+        } catch (Exception exception) {
+            logger.debug(
+                    "Nao foi possivel ler a janela carregada de {}: {}",
+                    model,
+                    exception.getClass().getSimpleName());
+            return 0;
+        }
+    }
+
+    /** Casa pelo nome exato e, se nao achar, pelo nome sem a tag — {@code qwen3.5:35b} e {@code qwen3.5}. */
+    static int loadedContextLength(JsonNode body, String model) {
+        String bare = model.contains(":") ? model.substring(0, model.indexOf(':')) : model;
+        int fallback = 0;
+        for (JsonNode entry : body.path("models")) {
+            String name = entry.path("name").asText("");
+            int context = entry.path("context_length").asInt(0);
+            if (context <= 0) {
+                continue;
+            }
+            if (model.equals(name)) {
+                return context;
+            }
+            if (name.startsWith(bare)) {
+                fallback = context;
+            }
+        }
+        return fallback;
+    }
+
     /** O Ollama prefixa a chave com a familia do modelo (ex.: {@code qwen35.context_length}). */
     static int ollamaContextLength(JsonNode body) {
         JsonNode info = body.path("model_info");

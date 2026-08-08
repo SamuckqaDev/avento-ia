@@ -152,15 +152,31 @@ public final class ModelNames {
      * de escolha, e o efeito era escolher granite no seletor e continuar rodando outro modelo, sem
      * aviso nenhum.
      *
-     * @param remoteTransport um provedor de nuvem está atendendo; nomes locais não servem para ele
+     * <p>Num provedor remoto o pedido só é recusado quando o nome não pode servir ali — e isso
+     * depende de QUEM está atendendo, não de o atendimento ser remoto. A regra era
+     * {@code remoto && pareceNomeLocal}, com {@link #isLocalModelName} respondendo "sim" para
+     * qualquer coisa com dois-pontos. Todo modelo do Ollama tem dois-pontos, então com um Ollama
+     * noutra máquina da rede o seletor ficava inteiramente morto: escolher {@code qwen3.5:9b} ou
+     * {@code qwen2.5:32b} caía sempre no modelo gravado em Provedores, e a comparação entre modelos
+     * que a interface oferece era uma comparação do mesmo modelo com ele mesmo.
+     *
+     * @param remoteTransport um provedor remoto está atendendo
+     * @param providerHasOwnModelNamespace o provedor nomeia os modelos do jeito dele (Gemini,
+     *     Anthropic) e não entenderia {@code familia:tag}; falso para Ollama e compatíveis com
+     *     OpenAI, onde {@code familia:tag} é exatamente o nome válido
      */
     public static String chooseChatModel(
-            String requestedModel, String configuredModel, String defaultChatModel, boolean remoteTransport) {
+            String requestedModel,
+            String configuredModel,
+            String defaultChatModel,
+            boolean remoteTransport,
+            boolean providerHasOwnModelNamespace) {
         String requested = requestedModel == null ? "" : requestedModel.trim();
         String configured = configuredModel == null ? "" : configuredModel.trim();
 
         if (remoteTransport) {
-            if (!requested.isEmpty() && !isLocalModelName(requested)) {
+            boolean nameCannotServeThere = providerHasOwnModelNamespace && isLocalModelName(requested);
+            if (!requested.isEmpty() && !nameCannotServeThere) {
                 return requested;
             }
             return configured.isEmpty() ? normalizeChatModel(requested, defaultChatModel) : configured;

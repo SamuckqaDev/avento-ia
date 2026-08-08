@@ -123,30 +123,30 @@ class ModelNamesTest {
     /** O caso que importa: trocar no seletor do cabeçalho tem de valer na hora. */
     @Test
     void honoursTheModelPickedInTheHeaderSelect() {
-        assertThat(ModelNames.chooseChatModel("granite4.1:8b", "", "granite4.1:8b", false))
+        assertThat(ModelNames.chooseChatModel("granite4.1:8b", "", "granite4.1:8b", false, false))
                 .isEqualTo("granite4.1:8b");
-        assertThat(ModelNames.chooseChatModel("qwen3.5:9b", "", "granite4.1:8b", false))
+        assertThat(ModelNames.chooseChatModel("qwen3.5:9b", "", "granite4.1:8b", false, false))
                 .isEqualTo("qwen3.5:9b");
     }
 
     /** Sem escolha no pedido, cai no padrão de configuração. */
     @Test
     void fallsBackToTheDefaultWhenNothingIsPicked() {
-        assertThat(ModelNames.chooseChatModel("", "", "granite4.1:8b", false)).isEqualTo("granite4.1:8b");
-        assertThat(ModelNames.chooseChatModel(null, "", "granite4.1:8b", false)).isEqualTo("granite4.1:8b");
+        assertThat(ModelNames.chooseChatModel("", "", "granite4.1:8b", false, false)).isEqualTo("granite4.1:8b");
+        assertThat(ModelNames.chooseChatModel(null, "", "granite4.1:8b", false, false)).isEqualTo("granite4.1:8b");
     }
 
     /** Com modelo gravado em Provedores e nada escolhido, o gravado vale. */
     @Test
     void prefersTheStoredModelWhenTheRequestIsSilent() {
-        assertThat(ModelNames.chooseChatModel("", "qwen3.5:9b", "granite4.1:8b", false))
+        assertThat(ModelNames.chooseChatModel("", "qwen3.5:9b", "granite4.1:8b", false, false))
                 .isEqualTo("qwen3.5:9b");
     }
 
     /** Escolher OUTRO modelo no seletor vence o gravado — é o caminho comum. */
     @Test
     void theSelectBeatsTheStoredModel() {
-        assertThat(ModelNames.chooseChatModel("gemma3:4b", "qwen3.5:9b", "granite4.1:8b", false))
+        assertThat(ModelNames.chooseChatModel("gemma3:4b", "qwen3.5:9b", "granite4.1:8b", false, false))
                 .isEqualTo("gemma3:4b");
     }
 
@@ -157,16 +157,36 @@ class ModelNamesTest {
      */
     @Test
     void pickingTheDefaultInTheSelectStillWinsOverAStoredModel() {
-        assertThat(ModelNames.chooseChatModel("granite4.1:8b", "qwen3.5:9b", "granite4.1:8b", false))
+        assertThat(ModelNames.chooseChatModel("granite4.1:8b", "qwen3.5:9b", "granite4.1:8b", false, false))
                 .isEqualTo("granite4.1:8b");
     }
 
     /** Na nuvem, um nome local nao serve: o provedor nao conhece familia:tag. */
     @Test
     void ignoresALocalNameWhenACloudProviderIsServing() {
-        assertThat(ModelNames.chooseChatModel("qwen3.5:9b", "gemini-2.5-flash", "granite4.1:8b", true))
+        assertThat(ModelNames.chooseChatModel("qwen3.5:9b", "gemini-2.5-flash", "granite4.1:8b", true, true))
                 .isEqualTo("gemini-2.5-flash");
-        assertThat(ModelNames.chooseChatModel("gemini-3.1-pro", "gemini-2.5-flash", "granite4.1:8b", true))
+        assertThat(ModelNames.chooseChatModel("gemini-3.1-pro", "gemini-2.5-flash", "granite4.1:8b", true, true))
                 .isEqualTo("gemini-3.1-pro");
+    }
+
+    /**
+     * Um Ollama noutra maquina e remoto e nomeia modelos como familia:tag — o mesmo formato que a
+     * heuristica classificava como "local" e descartava. O efeito era um seletor de modelos morto:
+     * qualquer escolha caia no modelo gravado em Provedores.
+     */
+    @Test
+    void honorsTheSelectedModelOnARemoteOllama() {
+        assertThat(ModelNames.chooseChatModel("qwen3.5:9b", "qwen3.5:35b", "granite4.1:8b", true, false))
+                .isEqualTo("qwen3.5:9b");
+        assertThat(ModelNames.chooseChatModel("qwen2.5:32b", "qwen3.5:35b", "granite4.1:8b", true, false))
+                .isEqualTo("qwen2.5:32b");
+    }
+
+    /** Sem escolha no seletor, o modelo gravado em Provedores continua mandando. */
+    @Test
+    void fallsBackToTheStoredModelWhenNothingWasSelected() {
+        assertThat(ModelNames.chooseChatModel("", "qwen3.5:35b", "granite4.1:8b", true, false))
+                .isEqualTo("qwen3.5:35b");
     }
 }

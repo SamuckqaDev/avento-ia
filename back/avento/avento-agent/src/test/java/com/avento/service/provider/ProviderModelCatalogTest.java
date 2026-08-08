@@ -112,4 +112,44 @@ class ProviderModelCatalogTest {
         assertThat(ProviderKind.from(null)).isEqualTo(ProviderKind.OLLAMA);
         assertThat(ProviderKind.from("coisa-desconhecida")).isEqualTo(ProviderKind.OLLAMA);
     }
+
+    // ---- Ollama escondido atras de um endereco "compativel com OpenAI" -----------------------
+
+    /**
+     * Apontar "compativel com OpenAI" para um Ollama e valido e comum, e era silenciosamente pior:
+     * o formato da OpenAI nao tem num_ctx, entao o pedido de janela do Avento era descartado e o
+     * servidor subia com os 4096 padrao dele, truncando 62% do prompt sem avisar.
+     */
+    @Test
+    void recognizesAnOllamaByItsTagsBody() throws Exception {
+        JsonNode body = json("{\"models\":[{\"name\":\"qwen3.5:35b\"},{\"name\":\"bge-m3:latest\"}]}");
+
+        assertThat(ProviderModelCatalog.isOllamaTagsBody(body)).isTrue();
+    }
+
+    /** Ollama recem-instalado, sem modelo nenhum, continua sendo um Ollama. */
+    @Test
+    void recognizesAnOllamaWithNoModelsPulledYet() throws Exception {
+        assertThat(ProviderModelCatalog.isOllamaTagsBody(json("{\"models\":[]}"))).isTrue();
+    }
+
+    /**
+     * Um 200 nao basta: proxy e pagina de erro tambem respondem 200, e promover o provedor a Ollama
+     * por causa disso mandaria a conversa para um endpoint que nao existe.
+     */
+    @Test
+    void doesNotMistakeAnyTwoHundredForAnOllama() throws Exception {
+        assertThat(ProviderModelCatalog.isOllamaTagsBody(json("{\"data\":[{\"id\":\"gpt-4\"}]}")))
+                .isFalse();
+        assertThat(ProviderModelCatalog.isOllamaTagsBody(json("{\"models\":\"nenhum\"}")))
+                .isFalse();
+        assertThat(ProviderModelCatalog.isOllamaTagsBody(json("{}"))).isFalse();
+    }
+
+    /** Lista de modelos sem nome nao e o formato do /api/tags. */
+    @Test
+    void doesNotAcceptAModelsArrayWithoutNames() throws Exception {
+        assertThat(ProviderModelCatalog.isOllamaTagsBody(json("{\"models\":[{\"id\":\"algo\"}]}")))
+                .isFalse();
+    }
 }

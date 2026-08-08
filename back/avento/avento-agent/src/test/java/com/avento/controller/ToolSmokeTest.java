@@ -272,7 +272,7 @@ class ToolSmokeTest {
         Files.writeString(
                 workspace.resolve("src/Pagamento.java"),
                 "public class Pagamento {\n  void autorizarCobranca() {}\n}\n");
-        var indexingService = new com.avento.service.rag.WorkspaceIndexingService(null, false, 0);
+        var indexingService = new com.avento.service.rag.WorkspaceIndexingService(null, false, 0, "");
         ReflectionTestUtils.setField(
                 controller,
                 "codeSearchService",

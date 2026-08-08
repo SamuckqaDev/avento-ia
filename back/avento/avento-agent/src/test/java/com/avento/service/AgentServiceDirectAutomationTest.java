@@ -103,6 +103,7 @@ class AgentServiceDirectAutomationTest {
             true,
             "30m",
             12,
+            18,
             false,
             "directory_tree,read_file,write_file,edit_file,delete_file,terminal_run",
             10,

@@ -13,6 +13,7 @@ import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
 import com.avento.service.orchestration.AgentExecutionEngine;
 import com.avento.service.provider.ModelTransport;
+import com.avento.service.provider.ProviderKind;
 import com.avento.service.support.HeuristicWordLists;
 import com.avento.service.support.HistoryText;
 import com.avento.service.support.MessageText;
@@ -84,16 +85,7 @@ public class AgentService implements AgentExecutionEngine {
     // large Java string. Keep this loader as the single authoritative composition
     // point because frontend system messages are intentionally discarded later.
 
-    private static String loadAgentResource(String resource) {
-        try {
-            ClassPathResource file = new ClassPathResource(resource);
-            try (var inputStream = file.getInputStream()) {
-                return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8).trim();
-            }
-        } catch (IOException exception) {
-            throw new IllegalStateException("Não foi possível carregar a instrução do agente: " + resource, exception);
-        }
-    }
+
 
     // Palavras-chave editaveis sem recompilar: ver
     // src/main/resources/agent/heuristics/*.txt
@@ -135,6 +127,7 @@ public class AgentService implements AgentExecutionEngine {
     private final boolean enableThinking;
     private final String keepAlive;
     private final int maxToolsPerRequest;
+    private final int maxProjectTools;
     private final boolean exposeAllTools;
     private final Set<String> projectToolkit;
 
@@ -254,6 +247,7 @@ public class AgentService implements AgentExecutionEngine {
             @Value("${avento.agent.enable-thinking:true}") boolean enableThinking,
             @Value("${avento.agent.keep-alive:30m}") String keepAlive,
             @Value("${avento.agent.max-tools-per-request:12}") int maxToolsPerRequest,
+            @Value("${avento.agent.max-project-tools:18}") int maxProjectTools,
             @Value("${avento.agent.expose-all-tools:false}") boolean exposeAllTools,
             @Value("${avento.agent.project-toolkit:directory_tree,read_file,read_document,write_file,edit_file,"
                             + "delete_file,delete_directory,create_directory,search_files,find_symbol,verify_project,terminal_run,"
@@ -293,6 +287,8 @@ public class AgentService implements AgentExecutionEngine {
         this.enableThinking = enableThinking;
         this.keepAlive = keepAlive;
         this.maxToolsPerRequest = Math.max(ALWAYS_EXPOSED_TOOLS.size(), maxToolsPerRequest);
+        // Nunca abaixo do teto geral: este ramo existe para expor MAIS, nao menos.
+        this.maxProjectTools = Math.max(this.maxToolsPerRequest, maxProjectTools);
         this.exposeAllTools = exposeAllTools;
         this.projectToolkit = Set.copyOf(Arrays.stream(projectToolkit.split(","))
                 .map(String::trim)
@@ -411,6 +407,12 @@ public class AgentService implements AgentExecutionEngine {
             UUID userId) {
         String chatModel = resolveChatModel(model, messages, userId);
 
+        // O aviso e montado AQUI, antes de qualquer bifurcacao. Ele vivia no streamChatResolved, e o
+        // caminho de skill retorna antes de chegar la — entao a mesma configuracao quebrada avisava
+        // num "oi" e ficava calada numa busca na web, que e justamente quando o resultado importa.
+        // Se ele existe, tem de valer para toda resposta; se nao vale, nao deveria existir.
+        String cloudNotice = cloudProviderNotice(userId, chatModel);
+
         // Skill explicita (/nome argumento) ganha de qualquer detector. Sem barra, tenta ativar
         // automaticamente por gatilho (linha "Gatilhos:" do arquivo da skill) — o usuario nao
         // deveria precisar decorar nomes de skill pra elas funcionarem.
@@ -452,16 +454,20 @@ public class AgentService implements AgentExecutionEngine {
             if (skillResolution.maxRounds() != null) {
                 state.maxToolRoundsOverride = skillResolution.maxRounds();
             }
-            return Flux.concat(Flux.just(activatedEvent), runTurn(chatModel, messages, state, 1));
+            return withCloudNotice(
+                    cloudNotice, Flux.concat(Flux.just(activatedEvent), runTurn(chatModel, messages, state, 1)));
         }
-        return streamChatResolved(chatModel, messages, workspaceRoots, imageModel, imageOptions, runId, chatId, userId);
+        return streamChatResolved(
+                chatModel, messages, workspaceRoots, imageModel, imageOptions, runId, chatId, userId, cloudNotice);
     }
 
     private String resolveChatModel(String requestedModel, ArrayNode messages, UUID userId) {
         String configuredModel = modelProviderService != null ? modelProviderService.activeModelName(userId) : "";
 
+        boolean ownNamespace = modelProviderService != null
+                && modelProviderService.effectiveKind(userId).hasOwnModelNamespace();
         String targetModel = ModelNames.chooseChatModel(
-                requestedModel, configuredModel, defaultChatModel, transportFor(userId) != null);
+                requestedModel, configuredModel, defaultChatModel, transportFor(userId) != null, ownNamespace);
 
         if (!conversationHasImages(messages)
                 || ModelNames.isVisionModel(targetModel, ModelNames.inferFamily(targetModel))) {
@@ -494,7 +500,8 @@ public class AgentService implements AgentExecutionEngine {
             ImageGenerationOptions imageOptions,
             String runId,
             Long chatId,
-            UUID userId) {
+            UUID userId,
+            String cloudNotice) {
         ApprovalVoiceCommand approvalCommand = detectApprovalVoiceCommand(messages, userId);
         if (approvalCommand != null) {
             if (approvalCommand.decision() == ApprovalVoiceDecision.REJECT) {
@@ -553,18 +560,34 @@ public class AgentService implements AgentExecutionEngine {
         // faz a nuvem enxergar ferramenta, RAG e memoria — o agente e quem as tem, o modelo so
         // processa. Se faltar transporte para o tipo ativo, o aviso evita a mentira de responder
         // pelo local em silencio.
-        String cloudNotice = cloudProviderNotice(userId, chatModel);
-        Flux<String> turn = runTurn(chatModel, messages, state, 1);
-        return cloudNotice.isEmpty() ? turn : Flux.concat(Flux.just(contentChunk(cloudNotice)), turn);
+        return withCloudNotice(cloudNotice, runTurn(chatModel, messages, state, 1));
     }
 
     /**
-     * Aviso para o caso de o provedor escolhido estar sem transporte, vazio no caminho normal.
+     * Prefixa o aviso de provedor, se houver, na resposta que vai para a tela.
      *
-     * <p>Todo tipo suportado tem o seu {@link ModelTransport} hoje, entao
-     * este texto so aparece se um bean de transporte faltar no contexto. Sem ele, a requisicao cai no
-     * WebClient local e o usuario recebe a resposta de um modelo que nao foi o que ele escolheu — sem
-     * jeito de perceber.
+     * <p>Um lugar so de proposito: a colagem estava escrita duas vezes, e a versao do caminho de
+     * skill simplesmente nao existia — o aviso ficava calado justamente nas respostas que usam
+     * ferramenta, que sao as que mais importam.
+     */
+    Flux<String> withCloudNotice(String cloudNotice, Flux<String> turn) {
+        return cloudNotice == null || cloudNotice.isEmpty()
+                ? turn
+                : Flux.concat(Flux.just(contentChunk(cloudNotice)), turn);
+    }
+
+    /**
+     * Aviso para o caso de o provedor escolhido nao ser quem realmente respondeu.
+     *
+     * <p>Todo tipo suportado tem o seu {@link ModelTransport} hoje, entao este texto so aparece se um
+     * bean de transporte faltar no contexto. Sem ele, a requisicao cai no WebClient local e o usuario
+     * recebe a resposta de um modelo que nao foi o que ele escolheu — sem jeito de perceber.
+     *
+     * <p>Ausencia de transporte deixou de significar isso em um caso: quando o endereco configurado
+     * responde como Ollama, {@code effectiveKind} vira {@code OLLAMA} e o caminho nativo atende
+     * usando a MESMA base URL. A resposta vem do provedor escolhido, so que por outro protocolo —
+     * avisar ali seria alarme falso, e foi exatamente o que apareceu na tela assim que a deteccao
+     * automatica entrou.
      */
     String cloudProviderNotice(UUID userId, String modelUsed) {
         if (modelProviderService == null || !modelProviderService.remoteProviderReady(userId)) {
@@ -573,9 +596,25 @@ public class AgentService implements AgentExecutionEngine {
         if (transportFor(userId) != null) {
             return ""; // ha transporte para este tipo: a resposta vem de la, com ferramentas.
         }
+        if (modelProviderService.fellBackToLocal(userId)) {
+            // Cair para o local salva a conversa, mas entrega OUTRO modelo — quase sempre menor. Em
+            // silencio, a pessoa julga a qualidade do servidor de inferencia olhando para a saida de
+            // um modelo que nunca escolheu.
+            return "\n> ⚠️ O servidor de inferência configurado não respondeu. Esta resposta veio de `"
+                    + modelUsed + "`, rodando **neste computador** — a qualidade muda. Assim que ele"
+                    + " voltar, o Avento usa ele de novo sozinho.\n\n";
+        }
+        if (modelProviderService.effectiveKind(userId) == ProviderKind.OLLAMA) {
+            return ""; // o caminho nativo atende o endereco configurado; nada caiu para o local.
+        }
         String selected = modelProviderService.selectedCloudProviderName(userId);
-        return "\n> ⚠️ Você selecionou **" + selected + "**, mas não há transporte carregado para esse"
-                + " provedor. Esta resposta veio de `" + modelUsed + "`, não da nuvem.\n\n";
+        // "Você selecionou" colidia com o seletor do cabeçalho e apontava para outra coisa: o texto
+        // nomeia o que está gravado em Provedores, que não é o que a pessoa acabou de escolher na
+        // conversa. Dizer "configurado" separa as duas escolhas. E "não da nuvem" era falso sempre
+        // que o caminho nativo atendia o endereço remoto — agora essa hipótese sai antes daqui, e o
+        // que sobra é o caso real: nada atende o provedor configurado.
+        return "\n> ⚠️ O provedor **configurado** (" + selected + ") não tem transporte disponível, então"
+                + " nada foi enviado a ele. Esta resposta veio de `" + modelUsed + "`, rodando localmente.\n\n";
     }
 
     private int lastUserMessageIndex(ArrayNode messages) {
@@ -1079,7 +1118,13 @@ public class AgentService implements AgentExecutionEngine {
                     extras++;
                 }
             }
-            return kit;
+            // Este ramo devolvia o kit SEM teto nenhum: o limite de extras acima nao alcanca as
+            // ativadas por activate_tools nem as fixadas, que entram sempre. Numa run longa elas se
+            // acumulam em Redis rodada apos rodada — medido em producao: rodada 3 saiu com 22
+            // schemas, contra o teto declarado de 12, e cada schema extra custa tempo em TODA rodada
+            // seguinte. O kit do projeto continua inteiro (e a razao de ser deste ramo); o que passa
+            // a ter fim e o crescimento em cima dele.
+            return capProjectKit(kit, projectToolkit);
         }
 
         // classify() dispara uma chamada de embedding; calcular uma vez aqui e
@@ -1141,6 +1186,34 @@ public class AgentService implements AgentExecutionEngine {
     // sempre-expostas sao 10; dando prioridade a elas sobravam so 2 vagas, e um pedido
     // de apagar arquivo chegou ao modelo sem delete_file/edit_file/terminal_run: ele
     // "planejou" a acao no thinking e terminou o turno sem conseguir agir.
+    /**
+     * Teto do ramo de projeto conectado, onde o kit e fixo e o resto pode crescer sem parar.
+     *
+     * <p>O kit inteiro sobrevive — expo-lo e o proposito deste ramo. O corte cai sobre o que foi
+     * acrescentado em cima dele, na ordem em que veio, para que uma run longa nao termine mandando o
+     * dobro de schemas que a configuracao declara.
+     */
+    private ArrayNode capProjectKit(ArrayNode kit, Set<String> projectToolkit) {
+        if (exposeAllTools || kit.size() <= maxProjectTools) {
+            return kit;
+        }
+        ArrayNode capped = mapper.createArrayNode();
+        for (JsonNode tool : kit) {
+            if (projectToolkit.contains(tool.path("name").asText(""))) {
+                capped.add(tool);
+            }
+        }
+        for (JsonNode tool : kit) {
+            if (capped.size() >= maxProjectTools) {
+                break;
+            }
+            if (!projectToolkit.contains(tool.path("name").asText(""))) {
+                capped.add(tool);
+            }
+        }
+        return capped;
+    }
+
     private ArrayNode capToolCount(ArrayNode selectedTools, Set<String> priorityTools, Set<String> extraExposed) {
         // No modo "mostra tudo" nao ha teto: o objetivo e justamente nao esconder ferramenta.
         if (exposeAllTools) {
@@ -1473,17 +1546,6 @@ public class AgentService implements AgentExecutionEngine {
      *
      * <p>Sem transporte para o tipo ativo, cai no Ollama — que e o caminho local e o padrao.
      */
-    /**
-     * Contexto efetivo, em tokens, para a rodada.
-     *
-     * <p>O valor configurado deixa de ser chute: o provedor declara quanto o modelo aguenta (o
-     * Ollama em {@code /api/show}, o Gemini em {@code inputTokenLimit}). Num modelo de janela grande
-     * a gente truncava demais; num de janela pequena, estourava.
-     *
-     * <p>No LOCAL o declarado e teto, nao alvo: o qwen3.5:9b declara 262144, mas o KV cache disso
-     * nao cabe nos 16GB desta maquina — quem manda continua sendo a configuracao. Na NUVEM quem
-     * paga a memoria e o provedor, entao vale o que ele declara.
-     */
     /** Orcamento de corte do resultado de ferramenta, proporcional a janela do modelo ativo. */
     int toolResultBudget(UUID userId) {
         int tokens = effectiveContextTokens(userId);
@@ -1493,6 +1555,26 @@ public class AgentService implements AgentExecutionEngine {
         return Math.min(proportional, 40_000);
     }
 
+    /**
+     * Contexto efetivo, em tokens, para a rodada.
+     *
+     * <p>O valor deixa de ser chute porque o provedor declara quanto o modelo aguenta (o Ollama em
+     * {@code /api/show}, o Gemini em {@code inputTokenLimit}). Mas declarado nao e carregado, e
+     * confundir os dois custou caro.
+     *
+     * <p>A decisao era {@code remoto ? declarado : min(configurado, declarado)}, partindo de que
+     * remoto significa nuvem paga. Um Ollama noutra maquina da rede e remoto e nao e nuvem nenhuma:
+     * o {@code qwen3.5:35b} declara 262144 e sobe com os 4096 padrao do servidor. Confiar no
+     * declarado ali quebrava dos dois lados — no caminho nativo o Avento pedia um {@code num_ctx}
+     * cujo KV cache passa de 40 GB, e no caminho compativel com OpenAI o pedido era descartado (o
+     * protocolo nao tem esse campo) e o Ollama cortava o prompt em silencio: 5394 tokens viravam
+     * 2050, o modelo perdia a pergunta e respondia com uma saudacao.
+     *
+     * <p>Agora quem decide e {@link ProviderKind#managesItsOwnContext()}. Servico gerenciado aloca a
+     * janela que anuncia, entao vale o declarado. Servidor auto-hospedado nao: vale o menor entre o
+     * que o modelo aguenta, o que foi configurado, e — quando da para saber — o que a instancia
+     * realmente carregou.
+     */
     int effectiveContextTokens(UUID userId) {
         if (modelProviderService == null) {
             return numCtx;
@@ -1501,8 +1583,22 @@ public class AgentService implements AgentExecutionEngine {
         if (declared <= 0) {
             return numCtx;
         }
-        boolean remote = modelProviderService.remoteProviderReady(userId);
-        return remote ? declared : Math.min(numCtx, declared);
+        ProviderKind kind = modelProviderService.effectiveKind(userId);
+        if (kind.managesItsOwnContext()) {
+            return declared;
+        }
+        int budget = Math.min(numCtx, declared);
+        if (kind.canRequestContextWindow()) {
+            // Aqui este numero VIRA o num_ctx da requisicao e o Ollama recarrega com ele. Limita-lo
+            // pela janela ja carregada seria uma armadilha que se realimenta: leria 4096, pediria
+            // 4096, e o Avento nunca sairia da janela pequena em que caiu uma vez.
+            return budget;
+        }
+        int loaded = modelProviderService.activeLoadedContextLimit(userId);
+        // Sem poder pedir, o que esta carregado e o orcamento real. Zero quando o modelo esta ocioso
+        // e nao aparece no /api/ps: ai o proximo carregamento decide, e o configurado volta a ser a
+        // melhor estimativa.
+        return loaded > 0 ? Math.min(budget, loaded) : budget;
     }
 
     private Flux<String> streamFromProvider(ObjectNode canonicalRequest, UUID userId) {
@@ -1536,7 +1632,7 @@ public class AgentService implements AgentExecutionEngine {
         if (!modelProviderService.remoteProviderReady(userId)) {
             return null;
         }
-        com.avento.service.provider.ProviderKind kind = modelProviderService.activeKind(userId);
+        ProviderKind kind = modelProviderService.effectiveKind(userId);
         return modelTransports.stream()
                 .filter(transport -> transport.kind() == kind)
                 .findFirst()

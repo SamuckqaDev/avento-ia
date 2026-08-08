@@ -32,7 +32,7 @@ class AgentServiceCloudNoticeTest {
 
         assertThat(notice).contains("GEMINI (gemini-2.5-flash)");
         assertThat(notice).contains("qwen3.5:9b");
-        assertThat(notice).contains("não da nuvem");
+        assertThat(notice).contains("rodando localmente");
     }
 
     @Test
@@ -65,6 +65,10 @@ class AgentServiceCloudNoticeTest {
         Field field = AgentService.class.getDeclaredField("modelProviderService");
         field.setAccessible(true);
         field.set(service, provider);
+        // contentChunk serializa com o mapper; sem ele a instancia montada por reflexao estoura.
+        Field mapperField = AgentService.class.getDeclaredField("mapper");
+        mapperField.setAccessible(true);
+        mapperField.set(service, new com.fasterxml.jackson.databind.ObjectMapper());
         return service;
     }
 
@@ -72,5 +76,80 @@ class AgentServiceCloudNoticeTest {
         return org.mockito.Mockito.mock(
                 AgentService.class,
                 org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.Mockito.CALLS_REAL_METHODS));
+    }
+
+    /**
+     * Regressao vista na tela: assim que a deteccao automatica entrou, o aviso passou a dizer que a
+     * resposta "nao veio da nuvem" justamente quando ela vinha. Sem transporte deixou de significar
+     * "caiu no modelo local" — com um Ollama no endereco configurado, o caminho nativo atende usando
+     * a mesma base URL.
+     */
+    @Test
+    void staysSilentWhenTheNativePathServesTheConfiguredAddress() throws Exception {
+        ModelProviderService provider = mock(ModelProviderService.class);
+        when(provider.remoteProviderReady(USER_ID)).thenReturn(true);
+        when(provider.effectiveKind(USER_ID)).thenReturn(com.avento.service.provider.ProviderKind.OLLAMA);
+
+        assertThat(serviceWith(provider).cloudProviderNotice(USER_ID, "qwen3.5:9b"))
+                .isEmpty();
+    }
+
+    /** Um provedor de verdade sem transporte continua merecendo o aviso. */
+    @Test
+    void stillWarnsWhenNoPathServesTheChosenProvider() throws Exception {
+        ModelProviderService provider = mock(ModelProviderService.class);
+        when(provider.remoteProviderReady(USER_ID)).thenReturn(true);
+        when(provider.effectiveKind(USER_ID)).thenReturn(com.avento.service.provider.ProviderKind.GEMINI);
+        when(provider.selectedCloudProviderName(USER_ID)).thenReturn("GEMINI (gemini-2.5-flash)");
+
+        assertThat(serviceWith(provider).cloudProviderNotice(USER_ID, "qwen3.5:9b"))
+                .contains("não tem transporte disponível");
+    }
+
+    /**
+     * O aviso nomeia o provedor GRAVADO em Provedores, que nao e o modelo escolhido no seletor do
+     * cabecalho. Dizer "voce selecionou" fazia o texto apontar para a escolha errada — a pessoa lia
+     * "voce selecionou qwen3.5:35b" logo depois de ter escolhido qwen3.5:9b na conversa.
+     */
+    @Test
+    void namesTheConfiguredProviderNotTheOneChosenInTheHeader() throws Exception {
+        ModelProviderService provider = mock(ModelProviderService.class);
+        when(provider.remoteProviderReady(USER_ID)).thenReturn(true);
+        when(provider.effectiveKind(USER_ID)).thenReturn(com.avento.service.provider.ProviderKind.GEMINI);
+        when(provider.selectedCloudProviderName(USER_ID)).thenReturn("GEMINI (gemini-2.5-flash)");
+
+        String notice = serviceWith(provider).cloudProviderNotice(USER_ID, "qwen3.5:9b");
+
+        assertThat(notice).contains("configurado");
+        assertThat(notice).doesNotContain("Você selecionou");
+    }
+
+    /**
+     * O aviso vivia no {@code streamChatResolved}, e o caminho de skill retorna antes de chegar la —
+     * entao a mesma configuracao quebrada avisava num "oi" e ficava calada numa busca na web. Agora
+     * os dois ramos passam por este metodo, que e o unico lugar onde a colagem acontece.
+     */
+    @Test
+    void prefixesTheNoticeToWhateverTurnIsRunning() throws Exception {
+        AgentService service = serviceWith(mock(ModelProviderService.class));
+
+        java.util.List<String> saida = service.withCloudNotice("AVISO", reactor.core.publisher.Flux.just("resposta"))
+                .collectList()
+                .block();
+
+        assertThat(saida).hasSize(2);
+        assertThat(saida.get(0)).contains("AVISO");
+        assertThat(saida.get(1)).contains("resposta");
+    }
+
+    /** Sem aviso, nada e acrescentado — nem um chunk vazio, que apareceria como linha em branco. */
+    @Test
+    void leavesTheTurnUntouchedWhenThereIsNoNotice() throws Exception {
+        AgentService service = serviceWith(mock(ModelProviderService.class));
+
+        assertThat(service.withCloudNotice("", reactor.core.publisher.Flux.just("resposta"))
+                        .collectList()
+                        .block())
+                .hasSize(1);
     }
 }

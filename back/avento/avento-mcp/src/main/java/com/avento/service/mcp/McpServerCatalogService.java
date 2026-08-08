@@ -44,11 +44,23 @@ public class McpServerCatalogService {
     private final ProjectDatabaseDiscoveryService databaseDiscoveryService;
     private final ToolExecutionContext executionContext;
 
+    /** Opcional: os construtores de teste não o fornecem, e o catálogo funciona sem ele. */
+    private final McpToolSchemaCache toolSchemaCache;
+
     McpServerCatalogService(
             McpClientManager clientManager,
             Environment environment,
             ProjectDatabaseDiscoveryService databaseDiscoveryService) {
-        this(clientManager, environment, databaseDiscoveryService, new ToolExecutionContext());
+        this(clientManager, environment, databaseDiscoveryService, new ToolExecutionContext(), (McpToolSchemaCache)
+                null);
+    }
+
+    McpServerCatalogService(
+            McpClientManager clientManager,
+            Environment environment,
+            ProjectDatabaseDiscoveryService databaseDiscoveryService,
+            ToolExecutionContext executionContext) {
+        this(clientManager, environment, databaseDiscoveryService, executionContext, (McpToolSchemaCache) null);
     }
 
     @Autowired
@@ -56,11 +68,42 @@ public class McpServerCatalogService {
             McpClientManager clientManager,
             Environment environment,
             ProjectDatabaseDiscoveryService databaseDiscoveryService,
-            ToolExecutionContext executionContext) {
+            ToolExecutionContext executionContext,
+            org.springframework.beans.factory.ObjectProvider<McpToolSchemaCache> toolSchemaCacheProvider) {
+        this(
+                clientManager,
+                environment,
+                databaseDiscoveryService,
+                executionContext,
+                toolSchemaCacheProvider == null ? null : toolSchemaCacheProvider.getIfAvailable());
+    }
+
+    private McpServerCatalogService(
+            McpClientManager clientManager,
+            Environment environment,
+            ProjectDatabaseDiscoveryService databaseDiscoveryService,
+            ToolExecutionContext executionContext,
+            McpToolSchemaCache toolSchemaCache) {
         this.clientManager = clientManager;
         this.environment = environment;
         this.databaseDiscoveryService = databaseDiscoveryService;
         this.executionContext = executionContext;
+        this.toolSchemaCache = toolSchemaCache;
+    }
+
+    /**
+     * Ferramentas conhecidas de um servidor SEM conectar nele.
+     *
+     * <p>É o que permite a tela de criação de agente listar ferramentas e o {@code allowed_tools} de
+     * um perfil ser resolvido sem subir container nenhum. Só responde para servidor em container e
+     * já visto uma vez; para o resto devolve vazio, e o chamador conecta para descobrir.
+     */
+    public List<ToolDefinition> knownTools(String serverId) {
+        String image = CONTAINER_IMAGES.get(serverId);
+        if (image == null || toolSchemaCache == null) {
+            return List.of();
+        }
+        return toolSchemaCache.tools(image);
     }
 
     public List<ServerDescriptor> catalog(List<String> workspaceRoots) {
@@ -112,6 +155,15 @@ public class McpServerCatalogService {
             }
             ConnectionResult result =
                     clientManager.connect(scope, id, launch.command(), launch.environment(), LocalToolNames.ALL);
+            // Conexao bem-sucedida de um servidor em container e a UNICA hora barata de aprender o
+            // schema dele: o container ja esta de pe e o tools/list ja foi pago. Gravar aqui e o que
+            // permite listar as ferramentas depois sem subir nada.
+            if (result.connected() && toolSchemaCache != null) {
+                String image = CONTAINER_IMAGES.get(id);
+                if (image != null) {
+                    toolSchemaCache.record(image, result.tools());
+                }
+            }
             results.add(result.connected() ? result : ConnectionResult.failedFor(id, result.error()));
         }
         return List.copyOf(results);
@@ -484,6 +536,20 @@ public class McpServerCatalogService {
      * {@link ServerLaunch}: o processo que sobe e o {@code docker}, e o ambiente dele nao atravessa
      * para dentro do container.
      */
+    /**
+     * Servidores que rodam em container, e a imagem de cada um. Fonte ÚNICA — o lançamento e o
+     * cache de schemas leem daqui, para não divergirem quando um servidor entrar ou sair.
+     *
+     * <p>Ausentes de propósito: {@code git} e {@code filesystem} andam na árvore do host e o bind
+     * mount do Docker Desktop torna a varredura inviável (medido: {@code git status} não retornou em
+     * 3 min contra 0,056s no host); {@code playwright} e {@code puppeteer} precisam de tela.
+     */
+    static final Map<String, String> CONTAINER_IMAGES = Map.of(
+            "fetch", "mcp/fetch",
+            "time", "mcp/time",
+            "memory", "mcp/memory",
+            "sequential-thinking", "mcp/sequentialthinking");
+
     private ServerLaunch containerOrElse(
             String image,
             List<String> mounts,

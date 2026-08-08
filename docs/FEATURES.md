@@ -1,14 +1,11 @@
-# Feature list · Lista de funcionalidades
+<p align="center">
+  <a href="FEATURES.md"><img src="https://img.shields.io/badge/lang-English-2b7a78?style=for-the-badge" alt="English"></a>
+  <a href="FEATURES.pt-BR.md"><img src="https://img.shields.io/badge/idioma-Portugu%C3%AAs-lightgrey?style=for-the-badge" alt="Português"></a>
+</p>
 
-The full inventory of what Avento does today. The README keeps the short version;
-this file is the exhaustive one, kept out of the front page so it stays readable.
+# Features
 
-O inventário completo do que o Avento faz hoje. O README fica com a versão curta;
-este arquivo é o exaustivo, fora da página inicial para ela continuar legível.
-
----
-
-## English
+The full inventory of what works in Avento today.
 
 - Persisted conversations, isolated per user.
 - Asynchronous agent execution with PostgreSQL, Outbox, Redis Streams, a worker, and authenticated SSE.
@@ -40,40 +37,10 @@ este arquivo é o exaustivo, fora da página inicial para ela continuar legível
 - Isolated TerminalCommandPolicy enforcing direct ProcessBuilder execution, strict command allowlists, and human-in-the-loop permission approvals without shell invocation.
 - Dual-model architecture (Qwen 3.5 9B Planner + Granite 4.1 8B Executor) configurable via local profiles for fast tool execution.
 - Permanent deletion of chats, messages, and related generated artifacts.
+- Five independent model roles — chat, planning, vision, image generation and embeddings — each with its own model chosen in the interface rather than in a YAML file.
+- Provider layer that asks the address what it is: an Ollama behind an OpenAI-compatible endpoint is detected and served through the native path, where the context window can be negotiated per request.
+- The context window distinguishes what a model DECLARES from what the running instance actually LOADED, so the prompt is sized against the real budget instead of being silently truncated.
+- A reply that outlives the client: if the browser disconnects mid-stream, the answer the server produced is still persisted instead of being thrown away.
 
 
 ---
-
-## Português
-
-- Conversas persistidas e isoladas por usuário.
-- Execução assíncrona do agente com PostgreSQL, Outbox, Redis Streams, worker e SSE autenticado.
-- Execução e aprovação idempotentes: entradas Redis duplicadas não repetem ferramentas nem reapresentam decisões já resolvidas.
-- Watchdog de atividade encerra runs silenciosos sem deixar o chat ou o único worker local presos indefinidamente.
-- Contexto recente em cache Redis reconstruível; PostgreSQL continua sendo a fonte durável.
-- Streaming isolado e recuperavel por conversa: trocar de chat ou recarregar a pagina restaura o processamento pelo estado duravel do run, sem mover Thinking, resposta, midia ou voz para outra conversa.
-- Raciocinio de modelos hibridos (qwen3, etc.) roteado de forma explicita para o bloco de Thinking da interface, sem depender do default do Ollama; o modelo permanece carregado entre mensagens para reduzir latencia de recarga.
-- Janela de contexto por execucao com teto previsivel: o historico compactado de ferramentas fica limitado independente de quantas rodadas a tarefa tiver, evitando estourar o `num_ctx` do modelo em analises longas.
-- Falha ao carregar o historico na troca de chat mostra um aviso explicito com nova tentativa automatica, em vez de renderizar a conversa como vazia; as mensagens permanecem integras no PostgreSQL.
-- O painel de tarefas abre uma vez quando um plano surge e respeita o fechamento manual durante o restante da execucao.
-- Planos autonomos persistem tarefas ordenadas por chat, executam uma por vez no backbone duravel com Redis, verificam cada workspace e retomam de forma idempotente apos reiniciar o backend.
-- Seleção de modelo de chat e de geração visual no header.
-- Rastreamento do consumo de tokens por modelo, dia e chat, com dashboard visual de métricas.
-- Análise de stack, scripts, entrypoints e estrutura do workspace.
-- Leitura, criação, edição, busca e exclusão de arquivos autorizados.
-- Anexo direto de PDF, Office, EPUB, ZIP, texto e código no chat, com extração local por texto puro ou MarkItDown e contexto persistido na conversa.
-- Aprovação de ações pela interface ou por comandos de voz.
-- Integração MCP com Git, bancos, Docker, filesystem, navegador e macOS.
-- Consulta ao banco descoberto no projeto ativo, inclusive em Docker.
-- Geração assíncrona de imagens pelo ComfyUI com RealVisXL SDXL, referência estrutural ou de identidade, controle de pose, revisão visual, progresso, estimativa, cancelamento e parâmetros ajustáveis no frontend.
-- Tradução automática do prompt para inglês antes do SDXL (o CLIP só entende inglês) e presets de geração por modelo (sampler, passos, CFG e resolução ajustados a cada checkpoint), sobreponíveis por um arquivo local sem recompilar.
-- Geração de vídeos pelo ComfyUI com WAN 2.2 TI2V, animação da imagem mais recente do chat, execução em background, progresso, estimativa e cancelamento.
-- Retorno das mídias dentro do chat, com controles para minimizar, expandir e copiar; a seção lateral também é recolhível e usa uma lista compacta por conversa. Cada arquivo fica vinculado à conversa no PostgreSQL e é apagado do disco junto com o chat.
-- Tabelas Markdown, relatórios visuais e gráficos SVG renderizados no chat (GFM e blocos `ui-preview`).
-- Exportação de PDF a partir de Markdown ou HTML, vinculada à conversa (ferramenta `generate_pdf`).
-- Pesquisa na internet com síntese em tabela ou relatório e citação de fontes (skill `/research`).
-- Transcrição e síntese de voz com suporte configurável a português, inglês e espanhol.
-- TerminalCommandPolicy isolada aplicando execução direta por ProcessBuilder, allowlists estritas de comandos e aprovações de permissão com controle humano em tempo real sem invocação de shell.
-- Arquitetura de 2 modelos (Planejador Qwen 3.5 9B + Executor Granite 4.1 8B) configurável via perfil local para alta velocidade de execução de ferramentas.
-- Exclusão permanente de chats, mensagens e artefatos gerados relacionados.
-

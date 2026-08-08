@@ -1,5 +1,26 @@
 # Contributing
 
+## Bilingual documentation
+
+Two documents are published in both languages, one file each:
+
+| English | Português |
+|---|---|
+| `README.md` | `README.pt-BR.md` |
+| `docs/FEATURES.md` | `docs/FEATURES.pt-BR.md` |
+
+**A change to one is not done until the other matches.** They used to be a single
+file holding both languages, and the result was predictable: the test-count badge
+sat stale in *both* halves at the same time, because updating it meant two edits
+in two places and only one got made. Separate files do not remove that risk — they
+only make the pair visible. Treat the two as one change.
+
+Everything else is single-language on purpose: `docs/ARCHITECTURE.md`,
+`docs/SETUP.md` and the rest are written for whoever is working on the code, and
+`docs/aprendizados/` is written in Portuguese because it narrates real debugging
+sessions. Do not translate those without deciding first who has to maintain the
+copy.
+
 ## Commit messages
 
 This repo follows [Conventional Commits](https://www.conventionalcommits.org/):

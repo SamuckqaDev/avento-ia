@@ -9,6 +9,7 @@ import com.avento.repository.ChatRepository;
 import com.avento.service.AgentService;
 import com.avento.service.WorkspaceAccessService;
 import com.avento.service.plan.dto.AgentTaskDefinition;
+import com.avento.service.provider.ModelProviderService;
 import com.avento.service.plan.dto.PlanDefinition;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,11 +42,27 @@ public class PlanBuilderService {
     private final WorkspaceAccessService workspaceAccessService;
     private final ObjectMapper objectMapper;
     private final AgentRoutingService agentRoutingService;
+    private final ModelProviderService modelProviderService;
 
     // Campo nao-final (fora do @RequiredArgsConstructor): o planejador usa um modelo que raciocina
     // melhor que o executor rapido do default. Em branco cai no default via normalizeChatModel.
     @Value("${avento.agent.planner-model:}")
     private String plannerModel;
+
+    /**
+     * Modelo do planejador para este usuario: o escolhido nas configuracoes, senao o do YAML.
+     *
+     * <p>O campo "planejador" existia na tela, era gravado no banco e ninguem lia — {@code
+     * activePlannerModel} nao tinha um unico chamador. Quem escolhesse um modelo de raciocinio ali
+     * continuava planejando com o do arquivo, sem nenhum aviso de que a escolha fora descartada.
+     */
+    private String plannerModelFor(UUID userId) {
+        String configured = modelProviderService == null ? "" : modelProviderService.activePlannerModel(userId);
+        if (configured != null && !configured.isBlank()) {
+            return configured;
+        }
+        return plannerModel == null ? "" : plannerModel;
+    }
 
     @Transactional
     public AgentPlan buildPlan(UUID userId, PlanCreateRequest request) {
@@ -79,7 +96,7 @@ public class PlanBuilderService {
             userMsg.put("content", "Goal: " + request.goal() + "\nWorkspace roots: " + workspaceRoots);
 
             String rawJson = agentService
-                    .completeTextOnly(plannerModel == null ? "" : plannerModel, messages, 1800)
+                    .completeTextOnly(plannerModelFor(userId), messages, 1800)
                     .block();
 
             PlanDefinition planDef = parseResponse(rawJson);

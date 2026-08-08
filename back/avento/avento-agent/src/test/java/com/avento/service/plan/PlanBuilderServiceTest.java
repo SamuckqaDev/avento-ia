@@ -41,6 +41,8 @@ class PlanBuilderServiceTest {
     private final WorkspaceAccessService workspaceAccessService = mock(WorkspaceAccessService.class);
     private final ObjectMapper mapper = new ObjectMapper();
     private final AgentRoutingService agentRoutingService = mock(AgentRoutingService.class);
+    private final com.avento.service.provider.ModelProviderService modelProviderService =
+            mock(com.avento.service.provider.ModelProviderService.class);
     private final UUID userId = UUID.randomUUID();
     private final Long chatId = 123L;
 
@@ -58,7 +60,8 @@ class PlanBuilderServiceTest {
                 agentService,
                 workspaceAccessService,
                 mapper,
-                agentRoutingService);
+                agentRoutingService,
+                modelProviderService);
         AgentProfile routedAgent = new AgentProfile(userId, "Generalista", "", "", "", "", null, true);
         routedAgent.setId(1L);
         when(agentRoutingService.pick(any(), any())).thenReturn(new AgentRoutingService.Routed(routedAgent, "default"));
@@ -69,6 +72,37 @@ class PlanBuilderServiceTest {
         when(workspaceAccessService.requireAuthorized(userId, workspace.toString()))
                 .thenReturn(workspace);
         when(taskRepository.save(any(AgentTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    /**
+     * O campo "planejador" da tela era gravado no banco e ninguém lia: {@code activePlannerModel}
+     * não tinha um único chamador, então escolher um modelo de raciocínio ali não trocava nada.
+     */
+    @Test
+    void planejaComOModeloEscolhidoNasConfiguracoes() {
+        when(modelProviderService.activePlannerModel(userId)).thenReturn("qwen3.5:35b");
+        when(agentService.completeTextOnly(anyString(), any(), anyInt()))
+                .thenReturn(Mono.just("{\"tasks\":[{\"title\":\"T\",\"details\":\"D\"}]}"));
+
+        service.buildPlan(userId, request());
+
+        ArgumentCaptor<String> usedModel = ArgumentCaptor.forClass(String.class);
+        verify(agentService).completeTextOnly(usedModel.capture(), any(), anyInt());
+        assertThat(usedModel.getValue()).isEqualTo("qwen3.5:35b");
+    }
+
+    /** Sem escolha gravada, quem manda continua sendo o avento.agent.planner-model do YAML. */
+    @Test
+    void caiNoModeloDoArquivoQuandoNaoHaEscolhaGravada() {
+        when(modelProviderService.activePlannerModel(userId)).thenReturn("");
+        when(agentService.completeTextOnly(anyString(), any(), anyInt()))
+                .thenReturn(Mono.just("{\"tasks\":[{\"title\":\"T\",\"details\":\"D\"}]}"));
+
+        service.buildPlan(userId, request());
+
+        ArgumentCaptor<String> usedModel = ArgumentCaptor.forClass(String.class);
+        verify(agentService).completeTextOnly(usedModel.capture(), any(), anyInt());
+        assertThat(usedModel.getValue()).isEmpty();
     }
 
     @Test

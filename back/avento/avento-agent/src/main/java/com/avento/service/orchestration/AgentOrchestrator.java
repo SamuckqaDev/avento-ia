@@ -28,6 +28,7 @@ public class AgentOrchestrator {
     private final ObjectMapper mapper;
     private final AgentTimelineService timelineService;
     private final RunEventPublisher eventPublisher;
+    private final OrphanReplyRescue orphanReplyRescue;
 
     public AgentOrchestrator(AgentExecutionEngine agentService, AgentRunRegistry runRegistry, ObjectMapper mapper) {
         this(
@@ -35,7 +36,14 @@ public class AgentOrchestrator {
                 runRegistry,
                 mapper,
                 new AgentTimelineService(Optional.empty()),
-                (runId, userId, chatId, raw) -> {});
+                (runId, userId, chatId, raw) -> {},
+                // Sem repositorio a rede de seguranca vira no-op: comportamento identico ao de
+                // antes dela existir, que e o que os testes que montam isto a mao esperam.
+                new OrphanReplyRescue(
+                        (com.avento.repository.MessageRepository) null,
+                        (com.avento.repository.ChatRepository) null,
+                        mapper,
+                        java.time.Duration.ofSeconds(20)));
     }
 
     @Autowired
@@ -44,12 +52,14 @@ public class AgentOrchestrator {
             AgentRunRegistry runRegistry,
             ObjectMapper mapper,
             AgentTimelineService timelineService,
-            RunEventPublisher eventPublisher) {
+            RunEventPublisher eventPublisher,
+            OrphanReplyRescue orphanReplyRescue) {
         this.agentService = agentService;
         this.runRegistry = runRegistry;
         this.mapper = mapper;
         this.timelineService = timelineService;
         this.eventPublisher = eventPublisher;
+        this.orphanReplyRescue = orphanReplyRescue;
     }
 
     public Flux<String> stream(
@@ -75,6 +85,7 @@ public class AgentOrchestrator {
             UUID userId) {
         logger.info("Agent run {} starting for chat {} with model {}", runId, chatId, model);
         runRegistry.start(runId, latestUserMessage(messages), workspaceRoots, userId);
+        orphanReplyRescue.onRunStarted(runId);
         timelineService.registerRun(runId, userId, chatId);
         String startedEvent = runStartedEvent(runId);
         eventPublisher.publish(runId, userId, chatId, startedEvent);
@@ -82,11 +93,14 @@ public class AgentOrchestrator {
                 .streamChat(model, messages, workspaceRoots, imageModel, imageOptions, runId, chatId, userId)
                 .doOnNext(chunk -> {
                     runRegistry.observe(runId, chunk);
+                    orphanReplyRescue.observe(runId, chunk);
                     eventPublisher.publish(runId, userId, chatId, chunk);
                 })
                 .doOnComplete(() -> {
                     logger.info("Agent run {} completed", runId);
                     runRegistry.finish(runId);
+                    // A resposta pode ter ficado sem dono se o cliente caiu no meio; ver a classe.
+                    orphanReplyRescue.onRunFinished(runId, chatId);
                     // O evento terminal precisa sair SEMPRE que o fluxo acaba. Antes so saia com
                     // status exatamente COMPLETED, e finish() preserva FAILED/CANCELLED — entao uma
                     // run que terminou por falha repetida de ferramenta completava sem erro, sem

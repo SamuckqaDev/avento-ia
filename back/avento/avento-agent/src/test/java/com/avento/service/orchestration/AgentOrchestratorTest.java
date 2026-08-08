@@ -59,7 +59,12 @@ class AgentOrchestratorTest {
                 registry,
                 mapper,
                 new AgentTimelineService(java.util.Optional.empty()),
-                (runId, userId, chatId, raw) -> published.add(raw));
+                (runId, userId, chatId, raw) -> published.add(raw),
+                new OrphanReplyRescue(
+                        (com.avento.repository.MessageRepository) null,
+                        (com.avento.repository.ChatRepository) null,
+                        new com.fasterxml.jackson.databind.ObjectMapper(),
+                        java.time.Duration.ofSeconds(20)));
         ArrayNode messages = mapper.createArrayNode();
         messages.addObject().put("role", "user").put("content", "pesquisa isso pra mim");
 

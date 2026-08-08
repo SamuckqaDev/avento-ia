@@ -18,6 +18,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -118,6 +119,25 @@ public class ApiExceptionHandler {
     public ResponseEntity<BaseResponse<ApiErrorData>> handleIllegalStateException(
             IllegalStateException exception, HttpServletRequest request) {
         return ApiErrorResponses.response(request, HttpStatus.CONFLICT, ApiCodes.CONFLICT, safeMessage(exception));
+    }
+
+    /**
+     * Cliente que desiste de um stream: fim normal, nao erro.
+     *
+     * <p>Fechar a aba no meio de um SSE derruba o socket e a escrita seguinte estoura com "Broken
+     * pipe". Isso caia no tratador geral e produzia DOIS problemas: um {@code ERROR} com pilha
+     * inteira para um evento rotineiro, e — pior — a tentativa de responder um {@code BaseResponse}
+     * JSON num canal que ja estava com {@code Content-Type: text/event-stream}. Sem conversor para
+     * isso, o proprio tratador estourava, e a excecao original ficava soterrada sob a segunda.
+     *
+     * <p>Responder 204 sem corpo encerra sem tentar serializar nada: nao ha para quem escrever, que
+     * e exatamente o que aconteceu.
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleClientGoneAway(
+            AsyncRequestNotUsableException exception, HttpServletRequest request) {
+        log.debug("Cliente desconectou de {}: {}", request.getRequestURI(), exception.getMessage());
+        return ResponseEntity.noContent().build();
     }
 
     @ExceptionHandler(Exception.class)

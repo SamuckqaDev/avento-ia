@@ -1,5 +1,24 @@
 # Testes de caracterização do miolo do AgentService
 
+> ## ✅ EXECUTADA em 08/08/2026 — não despachar de novo
+>
+> Feita à mão, não pelo Antigravity. Resultado: **752 testes, 0 falhas** (eram 727), 25 novos em
+> 3 classes + `AgentServiceCharacterizationHarness`. `AgentService.java` intacto — `git status` do
+> `src/main` vazio, que era o critério de aceite.
+>
+> | Classe | Testes |
+> |---|---:|
+> | `AgentServiceToolSelectionCharacterizationTest` | 9 |
+> | `AgentServiceFinishTurnCharacterizationTest` | 12 |
+> | `AgentServiceRunTurnCharacterizationTest` | 4 |
+>
+> **Um ramo não coberto e dois achados** estão registrados na Fase 0 de
+> `docs/PLANO_AGENTE_CONFIGURAVEL.md`. O mais importante: a orientação de chamada repetida é
+> inalcançável para ferramenta que falha, porque a guarda de falha repetida vem antes e as duas
+> contagens sobem juntas.
+>
+> O documento fica como registro do que foi pedido e por quê.
+
 > Spec de execução para agente. Escopo fechado: **só** o que está aqui.
 > Repo: `avento-ia` (`/Users/sr.tomimatu/projetcs/avento-ia`), branch base: `feat/rag-index-on-workspace-registration`.
 > Módulo: `back/avento/avento-agent`. Rode tudo a partir de `back/avento`.

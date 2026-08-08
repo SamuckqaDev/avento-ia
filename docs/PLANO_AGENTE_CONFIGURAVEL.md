@@ -137,14 +137,40 @@ chamador, `num_ctx` descartado na tradução). Decisão do dono, registrada para
 
 ---
 
-## Fase 0 — Rede de segurança (bloqueante)
+## Fase 0 — Rede de segurança (bloqueante) ✅ CONCLUÍDA em 08/08/2026
 
 Sem isto, qualquer refatoração é no escuro. Foi assim que o aviso de provedor quebrou em 08/08.
 
-- [ ] Commitar os 58 arquivos pendentes, em blocos separados
-- [ ] Testes de **caracterização** de `finishTurn`, `selectToolsForCurrentRequest` e `runTurn` —
-      fixam o comportamento ATUAL, mesmo o esquisito, sem julgar se está certo
-- [ ] Confirmar suíte verde: hoje 727 (exceto `DockerMcpGatewayLiveTest`, que exige gateway de pé)
+- [x] Commitar os 58 arquivos pendentes, em blocos separados — 12 commits
+- [x] Testes de **caracterização** de `finishTurn`, `selectToolsForCurrentRequest` e `runTurn` —
+      25 testes em 3 classes + `AgentServiceCharacterizationHarness`
+- [x] Confirmar suíte verde: **752 testes, 0 falhas, 8 pulados** (eram 727)
+
+`AgentService.java` não teve **uma linha** alterada — a rede foi construída inteiramente por
+reflexão, de propósito: mudar visibilidade para testar já seria a mudança que a rede deveria estar
+cobrindo.
+
+### Dois achados registrados como teste, não corrigidos
+
+1. **A assinatura de chamada repetida inclui contexto injetado.** `withExecutionContext` acrescenta
+   `_userId` e `_runId` aos argumentos **antes** de `recordToolOutcome` montar a assinatura. Ela não
+   é, portanto, função apenas do que o modelo pediu.
+2. **⚠️ A orientação de chamada repetida é inalcançável para ferramenta que falha.** O `if` de
+   `consecutiveIdenticalToolCalls >= 2` está **depois** do de `consecutiveToolFailures >= 2`
+   (`AgentService:2110` e `2124`), e as duas contagens sobem juntas. Uma ferramenta chamada de novo
+   com os mesmos argumentos e que falha de novo **sempre** retorna na guarda de falha. A orientação
+   só roda para ferramenta que teve sucesso duas vezes idênticas.
+
+   Não corrigido — caracterização não conserta. O teste
+   `theRepeatedFailureGuardIsCheckedBeforeTheRepeatedCallGuidance` trava a **ordem** das duas
+   guardas: se alguém inverter, ele falha e a decisão volta à mesa.
+
+### Ramo não coberto
+
+O corpo da orientação de chamada repetida (o texto do nudge) não é exercitado, pela razão acima.
+Cobri-lo exigiria uma ferramenta que tenha sucesso no harness, e nenhuma de arquivo tem —
+`WorkspaceAccessService` não é injetado. Montar o serviço de workspace inteiro é mais
+infraestrutura do que uma rede de segurança justifica.
 
 ## Fase 1 — O perfil manda no agente *(era Fase 3)*
 

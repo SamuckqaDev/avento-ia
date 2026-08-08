@@ -18,6 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,10 @@ public class ImageGenerationService implements ImageGenerator {
     private final ComfyUiImageService comfyUiImageService;
     private final ImagePromptTranslator promptTranslator;
     private final ObjectMapper mapper;
+
+    // ObjectProvider e nao injecao direta: o modulo de midia compila e roda sem quem guarda a
+    // configuracao, e os testes desta classe nao precisam de banco para existir.
+    private final ObjectProvider<ConfiguredImageModel> configuredImageModelProvider;
 
     @Value("${spring.ai.ollama.base-url:http://localhost:11434}")
     private String ollamaBaseUrl;
@@ -56,9 +61,24 @@ public class ImageGenerationService implements ImageGenerator {
         return generateWithOllama(prompt, model, size, promptPlan, imageOptions);
     }
 
+    /**
+     * Modelo da imagem: o que a chamada pediu, senão o escolhido nas configurações, senão o do YAML.
+     *
+     * <p>O meio deste caminho não existia. O campo "modelo de imagem" da tela era gravado no banco e
+     * {@code activeImageModel} não tinha um único chamador, então escolher um modelo ali não mudava
+     * nada — toda geração caía no {@code avento.image.default-model} do arquivo.
+     */
     @Override
     public String resolveModel(Map<String, Object> payload) {
-        return fallbackString(optionalString(payload, "model"), defaultImageModel);
+        String requested = optionalString(payload, "model");
+        if (requested != null && !requested.isBlank()) {
+            return requested;
+        }
+        ConfiguredImageModel configuredImageModel = configuredImageModelProvider.getIfAvailable();
+        String configured = configuredImageModel == null
+                ? null
+                : configuredImageModel.preferred().orElse(null);
+        return fallbackString(configured, defaultImageModel);
     }
 
     @Override

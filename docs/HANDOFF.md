@@ -1,4 +1,4 @@
-# Handoff — sessão de 02/08/2026
+# Handoff — sessões de 02 e 03/08/2026
 
 Contexto para retomar em outra conversa. **Tudo aqui foi verificado rodando comando**, e onde não
 foi está marcado como não verificado. O handoff anterior (31/07–01/08) foi absorvido: o que ficou de
@@ -8,9 +8,10 @@ pendência dele está na seção "Pendências", o resto virou doc.
 
 ## Estado do repositório
 
-- Branch `master`
-- **672 testes, 0 falhas, 8 pulados** (`cd back/avento && mvn clean test`) — eram 653, mais 19 novos
-- Frontend não foi tocado nesta sessão
+- Branch `feat/rag-index-on-workspace-registration` (último commit `ace00a6`)
+- **713 testes no backend, 0 falhas, 8 pulados** (`cd back/avento && mvn clean test`) — eram 653
+- **32 testes no frontend**, `npm run validate` limpo — eram 27
+- Nada commitado ainda: quatro blocos de conserto na árvore de trabalho
 
 ---
 
@@ -89,26 +90,157 @@ de embedding disputar RAM com o de chat, e o chat é quem o usuário está esper
 
 ---
 
+### 03/08 — O agente respondia saudação a qualquer pergunta
+
+Cinco defeitos de comportamento, todos encontrados puxando um único sintoma ("ele fica pensando para
+sempre"):
+
+- **Exemplo do prompt virava tarefa.** `execution.md:27` usava `"create a NestJS project in folder X"`
+  como ilustração de formato; o modelo executava o exemplo em vez da pergunta. Exemplo removido, mais
+  uma guarda geral dizendo que nada nas instruções é um pedido.
+- **Plano virava promessa.** O modelo escrevia o bloco ` ```plan ` e encerrava o turno. Agora está
+  escrito que o plano abre a resposta e a primeira ferramenta é chamada logo depois — e que anunciar
+  `activate_tools` num passo de plano não ativa nada.
+- **Spinner sem estado terminal.** `MessageBubble.hasVisibleContent` remove o bloco `plan`, e a
+  condição do indicador olhava "tem conteúdo?" em vez de "o run acabou?". Run `COMPLETED` com resposta
+  salva no banco e a bolha girando para sempre. Agora mostra os passos e avisa que o agente parou ali.
+- **Três campos de modelo gravados e nunca lidos** — planejador, imagem e embedding. Ver a tabela dos
+  cinco papéis em ARCHITECTURE.
+- **Formulário de provedor recolhe depois de salvo**, com o papel de cada modelo descrito ao lado do
+  campo.
+
+### 03/08 — A alucinação era truncamento silencioso de contexto
+
+O caso completo está em `docs/aprendizados/10-o-numero-morria-na-traducao.html`. Em resumo:
+
+- O `num_ctx` que o Avento calculava era **descartado pelo transporte** (o protocolo da OpenAI não tem
+  esse campo), então o Ollama subia com seus 4096 padrão.
+- Medido: mesmo modelo, mesma pergunta — **0/4 acertos com janela 4096 contra 4/4 com 32768**. O
+  prompt de 5970 tokens era cortado para 2050. O modelo respondia `porta 80` onde a config dizia 8417.
+- `/api/show` dá o **teto** do modelo (262144); `/api/ps` dá o que foi **carregado** (4096). Confundir
+  os dois quebrava dos dois lados.
+- `ProviderKind` ganhou três eixos: `managesItsOwnContext`, `canRequestContextWindow`,
+  `hasOwnModelNamespace`.
+- **O seletor de modelos estava morto** com provedor remoto: `isLocalModelName` respondia "sim" para
+  qualquer nome com dois-pontos, e todo modelo do Ollama tem dois-pontos. Comparar modelos na
+  interface era comparar um modelo com ele mesmo.
+- `effectiveKind` detecta Ollama atrás de um endereço "compatível com OpenAI" e roteia pelo caminho
+  nativo, onde a janela pode ser pedida. **Não precisa mexer no servidor remoto** — o endpoint é a
+  própria requisição (verificado: pedindo 4096 carrega 4096, pedindo 32768 carrega 32768).
+
+⚠️ Dois consertos meus geraram defeito novo e foram corrigidos na mesma sessão: `min(…, carregado)`
+criava um laço que prendia a janela em 4096 para sempre, e a detecção automática fez o aviso de
+"provedor sem transporte" disparar alarme falso. Ambos com teste que falha sem a guarda.
+
+### 03/08 — O aviso de provedor tinha três defeitos, não um
+
+Encontrados conferindo por que ele aparecia mesmo com tudo funcionando:
+
+1. **Premissa envelhecida** — "sem transporte = caiu no local" deixou de valer com a detecção
+   automática. Guarda por `effectiveKind`.
+2. **Nomeava a escolha errada** — dizia "Você selecionou (qwen3.5:35b)" enquanto a pessoa tinha
+   escolhido `qwen3.5:9b` no seletor do cabeçalho; ele lê o modelo gravado em *Provedores*. Texto
+   trocado para "O provedor **configurado** (…)".
+3. **Aparecia em metade das respostas** — era montado dentro do `streamChatResolved`, e o caminho de
+   skill retorna antes. Um "oi" avisava, uma busca na web não. Agora é montado no
+   `streamChatDispatch`, antes da bifurcação, e a colagem vive em `withCloudNotice` — um método só,
+   com teste, em vez de escrita duas vezes e esquecida numa delas.
+
+**Verificado no log**: desde o restart de 09:52 todos os runs mandam `model=qwen3.5:9b` (orquestrador
+e AgentService finalmente concordam), e o 9b está carregado na Fedora com **janela 32768**. O
+truncamento acabou.
+
+### 03/08 — A alucinação que sobrou NÃO é truncamento
+
+Com a janela em 32768, o agente buscou de verdade e devolveu **nove cotações com erro 0,00%** contra
+a fonte. Mas fabricou a coluna "Variação (%)" — a `open.er-api.com` não fornece variação nenhuma
+(verificado: fora de `rates` só há metadados). E inverteu a direção em dois de três "Destaques"
+("€ 1,15 por dólar" em vez de "US$ 1,15 por euro").
+
+Isso é uma falha de **aderência a instrução**, não mecânica: `tools.md:40` já proíbe exatamente isso
+("nunca preencha uma lacuna com um número plausível"), a instrução coube no contexto e o `qwen3.5:9b`
+não a seguiu. **Não medido**: se o `qwen3.5:35b` resiste onde o 9b falhou — é o próximo teste, e
+agora dá para fazer porque o seletor funciona.
+
+---
+
+### 03/08 — Onze minutos de trabalho jogados fora
+
+O run `run_8c4ab823` rodou 11min19s em três rodadas, completou às 15:12:42 — e a resposta **não
+existe**. O cliente tinha desistido às 15:11:33 (`Broken pipe` no SSE), e quem persiste a resposta é
+o FRONTEND, depois de consumir o stream. Sem ouvinte, o servidor fez o trabalho e o descartou.
+
+O stack trace que apareceu era o *tratador de exceção falhando*, não a falha: ele tentou responder
+`BaseResponse` JSON num canal já marcado como `text/event-stream`, não achou conversor, e estourou —
+soterrando o erro original.
+
+Três consertos:
+
+- **`OrphanReplyRescue`** (novo): acumula o texto que vai para a tela e, ao fim do run, agenda uma
+  checagem. Passado o prazo (`avento.agent.orphan-reply-grace`, 20s), se a última mensagem do chat
+  ainda for do usuário, grava a resposta. É REDE DE SEGURANÇA — o caminho normal continua sendo o
+  frontend gravar, e o prazo existe para não duplicar.
+- **Desconexão de SSE virou caminho normal**: `AsyncRequestNotUsableException` tem tratador próprio,
+  responde 204 sem corpo e loga em DEBUG. Sem corpo não há o que converter, então o segundo erro
+  deixa de existir.
+- **Teto no ramo de projeto conectado**: ele devolvia o kit sem passar pelo `capToolCount` — as
+  ativadas por `activate_tools` se acumulam em Redis rodada após rodada e a rodada 3 saiu com **22
+  schemas** contra o teto declarado de 12. Novo `avento.agent.max-project-tools` (18): o kit fixo
+  sobrevive inteiro, o que cresce em cima dele tem fim.
+
+---
+
 ## NÃO medido / não validado
 
-- **Primeira indexação de um projeto real de ponta a ponta.** O custo por chunk está medido, mas o
-  total de chunks de um projeto grande não — a estimativa (~48 ms × N) não foi confirmada com o
-  backend de pé.
+- ~~Primeira indexação de um projeto real de ponta a ponta.~~ **Medido**: o log do backend registra
+  `Vector index ready for /Users/sr.tomimatu/projetcs/avento-ia in 11612 ms` — 11,6s para o repo
+  inteiro, com `nomic-embed-text` local. Falta medir com `bge-m3` na Fedora, que é o caminho novo.
 - **Nenhuma busca vetorial rodou de verdade pelo agente.** Os testes cobrem a lógica de decisão com
   o `RagService` mockado; o caminho Redis + Ollama real não foi exercitado nesta sessão.
 - O limiar 0.45 vem de uma amostra pequena (15 chunks, 4 perguntas). É melhor que 0.62 com margem
   larga, mas não é um número calibrado com rigor.
+- **A recuperação de resposta órfã nunca rodou em produção.** Os testes cobrem as quatro regras, mas
+  o caminho real (cliente cai, prazo passa, mensagem aparece no chat) não foi exercitado com o app de
+  pé.
+- **O ciclo completo com a detecção automática não rodou.** Os testes cobrem a lógica; a confirmação
+  de que o backend reiniciado usa o caminho nativo e carrega 32768 não foi feita com o app de pé.
+- O `presence_penalty 1.5` embutido no modelo continua sem ser sobrescrito pelo Avento. Medido que
+  **não** afeta ancoragem (5/5 com e sem), mas o efeito dele em respostas longas não foi avaliado.
 
 ---
 
-## Alavanca de performance ainda não usada
+## Ambiente atual
 
-Continua valendo do handoff anterior: rodando `qwen3.5:9b` com `num-ctx: 32768`, enquanto a config
-define `granite4.1:8b` como padrão e a anotação do usuário registra `granite4.1:8b @ 8192 ≈ 2,8s em
-regime` contra `qwen3.5:9b @ 16384 = 34-46s`. O seletor de modelo **funciona** desde que o bug 6 foi
-corrigido, mas exige restart do backend; o `num-ctx` precisa de edição no yml.
+A inferência **saiu desta máquina**: roda numa Fedora Silverblue (48 GB, RTX 3050) alcançada por
+Tailscale em `http://<tailnet-host>:11434`, configurada como `OPENAI_COMPATIBLE` — que a detecção
+automática promove a `OLLAMA`. Modelos lá: `qwen3.5:35b`, `qwen3.5:9b`, `qwen2.5:32b`,
+`llama3.3:70b`, `bge-m3`, entre outros.
+
+O túnel efêmero anterior (`lhr.life`) morria junto com a sessão SSH e sorteava um subdomínio novo a
+cada vez — não usar. Tailscale dá endereço fixo e não expõe nada na internet.
 
 ---
+
+## Próximo trabalho: agente configurável
+
+O plano está em **`docs/PLANO_AGENTE_CONFIGURAVEL.md`**, com todos os fatos já medidos para não
+repetir a investigação. O essencial:
+
+- **Docker MCP Toolkit está quebrado** (interface diz "No MCP servers added"; catálogo de 101 não
+  contém os `mcp/*`; `registry.yaml` com `ref: ""`). **Não perseguir.**
+- **`docker run --rm -i mcp/fetch` funciona** — provado falando MCP direto com a imagem: `initialize`
+  → `tools/list` → `fetch` devolveu conteúdo real. As 8 imagens (5,7 GB) já estão no disco.
+- **A ligação perfil → ferramentas já está construída** e o plano anterior errava ao dizer que o
+  `AgentService` ignorava o perfil. A cadeia `PlanExecutionService:312` → `AgentRunWorker:228` →
+  `AgentService:950` → `applyAgentToolPolicy` existe e tem teste. O que falta é o caminho de **chat**
+  nunca chamar `AgentRoutingService.pick()`, então a allow-list chega vazia e nada é restringido.
+- ⚠️ **Não ligar esse fio antes de inverter a ordem da política.** `applyAgentToolPolicy` é uma
+  interseção aplicada DEPOIS da seleção: só sabe subtrair, nunca adicionar, e interseção vazia devolve
+  `tools: []` — o turno vazio que os comentários da região já documentam.
+- **O miolo do agente não tem teste**: `finishTurn` (241 linhas), `selectToolsForCurrentRequest`
+  (107) e `runTurn` (o laço) têm ZERO. Fase 0 do plano é cobrir isso antes de mexer.
+- **Ordem das fases mudou**: a fundação de código (BeanCopier/Lombok) desceu para a Fase 4 — não é
+  pré-requisito de nada e estava bloqueando a fase que resolve a queixa original.
 
 ## Pendências
 

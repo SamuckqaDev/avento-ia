@@ -212,26 +212,73 @@ maior parte dela já está construída — ver "A ligação perfil → ferrament
       (ignorar em silêncio vs. avisar) — **em aberto**
 - [ ] Remover `avento.agent.project-toolkit` do YAML **por último**, quando o perfil já cobrir o caso
 
-## Fase 2 — Servidores MCP em container
+## Fase 2 — Servidores MCP em container · PARCIALMENTE FEITA em 08/08/2026
 
-⚠️ **Os oito não são iguais.** A versão anterior deste plano tratava como um bloco só. Em
-`McpServerCatalogService`:
+Implementado em `McpServerCatalogService`: helper `containerOrElse(...)` com fallback para
+`npx`/`uvx`, ligado a **quatro** servidores — `fetch`, `time`, `memory` e `sequential-thinking`.
+Chave nova `avento.mcp.containers.enabled` (padrão `true`). Suíte: **752 testes, 0 falhas**.
 
-| Servidor | Lançamento hoje | Troca |
+### Medido nesta máquina, com o comando exato que o código monta
+
+| Servidor | Comando | Resultado |
 |---|---|---|
-| `fetch` (`:323`), `time` (`:293`), `memory` (`:286`), `duckduckgo`, `sequentialthinking` (`:292`) | `uvx` / `npx` | ✅ limpa |
-| `git` (`:331`) | `uvx mcp-server-git --repository <root>` | ⚠️ caminho do host não existe no container |
-| `filesystem` (`:267`) | `npx … <roots>` | ⚠️ idem |
-| `playwright` (`:316`), `puppeteer` (`:322`) | `npx` | ⚠️ em container = navegador sem tela |
+| `fetch` | `docker run --rm -i --pull=never -e PYTHONIOENCODING=utf-8 mcp/fetch` | ✅ `initialize` + `tools/list` → 1 ferramenta |
+| `time` | `docker run --rm -i --pull=never mcp/time` | ✅ `get_current_time`, `convert_time` |
+| `sequential-thinking` | `docker run --rm -i --pull=never mcp/sequentialthinking` | ✅ `sequentialthinking` |
+| `memory` | `… -v ~/.avento:/data -e MEMORY_FILE_PATH=/data/memory.json mcp/memory` | ✅ 9 ferramentas |
 
-- [ ] Trocar primeiro os **cinco limpos** por `docker run --rm -i mcp/<nome>`
-- [ ] `git` e `filesystem`: decidir a montagem de volume das raízes do workspace. **Isto é decisão de
-      segurança, não detalhe de linha de comando** — montar pasta do usuário dentro de container
-      precisa de escopo explícito. Não fazer junto com os cinco limpos
-- [ ] `playwright`/`puppeteer`: manter em `npx` até decidir o que acontece com as ferramentas de aba
-      de navegador (`open/close_browser_tab`, hoje nunca exercitadas)
-- [ ] Guarda: se o Docker não responder, cair no `npx`/`uvx` (o servidor continua disponível)
-- [ ] Teste de integração com `mcp/fetch` — o ciclo já foi provado à mão, falta prendê-lo
+### O `git` fica no host — medido, não presumido
+
+O protocolo e a montagem estão bons; o que mata é a varredura de não-rastreados sobre o bind mount.
+Neste repo, com 37.725 arquivos (`target/` e `node_modules/` inclusos):
+
+| Onde | Comando | Tempo |
+|---|---|---:|
+| host | `git status --porcelain` | **0,056s** |
+| container | handshake MCP (`initialize` + `tools/list`) | 0,6s |
+| container | `git rev-parse --short HEAD` | 0,28s |
+| container | `git status -uno --porcelain` (só rastreados) | 0,573s |
+| container | `git status --porcelain` (com não-rastreados) | **> 3 min, não retornou** |
+
+As três primeiras linhas provam que nem o protocolo nem a montagem são o problema. É o custo por
+`stat` do bind mount do Docker Desktop no macOS, multiplicado por dezenas de milhares de arquivos.
+
+**Regra que sai daqui:** container serve para servidor sem árvore do host (rede, cálculo, estado
+próprio). Ferramenta que anda na árvore do host pertence ao host. Isso também condena `filesystem`
+ao host, pelo mesmo motivo — não tentar.
+
+### As tags precisaram ser reanexadas
+
+Sete das oito imagens estavam com tag `<none>` (só `mcp/fetch` tinha `:latest`), o que faria
+`docker run mcp/time` ir à rede. Reanexadas localmente com `docker tag <id> mcp/<nome>:latest` —
+mesmo digest, nada baixado. **Isto é estado de máquina, não de repo**: numa máquina nova é preciso
+refazer, e o `--pull=never` garante que a ausência da tag cai no fallback em vez de pendurar
+esperando a rede.
+
+### Estado por servidor
+
+| Servidor | Onde roda | Situação |
+|---|---|---|
+| `fetch`, `time`, `memory`, `sequential-thinking` | container | ✅ feito e verificado |
+| `git` | host (`uvx`) | ✅ decidido por medição — ver acima |
+| `filesystem` | host (`npx`) | mesma regra do `git`; não tentar |
+| `playwright`, `puppeteer` | host (`npx`) | container = navegador sem tela |
+| `duckduckgo` | — | imagem no disco, mas **não existe `case` no catálogo**. Nunca foi um servidor do Avento |
+
+### O que ainda falta desta fase
+
+- [x] Trocar os que não tocam a árvore do host por `docker run --rm -i mcp/<nome>`
+- [x] Guarda: se o Docker não responder, cair no `npx`/`uvx` (`containersEnabled()`)
+- [ ] **Teste de integração com `mcp/fetch`** — o ciclo foi provado à mão duas vezes, falta prendê-lo
+      num teste. Precisa de marcação para não rodar em máquina sem Docker, como o
+      `DockerMcpGatewayLiveTest` já faz
+- [ ] **Cache de `tools/list` por digest de imagem.** Hoje o catálogo só conhece a ferramenta com o
+      servidor de pé. As `mcp/*` são imutáveis por digest, então o schema também é — cachear
+      permitiria montar o catálogo sem subir container, e subir só na chamada real. É o que destrava
+      a Fase 3 sem pagar startup por run. **Não verificado** se o `McpClientManager` já faz algo
+      parecido; ele tem cache, não li qual
+- [ ] Reanexar as tags numa máquina nova (`docker tag <id> mcp/<nome>:latest`) — ou aceitar o
+      fallback, que é o que o `--pull=never` garante
 
 ## Fase 3 — Interface de agentes *(era Fase 4)*
 

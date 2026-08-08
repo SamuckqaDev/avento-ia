@@ -52,6 +52,11 @@ avento:
     enable-thinking: ${AVENTO_AGENT_ENABLE_THINKING:false}
     keep-alive: ${AVENTO_AGENT_KEEP_ALIVE:30m}
     max-tools-per-request: ${AVENTO_AGENT_MAX_TOOLS_PER_REQUEST:12}
+    # Teto do ramo com projeto conectado, onde o kit fixo (14 ferramentas) ja passa do limite acima.
+    # Sem ele o ramo nao tinha teto nenhum: as ativadas por activate_tools se acumulam em Redis
+    # rodada apos rodada, e uma run longa saiu com 22 schemas. Cada schema custa tempo em TODA
+    # rodada seguinte.
+    max-project-tools: ${AVENTO_AGENT_MAX_PROJECT_TOOLS:18}
     # true: entrega TODAS as ferramentas ao modelo, sem triagem por intencao (nao esconde terminal_run,
     # generate_pdf etc.). So virou viavel depois do fix do cache de prompt (schemas ficam no prefixo
     # cacheado, avaliados 1x). Custo: prompt maior e mais chance de o modelo pequeno escolher errado.
@@ -265,7 +270,10 @@ spring:
       client-type: jedis
       host: ${AVENTO_REDIS_HOST:127.0.0.1}
       port: ${AVENTO_REDIS_PORT:6379}
-      timeout: ${AVENTO_REDIS_TIMEOUT:2s}
+      # 2s nao cobre operacao em massa no indice vetorial: durante a indexacao de partida o Redis
+      # fica ocupado e QUALQUER outro cliente estoura. O lote na remocao ataca a causa; isto e a
+      # folga para o caso de o indice crescer mais que o previsto.
+      timeout: ${AVENTO_REDIS_TIMEOUT:5s}
   datasource:
     url: jdbc:h2:file:./avento_db
     driverClassName: org.h2.Driver
@@ -294,6 +302,9 @@ spring:
           temperature: 0.0
     vectorstore:
       redis:
-        index: avento_index
+        # index-name, NAO index: o Spring AI le "indexName" sob spring.ai.vectorstore.redis, e a
+        # chave errada era ignorada em silencio — o indice em uso chamava-se "default-index", o
+        # padrao da biblioteca, enquanto a configuracao dizia outra coisa.
+        index-name: avento_index
         prefix: "avento:"
         initialize-schema: true

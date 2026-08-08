@@ -436,3 +436,48 @@ export const StyledTd = styled.td`
   border: 1px solid ${({ theme }) => theme.colors.border};
   padding: 6px 10px;
 `;
+
+/**
+ * Resposta que terminou contendo só um plano. O bloco ```plan``` não é renderizado no balão, então
+ * sem este card a mensagem fica vazia e o indicador de "pensando" gira para sempre — o usuário
+ * espera por uma execução que já acabou.
+ */
+export const StalledPlanCard = styled.div`
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #d97706 12%, transparent), transparent),
+    ${({ theme }) => theme.colors.bg};
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, #d97706 45%, ${({ theme }) => theme.colors.border});
+  margin: 4px 0;
+`;
+
+export const StalledPlanHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+
+  svg {
+    flex-shrink: 0;
+    color: #d97706;
+  }
+`;
+
+export const StalledPlanSteps = styled.ol`
+  margin: 0 0 10px;
+  padding-left: 20px;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 0.86rem;
+  line-height: 1.6;
+`;
+
+export const StalledPlanHint = styled.p`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 0.82rem;
+  line-height: 1.5;
+`;

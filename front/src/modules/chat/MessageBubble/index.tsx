@@ -27,6 +27,10 @@ import {
   StyledTable,
   StyledTh,
   StyledTd,
+  StalledPlanCard,
+  StalledPlanHeader,
+  StalledPlanSteps,
+  StalledPlanHint,
 } from './styles';
 import { TypingIndicator } from './TypingIndicator';
 import { ApprovalCard } from '../ApprovalCard';
@@ -37,7 +41,7 @@ import { UiPreviewCard } from '../UiPreviewCard';
 import { ImplPlanCard } from '../ImplPlanCard';
 import { DocumentCard } from '../DocumentCard';
 
-import { CaretDown, Check, Copy, FileCode, FileText, CaretRight, ImageSquare, Lightning, Brain, Sparkle } from '@phosphor-icons/react';
+import { CaretDown, Check, Copy, FileCode, FileText, CaretRight, ImageSquare, Lightning, Brain, Sparkle, Warning } from '@phosphor-icons/react';
 import { api } from '../../../services/apiClient';
 
 export interface Message {
@@ -108,6 +112,16 @@ function hasVisibleContent(content: string): boolean {
     stripped = stripped.slice(0, openIdx);
   }
   return stripped.trim().length > 0;
+}
+
+// Os passos de dentro do bloco ```plan```, para quando a resposta acabou sem sair do plano.
+function extractPlanSteps(content: string): string[] {
+  const block = content.match(/```plan\n([\s\S]*?)(?:```|$)/);
+  if (!block) return [];
+  return block[1]
+    .split('\n')
+    .map(line => line.replace(/^\s*\d+[.)]\s*/, '').trim())
+    .filter(Boolean);
 }
 
 function hasUiPreview(content: string): boolean {
@@ -323,6 +337,7 @@ function MessageBubbleComponent({
   const skillInvocation = isUser ? matchSkillInvocation(message.content) : null;
   const mediaContent = extractMediaJobs(message.content);
   const containsUiPreview = !isUser && hasUiPreview(mediaContent.markdown);
+  const stalledPlanSteps = isUser || isStreaming ? [] : extractPlanSteps(message.content);
   const documentNames = (message.documentNames || '').split('\n').map(name => name.trim()).filter(Boolean);
 
   return (
@@ -374,8 +389,37 @@ function MessageBubbleComponent({
               </strong>
               {skillInvocation.argument && <span>{skillInvocation.argument}</span>}
             </SkillInvocationBadge>
-          ) : !isUser && !hasVisibleContent(message.content) && !message.thinking ? (
+          ) : !isUser && !hasVisibleContent(message.content) && !message.thinking && isStreaming ? (
             <TypingIndicator />
+          ) : !isUser && !hasVisibleContent(message.content) && !message.thinking ? (
+            // A resposta ACABOU sem conteúdo renderizável. Antes caía no TypingIndicator acima, que
+            // não olhava isStreaming: o run terminava, a mensagem ficava salva no banco e a bolha
+            // girava para sempre. Se o que veio foi um plano, mostrar os passos — é a única pista
+            // que o usuário tem de que o agente parou de propósito em vez de travar.
+            stalledPlanSteps.length > 0 ? (
+              <StalledPlanCard>
+                <StalledPlanHeader>
+                  <Warning size={15} weight="fill" />
+                  O agente parou no plano
+                </StalledPlanHeader>
+                <StalledPlanSteps>
+                  {stalledPlanSteps.map((step, index) => <li key={index}>{step}</li>)}
+                </StalledPlanSteps>
+                <StalledPlanHint>
+                  Ele planejou os passos mas não executou nenhum. Peça "pode executar" para seguir.
+                </StalledPlanHint>
+              </StalledPlanCard>
+            ) : (
+              <StalledPlanCard>
+                <StalledPlanHeader>
+                  <Warning size={15} weight="fill" />
+                  Resposta vazia
+                </StalledPlanHeader>
+                <StalledPlanHint>
+                  O modelo terminou sem gerar conteúdo. Tente reenviar a pergunta.
+                </StalledPlanHint>
+              </StalledPlanCard>
+            )
           ) : !isUser && hasTruncatedUiPreview(message.content) ? (
             <div style={{
               border: '1px solid #d97706', borderRadius: 8, padding: '10px 14px',

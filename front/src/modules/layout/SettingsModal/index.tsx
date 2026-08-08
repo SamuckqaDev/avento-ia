@@ -116,6 +116,9 @@ export function SettingsModal({
   // Chave ja salva fica guardada e mascarada; editar e um ato deliberado. Campo de senha sempre
   // aberto convida a colar por cima sem querer, e apagar uma chave valida por engano e caro.
   const [editingApiKey, setEditingApiKey] = useState(false);
+  // Formulario aberto para sempre passa a impressao de que nada foi salvo. Depois de testar e
+  // salvar, o que importa e o resumo do que esta valendo; o formulario so volta se for pedido.
+  const [editingProvider, setEditingProvider] = useState(false);
   const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [testLanStatus, setTestLanStatus] = useState<{ success?: boolean; message?: string; loading?: boolean }>({});
   
@@ -405,6 +408,9 @@ export function SettingsModal({
       const { data } = await api.get<{ selectedModel: string }>('/api/ai/providers');
       if (data?.selectedModel === providerSettings.selectedModel) {
         setTestLanStatus({ success: true, message: `Salvo: ${data.selectedModel}`, loading: false });
+        // Só recolhe quando o backend confirmou o que gravou. Recolher no caminho de erro
+        // esconderia justamente o formulário que a pessoa precisa para corrigir.
+        setEditingProvider(false);
       } else {
         setTestLanStatus({
           success: false,
@@ -995,6 +1001,45 @@ export function SettingsModal({
     ? [providerSettings.selectedModel, ...providerModels]
     : providerModels;
 
+  // Configurado = ha um modelo de conversa gravado. E o unico campo sem o qual nada roda, entao e
+  // ele que separa "ja resolvi isto" de "ainda preciso preencher".
+  const providerConfigured = Boolean(providerSettings.selectedModel);
+
+  // O que cada modelo faz, ao lado do campo. Um <select> chamado "Modelo de embedding" nao diz a
+  // ninguem o que muda ao troca-lo, e o resultado foi configurar achando que mexia noutra coisa.
+  const MODEL_ROLES: { key: keyof typeof providerSettings; label: string; empty: string; help: string }[] = [
+    {
+      key: 'selectedModel',
+      label: 'Conversa e execução',
+      empty: '',
+      help: 'Responde e chama as ferramentas. É o modelo que faz o trabalho.',
+    },
+    {
+      key: 'plannerModel',
+      label: 'Planejamento',
+      empty: 'Usar o mesmo da conversa',
+      help: 'Quebra pedidos grandes em passos antes de executar. Vale um modelo que raciocina melhor, mesmo mais lento.',
+    },
+    {
+      key: 'visionModel',
+      label: 'Leitura de imagem',
+      empty: 'Usar o padrão do sistema',
+      help: 'Lê prints e fotos que você anexa. Precisa ser um modelo de visão.',
+    },
+    {
+      key: 'imageModel',
+      label: 'Geração de imagem',
+      empty: 'Usar o padrão do sistema (ComfyUI no modo local)',
+      help: 'Cria imagens novas a partir de um texto.',
+    },
+    {
+      key: 'embeddingModel',
+      label: 'Vetores (busca no código)',
+      empty: 'Usar o padrão do sistema',
+      help: 'Transforma o código do projeto em vetores para a busca por significado, e classifica a intenção da mensagem. Trocar aqui reindexa do zero: cada modelo tem seu próprio índice.',
+    },
+  ];
+
   const renderProvedores = () => (
     <Body style={{ overflowY: 'auto', paddingRight: '4px' }}>
       {isLoadingProviders ? (
@@ -1030,215 +1075,227 @@ export function SettingsModal({
             </div>
           </div>
 
-          <p style={{ color: '#9FB8B1', fontSize: '0.8rem', margin: '0 0 12px' }}>
-            Escolha de onde vêm as respostas. O sistema passa a listar os modelos desse provedor e a
-            enviar as conversas para ele.
-          </p>
-
-          <ProviderGrid>
-            {PROVIDER_KINDS.map(option => (
-              <ProviderCard
-                key={option.kind}
-                $active={providerSettings.providerKind === option.kind}
-                onClick={() => setProviderSettings({
-                  ...providerSettings,
-                  providerKind: option.kind,
-                  // Troca o endereco junto: manter a URL do provedor anterior geraria erro
-                  // silencioso de "nao lista modelos" sem a pessoa entender por que.
-                  baseUrl: option.url,
-                  selectedModel: '',
-                })}
+          {providerConfigured && !editingProvider ? (
+            <>
+              {/* Resumo do que esta valendo. O formulario inteiro aberto para sempre dava a
+                  impressao de que nada tinha sido salvo — quem ja configurou quer conferir, nao
+                  preencher de novo. */}
+              <div
+                style={{
+                  border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '10px',
+                  padding: '14px 16px', margin: '0 0 16px',
+                }}
               >
-                <strong>{option.icon} {option.title}</strong>
-                <span>{option.hint}</span>
-              </ProviderCard>
-            ))}
-          </ProviderGrid>
-
-          <SettingRow style={{ borderBottom: 'none', paddingBottom: '0' }}>
-            <AgentField style={{ flex: 1 }}>
-              <span>Endereço do provedor</span>
-              <input
-                type="text"
-                value={providerSettings.baseUrl}
-                onChange={e => setProviderSettings({ ...providerSettings, baseUrl: e.target.value })}
-                placeholder={activeKind.url}
-              />
-            </AgentField>
-          </SettingRow>
-
-          {/* O campo é um só, em dois estados. Antes havia um painel "Conectado a X" separado do
-              input, e quem tinha duas contas no mesmo provedor não conseguia saber QUAL chave estava
-              valendo sem removê-la e colar de novo. O valor mascarado mora no próprio campo: o
-              começo e o fim bastam para reconhecer a chave, e o miolo nunca sai do backend. */}
-          {activeKind.key && (
-            <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
-              <AgentField style={{ flex: 1 }}>
-                <span>Chave de API</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  {providerSettings.apiKeyMasked && !editingApiKey ? (
-                    <input
-                      type="text"
-                      readOnly
-                      value={providerSettings.apiKeyMasked}
-                      aria-label="Chave de API salva, exibida parcialmente"
-                      style={{ flex: 1, minWidth: '180px', fontFamily: 'ui-monospace, monospace' }}
-                    />
-                  ) : (
-                    <input
-                      type="password"
-                      value={providerSettings.apiKeyInput}
-                      onChange={e => setProviderSettings({ ...providerSettings, apiKeyInput: e.target.value })}
-                      placeholder={providerSettings.apiKeyMasked || 'Cole sua chave de API aqui...'}
-                      autoFocus={editingApiKey}
-                      style={{ flex: 1, minWidth: '180px' }}
-                    />
-                  )}
-                  {providerSettings.apiKeyMasked && !editingApiKey && (
-                    <>
-                      <TestButton type="button" onClick={() => setEditingApiKey(true)}>Editar</TestButton>
-                      <TestButton
-                        type="button"
-                        onClick={handleDisconnectProvider}
-                        disabled={isSaving}
-                        style={{ borderColor: 'rgba(244, 130, 130, 0.5)', color: '#F48282' }}
-                      >
-                        Remover
-                      </TestButton>
-                    </>
-                  )}
+                <div style={{ fontSize: '0.78rem', color: '#9FB8B1', marginBottom: '10px' }}>
+                  {activeKind.title} · {providerSettings.baseUrl}
                 </div>
-                <span
-                  style={{
-                    fontSize: '0.74rem',
-                    marginTop: '6px',
-                    color: providerSettings.apiKeyMasked && !editingApiKey ? '#4FD1B4' : '#9FB8B1',
-                  }}
+                {MODEL_ROLES.map(role => (
+                  <div
+                    key={role.key}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', gap: '12px',
+                      padding: '6px 0', fontSize: '0.82rem',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                    }}
+                  >
+                    <span style={{ color: '#9FB8B1' }}>{role.label}</span>
+                    <strong style={{ color: providerSettings[role.key] ? '#F2FFFB' : '#6F8A83', textAlign: 'right' }}>
+                      {providerSettings[role.key] || 'padrão do sistema'}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+
+              {testLanStatus.message && (
+                <div style={{ marginBottom: '14px' }}>
+                  <TestStatusPill $success={testLanStatus.success} $error={!testLanStatus.success}>
+                    {testLanStatus.message}
+                  </TestStatusPill>
+                </div>
+              )}
+
+              <Footer style={{ marginTop: 'auto', paddingTop: '16px' }}>
+                <TestButton type="button" onClick={() => setEditingProvider(true)}>
+                  Editar conexão
+                </TestButton>
+              </Footer>
+            </>
+          ) : (
+            <>
+            <p style={{ color: '#9FB8B1', fontSize: '0.8rem', margin: '0 0 12px' }}>
+              Escolha de onde vêm as respostas. O sistema passa a listar os modelos desse provedor e a
+              enviar as conversas para ele.
+            </p>
+
+            <ProviderGrid>
+              {PROVIDER_KINDS.map(option => (
+                <ProviderCard
+                  key={option.kind}
+                  $active={providerSettings.providerKind === option.kind}
+                  onClick={() => setProviderSettings({
+                    ...providerSettings,
+                    providerKind: option.kind,
+                    // Troca o endereco junto: manter a URL do provedor anterior geraria erro
+                    // silencioso de "nao lista modelos" sem a pessoa entender por que.
+                    baseUrl: option.url,
+                    selectedModel: '',
+                  })}
                 >
-                  {providerSettings.apiKeyMasked && !editingApiKey
-                    ? `🔒 Chave ativa em uso — ${activeKind.title}`
-                    : editingApiKey
-                      ? 'Deixe em branco e salve para manter a chave atual.'
-                      : 'A chave fica guardada cifrada e nunca volta inteira para a tela.'}
-                </span>
+                  <strong>{option.icon} {option.title}</strong>
+                  <span>{option.hint}</span>
+                </ProviderCard>
+              ))}
+            </ProviderGrid>
+
+            <SettingRow style={{ borderBottom: 'none', paddingBottom: '0' }}>
+              <AgentField style={{ flex: 1 }}>
+                <span>Endereço do provedor</span>
+                <input
+                  type="text"
+                  value={providerSettings.baseUrl}
+                  onChange={e => setProviderSettings({ ...providerSettings, baseUrl: e.target.value })}
+                  placeholder={activeKind.url}
+                />
               </AgentField>
             </SettingRow>
-          )}
 
-          <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
-            <AgentField style={{ flex: 1 }}>
-              <span>Modelo</span>
-              {/* Select, nunca texto livre: os nomes validos sao os que o provedor devolve, e
-                  digitar de cabeca foi como um nome inexistente acabou salvo e deu 404. */}
-              <select
-                value={providerSettings.selectedModel}
-                onChange={e => persistSelectedModel(e.target.value)}
-                disabled={modelOptions.length === 0}
-                style={{ ...selectStyle, color: modelOptions.length === 0 ? '#6F8A83' : '#F2FFFB' }}
-              >
-                {modelOptions.length === 0 ? (
-                  <option value="">Teste a conexão para carregar os modelos</option>
-                ) : (
-                  modelOptions.map(model => <option key={model} value={model}>{model}</option>)
-                )}
-              </select>
-              <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '4px' }}>
-                {providerModels.length > 0
-                  ? `${providerModels.length} modelo(s) confirmados pelo provedor.`
-                  : 'Nenhum modelo confirmado ainda — clique em "Testar conexão" para carregar a lista real.'}
-              </span>
-            </AgentField>
-          </SettingRow>
-
-          {/* Todo modelo do provedor sai daqui: trocar modelo de visao ou de imagem nao deveria
-              exigir editar YAML e reiniciar o backend. Vazio significa "usa o padrao do sistema". */}
-          {providerModels.length > 0 && (
-            <>
+            {/* O campo é um só, em dois estados. Antes havia um painel "Conectado a X" separado do
+                input, e quem tinha duas contas no mesmo provedor não conseguia saber QUAL chave estava
+                valendo sem removê-la e colar de novo. O valor mascarado mora no próprio campo: o
+                começo e o fim bastam para reconhecer a chave, e o miolo nunca sai do backend. */}
+            {activeKind.key && (
               <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
                 <AgentField style={{ flex: 1 }}>
-                  <span>Modelo para ler imagem anexada</span>
-                  <select
-                    value={providerSettings.visionModel}
-                    onChange={e => setProviderSettings({ ...providerSettings, visionModel: e.target.value })}
-                    style={selectStyle}
+                  <span>Chave de API</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    {providerSettings.apiKeyMasked && !editingApiKey ? (
+                      <input
+                        type="text"
+                        readOnly
+                        value={providerSettings.apiKeyMasked}
+                        aria-label="Chave de API salva, exibida parcialmente"
+                        style={{ flex: 1, minWidth: '180px', fontFamily: 'ui-monospace, monospace' }}
+                      />
+                    ) : (
+                      <input
+                        type="password"
+                        value={providerSettings.apiKeyInput}
+                        onChange={e => setProviderSettings({ ...providerSettings, apiKeyInput: e.target.value })}
+                        placeholder={providerSettings.apiKeyMasked || 'Cole sua chave de API aqui...'}
+                        autoFocus={editingApiKey}
+                        style={{ flex: 1, minWidth: '180px' }}
+                      />
+                    )}
+                    {providerSettings.apiKeyMasked && !editingApiKey && (
+                      <>
+                        <TestButton type="button" onClick={() => setEditingApiKey(true)}>Editar</TestButton>
+                        <TestButton
+                          type="button"
+                          onClick={handleDisconnectProvider}
+                          disabled={isSaving}
+                          style={{ borderColor: 'rgba(244, 130, 130, 0.5)', color: '#F48282' }}
+                        >
+                          Remover
+                        </TestButton>
+                      </>
+                    )}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.74rem',
+                      marginTop: '6px',
+                      color: providerSettings.apiKeyMasked && !editingApiKey ? '#4FD1B4' : '#9FB8B1',
+                    }}
                   >
-                    <option value="">Usar o padrão do sistema</option>
-                    {providerModels.map(model => <option key={model} value={model}>{model}</option>)}
-                  </select>
-                </AgentField>
-              </SettingRow>
-
-              <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
-                <AgentField style={{ flex: 1 }}>
-                  <span>Modelo para gerar imagem</span>
-                  <select
-                    value={providerSettings.imageModel}
-                    onChange={e => setProviderSettings({ ...providerSettings, imageModel: e.target.value })}
-                    style={selectStyle}
-                  >
-                    <option value="">Usar o padrão do sistema (ComfyUI no modo local)</option>
-                    {providerModels.map(model => <option key={model} value={model}>{model}</option>)}
-                  </select>
-                </AgentField>
-              </SettingRow>
-
-              <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
-                <AgentField style={{ flex: 1 }}>
-                  <span>Modelo do planejador</span>
-                  <select
-                    value={providerSettings.plannerModel}
-                    onChange={e => setProviderSettings({ ...providerSettings, plannerModel: e.target.value })}
-                    style={selectStyle}
-                  >
-                    <option value="">Usar o mesmo da conversa</option>
-                    {providerModels.map(model => <option key={model} value={model}>{model}</option>)}
-                  </select>
-                </AgentField>
-              </SettingRow>
-
-              <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
-                <AgentField style={{ flex: 1 }}>
-                  <span>Modelo de embedding</span>
-                  <select
-                    value={providerSettings.embeddingModel}
-                    onChange={e => setProviderSettings({ ...providerSettings, embeddingModel: e.target.value })}
-                    style={selectStyle}
-                  >
-                    <option value="">Usar o padrão do sistema</option>
-                    {providerModels.map(model => <option key={model} value={model}>{model}</option>)}
-                  </select>
-                  <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '4px' }}>
-                    Usado na classificação de intenção — decide quais ferramentas o modelo enxerga.
+                    {providerSettings.apiKeyMasked && !editingApiKey
+                      ? `🔒 Chave ativa em uso — ${activeKind.title}`
+                      : editingApiKey
+                        ? 'Deixe em branco e salve para manter a chave atual.'
+                        : 'A chave fica guardada cifrada e nunca volta inteira para a tela.'}
                   </span>
                 </AgentField>
               </SettingRow>
+            )}
+
+            <SettingRow style={{ borderBottom: 'none', paddingTop: '8px' }}>
+              <AgentField style={{ flex: 1 }}>
+                <span>Conversa e execução</span>
+                {/* Select, nunca texto livre: os nomes validos sao os que o provedor devolve, e
+                    digitar de cabeca foi como um nome inexistente acabou salvo e deu 404. */}
+                <select
+                  value={providerSettings.selectedModel}
+                  onChange={e => persistSelectedModel(e.target.value)}
+                  disabled={modelOptions.length === 0}
+                  style={{ ...selectStyle, color: modelOptions.length === 0 ? '#6F8A83' : '#F2FFFB' }}
+                >
+                  {modelOptions.length === 0 ? (
+                    <option value="">Teste a conexão para carregar os modelos</option>
+                  ) : (
+                    modelOptions.map(model => <option key={model} value={model}>{model}</option>)
+                  )}
+                </select>
+                <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '4px' }}>
+                  Responde e chama as ferramentas. É o modelo que faz o trabalho.
+                </span>
+                <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '2px' }}>
+                  {providerModels.length > 0
+                    ? `${providerModels.length} modelo(s) confirmados pelo provedor.`
+                    : 'Nenhum modelo confirmado ainda — clique em "Testar conexão" para carregar a lista real.'}
+                </span>
+              </AgentField>
+            </SettingRow>
+
+            {/* Todo modelo do provedor sai daqui: trocar modelo de visao ou de imagem nao deveria
+                exigir editar YAML e reiniciar o backend. Vazio significa "usa o padrao do sistema". */}
+            {providerModels.length > 0 && (
+              <>
+                {MODEL_ROLES.filter(role => role.key !== 'selectedModel').map(role => (
+                  <SettingRow key={role.key} style={{ borderBottom: 'none', paddingTop: '8px' }}>
+                    <AgentField style={{ flex: 1 }}>
+                      <span>{role.label}</span>
+                      <select
+                        value={providerSettings[role.key]}
+                        onChange={e => setProviderSettings({ ...providerSettings, [role.key]: e.target.value })}
+                        style={selectStyle}
+                      >
+                        <option value="">{role.empty}</option>
+                        {providerModels.map(model => <option key={model} value={model}>{model}</option>)}
+                      </select>
+                      <span style={{ fontSize: '0.74rem', color: '#9FB8B1', marginTop: '4px' }}>
+                        {role.help}
+                      </span>
+                    </AgentField>
+                  </SettingRow>
+                ))}
+              </>
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px', marginBottom: '20px' }}>
+              <TestButton type="button" onClick={handleTestProvider} disabled={testLanStatus.loading}>
+                {testLanStatus.loading ? 'Testando...' : 'Testar conexão'}
+              </TestButton>
+
+              {testLanStatus.message && (
+                <TestStatusPill $success={testLanStatus.success} $error={!testLanStatus.success}>
+                  {testLanStatus.message}
+                </TestStatusPill>
+              )}
+            </div>
+
+            {activeKind.kind !== 'OLLAMA' && (
+              <p style={{ color: '#9FB8B1', fontSize: '0.78rem', margin: '0 0 8px' }}>
+                As ferramentas locais (arquivos, terminal, MCP), o RAG e a memória continuam valendo
+                neste provedor — quem as executa é o agente, não o modelo.
+              </p>
+            )}
+
+            <Footer style={{ marginTop: 'auto', paddingTop: '16px' }}>
+              <SaveButton onClick={handleSaveProviders} disabled={isSaving || !providerSettings.selectedModel}>
+                {isSaving ? 'Salvando...' : 'Salvar provedor'}
+              </SaveButton>
+            </Footer>
             </>
           )}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px', marginBottom: '20px' }}>
-            <TestButton type="button" onClick={handleTestProvider} disabled={testLanStatus.loading}>
-              {testLanStatus.loading ? 'Testando...' : 'Testar conexão'}
-            </TestButton>
-
-            {testLanStatus.message && (
-              <TestStatusPill $success={testLanStatus.success} $error={!testLanStatus.success}>
-                {testLanStatus.message}
-              </TestStatusPill>
-            )}
-          </div>
-
-          {activeKind.kind !== 'OLLAMA' && (
-            <p style={{ color: '#9FB8B1', fontSize: '0.78rem', margin: '0 0 8px' }}>
-              As ferramentas locais (arquivos, terminal, MCP), o RAG e a memória continuam valendo
-              neste provedor — quem as executa é o agente, não o modelo.
-            </p>
-          )}
-
-          <Footer style={{ marginTop: 'auto', paddingTop: '16px' }}>
-            <SaveButton onClick={handleSaveProviders} disabled={isSaving || !providerSettings.selectedModel}>
-              {isSaving ? 'Salvando...' : 'Salvar provedor'}
-            </SaveButton>
-          </Footer>
         </>
       )}
     </Body>

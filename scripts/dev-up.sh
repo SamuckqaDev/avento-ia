@@ -167,9 +167,21 @@ start_ollama() {
   case "$OLLAMA_URL" in
     *//127.0.0.1:* | *//localhost:* | *//0.0.0.0:*) ;;
     *)
-      warn "Ollama remoto nao respondeu em $OLLAMA_URL — ligue a maquina de inferencia ou use"
-      warn "AVENTO_OLLAMA_URL=http://127.0.0.1:11434 para rodar o modelo neste Mac"
-      return 0
+      # Remoto fora do ar nao pode ser fim de linha: a maquina de inferencia desliga, o Tailscale
+      # cai, o wifi troca. Antes o script avisava e seguia com uma URL morta, e o Avento subia sem
+      # modelo nenhum. Agora cai para o Ollama deste Mac, DIZENDO que caiu — silencio aqui seria
+      # pior que a falha, porque o modelo local e menor e a resposta muda sem explicacao.
+      warn "Ollama remoto nao respondeu em $OLLAMA_URL"
+      if [ "${AVENTO_OLLAMA_FALLBACK_LOCAL:-1}" != "1" ]; then
+        warn "Fallback local desligado (AVENTO_OLLAMA_FALLBACK_LOCAL=0) — subindo sem modelo"
+        return 0
+      fi
+      warn "Caindo para o Ollama LOCAL deste Mac. Os modelos disponiveis mudam junto."
+      OLLAMA_URL="http://127.0.0.1:11434"
+      if curl -fsS "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
+        info "Ollama local ja estava no ar em $OLLAMA_URL"
+        return 0
+      fi
       ;;
   esac
 

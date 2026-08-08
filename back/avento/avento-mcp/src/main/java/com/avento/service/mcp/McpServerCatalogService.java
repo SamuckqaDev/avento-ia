@@ -283,14 +283,33 @@ public class McpServerCatalogService {
                     yield ServerLaunch.unavailable(
                             "Nao foi possivel preparar a memoria local: " + exception.getMessage());
                 }
-                yield executable(
-                        "npx",
-                        List.of("npx", "-y", packageName("memory")),
-                        Map.of("MEMORY_FILE_PATH", memoryFile.toString()));
+                // A memoria e um arquivo do host. Montamos a PASTA, nao o arquivo: com bind de
+                // arquivo inexistente o Docker cria um DIRETORIO com esse nome, e o servidor passa
+                // a falhar para sempre num caminho que parece certo.
+                yield containerOrElse(
+                        "mcp/memory",
+                        List.of(memoryFile.getParent() + ":/data"),
+                        Map.of("MEMORY_FILE_PATH", "/data/" + memoryFile.getFileName()),
+                        List.of(),
+                        executable(
+                                "npx",
+                                List.of("npx", "-y", packageName("memory")),
+                                Map.of("MEMORY_FILE_PATH", memoryFile.toString())));
             }
             case "sequential-thinking" ->
-                executable("npx", List.of("npx", "-y", packageName("sequential-thinking")), Map.of());
-            case "time" -> executable("uvx", List.of("uvx", "mcp-server-time"), Map.of());
+                containerOrElse(
+                        "mcp/sequentialthinking",
+                        List.of(),
+                        Map.of(),
+                        List.of(),
+                        executable("npx", List.of("npx", "-y", packageName("sequential-thinking")), Map.of()));
+            case "time" ->
+                containerOrElse(
+                        "mcp/time",
+                        List.of(),
+                        Map.of(),
+                        List.of(),
+                        executable("uvx", List.of("uvx", "mcp-server-time"), Map.of()));
             case "desktop-commander" ->
                 executable(
                         "npx",
@@ -320,15 +339,36 @@ public class McpServerCatalogService {
                         List.of("npx", "-y", "--package", packageName("chrome-devtools"), "chrome-devtools-mcp"),
                         Map.of());
             case "puppeteer" -> executable("npx", List.of("npx", "-y", packageName("puppeteer")), Map.of());
-            case "fetch" -> executable("uvx", List.of("uvx", "mcp-server-fetch"), Map.of("PYTHONIOENCODING", "utf-8"));
+            case "fetch" ->
+                containerOrElse(
+                        "mcp/fetch",
+                        List.of(),
+                        Map.of("PYTHONIOENCODING", "utf-8"),
+                        List.of(),
+                        executable("uvx", List.of("uvx", "mcp-server-fetch"), Map.of("PYTHONIOENCODING", "utf-8")));
             case "searxng" ->
                 configuredNpx(
                         "avento.mcp.searxng.url", "npx", List.of("npx", "-y", packageName("searxng")), "SEARXNG_URL");
-            case "git" ->
-                roots.isEmpty()
-                        ? ServerLaunch.unavailable("Selecione um workspace Git.")
-                        : executable(
-                                "uvx", List.of("uvx", "mcp-server-git", "--repository", roots.getFirst()), Map.of());
+            case "git" -> {
+                if (roots.isEmpty()) {
+                    yield ServerLaunch.unavailable("Selecione um workspace Git.");
+                }
+                String repository = roots.getFirst();
+                // Git fica NO HOST, de proposito — e o unico dos cinco que nao foi para container.
+                //
+                // Medido em 08/08/2026 neste repo (37.725 arquivos, com target/ e node_modules):
+                //
+                //   host      `git status --porcelain`            0,056s
+                //   container `git status -uno --porcelain`       0,573s   (so arquivos rastreados)
+                //   container `git status --porcelain`            > 3 min  (nao retornou)
+                //
+                // O protocolo funciona e a montagem monta: o handshake do mcp/git responde em 0,6s
+                // e um `rev-parse` volta em 0,28s. O que mata e a varredura de nao-rastreados sobre
+                // o bind mount do Docker Desktop no macOS — cada stat custa, e sao dezenas de
+                // milhares. Ferramenta que anda na arvore do host pertence ao host.
+                yield executable(
+                        "uvx", List.of("uvx", "mcp-server-git", "--repository", repository), Map.of());
+            }
             case "dbhub" -> {
                 Optional<DatabaseConfiguration> configuration = roots.isEmpty()
                         ? databaseDiscoveryService.fromGlobalDsn(environment
@@ -425,6 +465,56 @@ public class McpServerCatalogService {
         return commandAvailable(name)
                 ? ServerLaunch.ready(command, variables)
                 : ServerLaunch.unavailable("Comando nao encontrado: " + name);
+    }
+
+    /**
+     * Lanca o servidor pela imagem oficial {@code mcp/<nome>} em vez de {@code npx}/{@code uvx}.
+     *
+     * <p>O MCP Toolkit do Docker esta quebrado nesta maquina — a interface diz "No MCP servers
+     * added", o catalogo de 101 servidores nao contem nenhum {@code mcp/*} e o {@code registry.yaml}
+     * tem os oito com {@code ref: ""}. Nada disso importa: o protocolo MCP fala por stdio, entao
+     * {@code docker run --rm -i mcp/<nome>} conversa direto com a imagem, sem gateway e sem
+     * catalogo. Verificado a mao com {@code initialize} -> {@code tools/list} -> chamada real.
+     *
+     * <p>{@code --pull=never} e deliberado: as imagens ja estao no disco e uma tentativa de pull
+     * dentro do lancamento penduraria a listagem do catalogo esperando a rede. Sem tag local a
+     * imagem simplesmente nao sobe, e o fallback assume.
+     *
+     * <p>As variaveis de ambiente entram como {@code -e} no proprio comando, e nao no mapa do
+     * {@link ServerLaunch}: o processo que sobe e o {@code docker}, e o ambiente dele nao atravessa
+     * para dentro do container.
+     */
+    private ServerLaunch containerOrElse(
+            String image,
+            List<String> mounts,
+            Map<String, String> variables,
+            List<String> serverArguments,
+            ServerLaunch fallback) {
+        if (!containersEnabled()) {
+            return fallback;
+        }
+        List<String> command = new ArrayList<>(List.of("docker", "run", "--rm", "-i", "--pull=never"));
+        for (String mount : mounts) {
+            command.add("-v");
+            command.add(mount);
+        }
+        for (Map.Entry<String, String> variable : variables.entrySet()) {
+            command.add("-e");
+            command.add(variable.getKey() + "=" + variable.getValue());
+        }
+        command.add(image);
+        command.addAll(serverArguments);
+        return ServerLaunch.ready(List.copyOf(command), Map.of());
+    }
+
+    /**
+     * Barato de proposito: nenhuma chamada ao {@code docker} para decidir. Esta pergunta e feita a
+     * cada listagem do catalogo, e um processo por listagem custaria mais que o beneficio.
+     */
+    private boolean containersEnabled() {
+        return environment.getProperty("avento.mcp.containers.enabled", Boolean.class, true)
+                && commandAvailable("docker")
+                && dockerDesktopRunning();
     }
 
     private boolean commandAvailable(String command) {

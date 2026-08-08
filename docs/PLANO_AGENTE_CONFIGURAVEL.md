@@ -216,7 +216,11 @@ maior parte dela já está construída — ver "A ligação perfil → ferrament
 
 Implementado em `McpServerCatalogService`: helper `containerOrElse(...)` com fallback para
 `npx`/`uvx`, ligado a **quatro** servidores — `fetch`, `time`, `memory` e `sequential-thinking`.
-Chave nova `avento.mcp.containers.enabled` (padrão `true`). Suíte: **752 testes, 0 falhas**.
+Chave nova `avento.mcp.containers.enabled` (padrão `true`). Suíte: **759 testes, 0 falhas**.
+
+O cache de schemas por digest também está feito — ver o item marcado mais abaixo. Com ele, a
+pergunta "quais ferramentas existem?" deixa de exigir container de pé, que era o que faltava para a
+Fase 3 (tela de criação de agente) e para resolver `allowed_tools` na Fase 1.
 
 ### Medido nesta máquina, com o comando exato que o código monta
 
@@ -272,11 +276,16 @@ esperando a rede.
 - [ ] **Teste de integração com `mcp/fetch`** — o ciclo foi provado à mão duas vezes, falta prendê-lo
       num teste. Precisa de marcação para não rodar em máquina sem Docker, como o
       `DockerMcpGatewayLiveTest` já faz
-- [ ] **Cache de `tools/list` por digest de imagem.** Hoje o catálogo só conhece a ferramenta com o
-      servidor de pé. As `mcp/*` são imutáveis por digest, então o schema também é — cachear
-      permitiria montar o catálogo sem subir container, e subir só na chamada real. É o que destrava
-      a Fase 3 sem pagar startup por run. **Não verificado** se o `McpClientManager` já faz algo
-      parecido; ele tem cache, não li qual
+- [x] **Cache de `tools/list` por digest de imagem** — `McpToolSchemaCache`, 7 testes.
+      `McpServerCatalogService.knownTools(serverId)` é o lado da leitura. Gravado na conexão
+      bem-sucedida, que é a única hora barata: o container já está de pé e o `tools/list` já foi
+      pago. Persistido em `~/.avento/mcp-tool-schemas.json` (chave `avento.mcp.tool-schema-cache`).
+
+      Verificado que o `McpClientManager` **não** fazia isso: `routesByScope` só vale enquanto o
+      servidor está conectado, e some no disconnect.
+
+      `CONTAINER_IMAGES` virou fonte única de quem roda em container — lançamento e cache leem dela,
+      para não divergirem quando um servidor entrar ou sair.
 - [ ] Reanexar as tags numa máquina nova (`docker tag <id> mcp/<nome>:latest`) — ou aceitar o
       fallback, que é o que o `--pull=never` garante
 

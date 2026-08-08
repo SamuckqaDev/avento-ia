@@ -482,13 +482,127 @@ evita casar chamadas (`new Foo()` nao entra como definicao de `Foo`). Retorna ar
 texto da definicao — o agente usa para entender e navegar o projeto antes de editar, sem reler tudo.
 E read-only (auto-aprovada) e faz parte do kit fixo de chats de projeto. Zero dependencia externa.
 
+## Camada de provedor: cinco papeis e tres eixos
+
+Ollama local, Ollama noutra maquina, servidor compativel com OpenAI (vLLM, LM Studio, DGX), Gemini e
+Anthropic entram pela mesma configuracao: um TIPO, um endereco e, as vezes, uma chave. O tipo dirige
+o comportamento — nao um par de flags espalhado por condicionais.
+
+**Cinco papeis de modelo**, cada um gravado em `provider_settings` e lido por quem precisa dele:
+
+| Papel | Quem consome |
+|---|---|
+| Conversa / executor | `AgentService.resolveChatModel` |
+| Planejador | `PlanBuilderService.plannerModelFor` |
+| Visao | `AgentService.visionModelFor` |
+| Geracao de imagem | `ImageGenerationService.resolveModel` (via `ConfiguredImageModel`) |
+| Embedding / vetores | `VectorStoreResolver` (via `EmbeddingProfileSource`) |
+
+Os tres ultimos eram gravados e ninguem lia — `activePlannerModel`, `activeImageModel` e
+`activeEmbeddingModel` existiam sem um unico chamador. Imagem e embedding chegam por interface
+invertida (`ConfiguredImageModel` em avento-media, `EmbeddingProfileSource` em avento-rag), porque
+esses modulos nao podem depender do avento-agent, que ja depende deles.
+
+**Tres eixos independentes** no `ProviderKind`, que antes eram a pergunta unica "e remoto?":
+
+| Pergunta | Gemini / Anthropic | Ollama | Compativel c/ OpenAI |
+|---|---|---|---|
+| `managesItsOwnContext()` — a janela declarada e utilizavel? | sim | nao | nao |
+| `canRequestContextWindow()` — da para pedir a janela? | nao | **sim** | nao |
+| `hasOwnModelNamespace()` — nomeia modelos do jeito dele? | sim | nao | nao |
+
+### Como a janela de contexto e decidida
+
+Sao dois numeros diferentes: `/api/show` responde o TETO do modelo (262144 no `qwen3.5:35b`) e
+`/api/ps` responde o que a instancia CARREGOU (4096, o padrao do Ollama). `effectiveContextTokens`
+decide assim:
+
+- provedor gerenciado -> o declarado inteiro, porque ele aloca o que anuncia;
+- da para pedir a janela -> `min(configurado, declarado)`, e esse numero vira o `num_ctx` da
+  requisicao. **Nao entra o carregado**: como o pedido determina o estado, ler 4096 e pedir 4096
+  prenderia o Avento na janela pequena para sempre;
+- nao da para pedir -> `min(configurado, declarado, carregado)`, porque ali o carregado e o orcamento
+  real e so resta se adaptar a ele.
+
+### Ollama atras de um endereco "compativel com OpenAI"
+
+O Ollama fala os dois protocolos, entao apontar `OPENAI_COMPATIBLE` para um Ollama e configuracao
+valida e silenciosamente pior: o formato da OpenAI nao tem `num_ctx`, o pedido de janela e descartado
+no transporte e o servidor sobe com 4096, truncando o prompt sem erro nenhum.
+
+`ModelProviderService.effectiveKind` resolve isso perguntando ao endereco: se `/api/tags` responde no
+formato do Ollama, o tipo efetivo vira `OLLAMA` e a conversa segue pelo caminho nativo, onde a janela
+pode ser pedida. O que esta gravado nao muda — a tela continua mostrando a escolha da pessoa. A
+verificacao exige o formato (`models` como lista, com `name`), nao so o HTTP 200: proxy e pagina de
+erro tambem respondem 200.
+
+Tres decisoes passam a usar o tipo EFETIVO em vez do gravado: escolha do transporte, orcamento de
+contexto e validacao do nome do modelo. O aviso de "provedor sem transporte" tambem, senao ele
+dispara alarme falso justamente quando o roteamento esta correto.
+
+## A resposta sobrevive ao cliente
+
+Quem grava a resposta do assistente e o FRONTEND, depois de consumir o stream SSE. Enquanto o
+navegador fica aberto isso funciona; quando a conexao cai, nao. Um run de 11 minutos completou com a
+resposta pronta e ela nao existia em lugar nenhum — o cliente tinha desistido 69 segundos antes do
+fim, e o servidor jogou fora o que produziu porque ninguem confirmou o recebimento.
+
+`OrphanReplyRescue` (avento-agent, pacote `orchestration`) acumula o texto que sai no stream e, ao
+fim do run, agenda uma checagem. Passado o prazo (`avento.agent.orphan-reply-grace`, 20s), se a
+ultima mensagem do chat ainda for do USUARIO, a resposta e gravada ali.
+
+E uma REDE DE SEGURANCA, nao a troca do modelo de persistencia: o caminho normal continua sendo o
+frontend gravar, e so entra aqui o que se perderia. O prazo existe por isso — o frontend grava logo
+depois de o stream fechar, e escrever no mesmo instante criaria mensagem duplicada. Sem repositorio o
+componente vira no-op, que e como os testes montam o orquestrador a mao.
+
+Desconexao de cliente tambem deixou de ser erro. `AsyncRequestNotUsableException` ("Broken pipe" numa
+rota SSE) tem tratador proprio no `ApiExceptionHandler`: encerra sem corpo e loga em DEBUG. Antes caia
+no tratador geral, que tentava escrever um `BaseResponse` JSON num canal ja marcado como
+`text/event-stream` — sem conversor para isso, o proprio tratador estourava e a excecao original
+ficava soterrada sob a segunda.
+
 ## Busca no codigo: vetorial com queda para literal
 
 A ferramenta `search_code` entra pelo `CodeSearchService` (avento-rag), que decide entre dois
 caminhos e diz no resultado qual usou (campo `matching`):
 
-- **Vetorial** (`RagService`) quando o indice do projeto esta pronto. Redis VectorStore, embeddings
-  `nomic-embed-text`, chunks de 500 tokens, `topK 30 -> 5`, cache por query. O indice e por RAIZ de
+### Chunking: por estrutura, nao por tamanho
+
+Codigo e cortado nas fronteiras da linguagem (`CodeAwareSplitter`), UM MEMBRO POR CHUNK. Markdown,
+JSON e YAML seguem no corte por tamanho, onde nao ha fronteira sintatica que valha respeitar.
+
+Medido com `nomic-embed-text` sobre 7 arquivos reais deste repositorio e 8 perguntas em portugues,
+comparando a posicao do trecho que responde:
+
+| Estrategia | recall@5 | recall@1 | chunks |
+|---|---:|---:|---:|
+| 500 tokens (como era) | 3/8 · 38% | **0/8** | 138 |
+| Por estrutura, acumulando ate 2000 chars | 5/8 · 62% | 5/8 | 139 |
+| **Por estrutura, um membro por chunk** | **6/8 · 75%** | **6/8** | 239 |
+
+O `recall@1` e o numero que muda o uso: com corte por tamanho, o trecho certo NUNCA ficou em primeiro.
+
+A variante do meio explica o parametro: acumular membros ate encher um teto parecia bom ("preserva o
+contexto de quem chama quem") e era pior. O `deleteChunks`, de tres linhas, caiu da posicao 2 para a
+73 quando viajou junto de outros cinco metodos — um vetor que e a media de seis assuntos nao responde
+nenhum deles. Dai `CodeAwareSplitter(6000, 120)`: teto so para membro que estouraria a janela do
+embedding, piso so para colar membro minusculo no anterior.
+
+Duas das oito perguntas continuam errando nas tres estrategias, e ambas sao pergunta em portugues
+apontando para identificador em ingles. E descasamento de vocabulario, que chunking nao resolve —
+seria HyDE, ao custo de uma chamada de modelo por busca.
+
+**Trocar o chunking invalida o indice**: os chunks mudam, os IDs mudam, e a primeira indexacao
+seguinte reprocessa o projeto inteiro.
+
+- **Vetorial** (`RagService`) quando o indice do projeto esta pronto. Redis VectorStore, o modelo de
+  embedding escolhido em Provedores (padrao `nomic-embed-text`), chunks de 500 tokens,
+  `topK 30 -> 5`, cache por query. O `VectorStoreResolver` da um indice POR MODELO
+  (`avento_index_<modelo>`; o nome base vem de `spring.ai.vectorstore.redis.index-name` — a chave e
+  `index-name`, e escrever `index` faz o Spring AI ignorar em silencio e usar o `default-index` dele), porque vetores de modelos diferentes nao sao comparaveis e nem tem a
+  mesma largura — `nomic-embed-text` emite 768 numeros e `bge-m3` emite 1024. Trocar o modelo aponta
+  para um indice novo e vazio que o indexador enche; os vetores antigos ficam onde estao. O indice e por RAIZ de
   projeto: quando o modelo busca numa subpasta, a consulta vai na raiz e os resultados sao
   recortados de volta para a subpasta pedida.
 - **Literal** (`CodebaseRagService`) enquanto o indice nao esta pronto, quando o vetorial nao

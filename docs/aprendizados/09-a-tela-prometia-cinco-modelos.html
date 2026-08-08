@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avento — A tela prometia cinco modelos e três eram enfeite</title>
+<style>
+  :root {
+    --bg: #F4F7F3;
+    --surface: #FFFFFF;
+    --ink: #14231F;
+    --muted: #566661;
+    --accent: #147E6A;
+    --accent-soft: #E3F2ED;
+    --mint: #3BB79E;
+    --pop: #D6497A;
+    --pop-soft: #FBE7EE;
+    --border: #DCE6E0;
+    --code-bg: #EDF3EF;
+    --shadow: 0 1px 2px rgba(20,35,31,.05), 0 8px 24px rgba(20,35,31,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B1512;
+      --surface: #12201C;
+      --ink: #E9F1ED;
+      --muted: #9CB0A8;
+      --accent: #4FD1B4;
+      --accent-soft: #15302A;
+      --mint: #5CDDC1;
+      --pop: #F384AB;
+      --pop-soft: #2A1721;
+      --border: #21322C;
+      --code-bg: #16241F;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F4F7F3; --surface: #FFFFFF; --ink: #14231F; --muted: #566661;
+    --accent: #147E6A; --accent-soft: #E3F2ED; --mint: #3BB79E; --pop: #D6497A;
+    --pop-soft: #FBE7EE; --border: #DCE6E0; --code-bg: #EDF3EF;
+    --shadow: 0 1px 2px rgba(20,35,31,.05), 0 8px 24px rgba(20,35,31,.05);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B1512; --surface: #12201C; --ink: #E9F1ED; --muted: #9CB0A8;
+    --accent: #4FD1B4; --accent-soft: #15302A; --mint: #5CDDC1; --pop: #F384AB;
+    --pop-soft: #2A1721; --border: #21322C; --code-bg: #16241F;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 22px 96px; }
+
+  /* Header */
+  header.top { padding: 64px 0 40px; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    font-size: .72rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(2rem, 5.5vw, 3rem); line-height: 1.08; margin: 0 0 18px;
+    letter-spacing: -.02em; font-weight: 800; text-wrap: balance;
+  }
+  .lede { font-size: 1.12rem; color: var(--muted); margin: 0; max-width: 62ch; }
+  .lede strong { color: var(--ink); font-weight: 650; }
+
+  /* Sections */
+  section { padding-top: 52px; }
+  h2 {
+    font-size: 1.55rem; letter-spacing: -.01em; margin: 0 0 6px; font-weight: 750;
+    display: flex; align-items: baseline; gap: 12px; text-wrap: balance;
+  }
+  h2 .n {
+    font-size: .82rem; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums; background: var(--accent-soft);
+    padding: 3px 9px; border-radius: 999px; flex: 0 0 auto; transform: translateY(-2px);
+  }
+  h3 { font-size: 1.05rem; margin: 26px 0 6px; font-weight: 700; }
+  p { margin: 12px 0; }
+  .muted { color: var(--muted); }
+  a { color: var(--accent); }
+
+  strong.key { color: var(--pop); font-weight: 700; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: .88em; background: var(--code-bg); padding: 1px 6px; border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+
+  /* Analogy / plain-language callout */
+  .plain {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 18px 0;
+  }
+  .plain .lbl { font-weight: 750; color: var(--accent); }
+
+  /* "You saw this today" callout */
+  .saw {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin: 20px 0; box-shadow: var(--shadow);
+    position: relative;
+  }
+  .saw::before {
+    content: "VOCÊ VIU ISSO HOJE"; display: inline-block;
+    font-size: .64rem; letter-spacing: .14em; font-weight: 800; color: var(--pop);
+    background: var(--pop-soft); padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+  }
+  .saw p { margin: 6px 0; font-size: .96rem; }
+  .saw p:first-of-type { margin-top: 0; }
+
+  /* Diagram */
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 22px 0;
+  }
+  .step {
+    flex: 1 1 120px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .step .st { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .step .sd { font-size: .9rem; margin-top: 4px; }
+  .arrow { align-self: center; color: var(--muted); font-weight: 700; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--border); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: .94rem; min-width: 460px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; background: var(--code-bg); }
+  tr:last-child td { border-bottom: none; }
+  td strong { color: var(--ink); }
+
+  /* Layers stack */
+  .layers { display: flex; flex-direction: column; gap: 8px; margin: 20px 0; }
+  .layer {
+    display: flex; align-items: baseline; gap: 14px; padding: 13px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+  }
+  .layer .tag {
+    font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); flex: 0 0 96px;
+  }
+  .layer .desc { font-size: .93rem; }
+  .layer .desc b { font-weight: 700; }
+
+  .divider { height: 1px; background: var(--border); border: 0; margin: 8px 0; }
+
+  footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
+
+  ul.clean { padding-left: 20px; }
+  ul.clean li { margin: 7px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p class="eyebrow">Aprendizado 09</p>
+<h1>A tela prometia cinco modelos e três eram enfeite</h1>
+<p class="lede">
+  Uma pergunta sobre cotação de moedas voltou como um plano para criar um projeto NestJS. Puxando
+  esse fio apareceram quatro defeitos diferentes, e nenhum deles era o que parecia.
+</p>
+
+<div class="divider"></div>
+
+<h2>O sintoma, e por que ele mentia</h2>
+<p>
+  A queixa foi de <strong>lentidão</strong>: a máquina remota mostrava a pergunta já processada, e a
+  tela do Avento continuava "pensando" há muito tempo. Toda a suspeita caiu sobre a rede e o
+  hardware — 48&nbsp;GB de RAM, GPU em uso, folga de sobra, e mesmo assim nada voltava.
+</p>
+<p class="key">
+  Não era lentidão. O run tinha terminado em 20,7&nbsp;s, com status <code>COMPLETED</code>, e a
+  resposta estava salva no banco havia dois minutos. O que não terminava era a <em>animação</em>.
+</p>
+
+<h2>Defeito 1 — o exemplo do prompt virou a tarefa</h2>
+<p>
+  A instrução de execução dizia, para ensinar o formato:
+  <code>for example "create a NestJS project in folder X" mapping to a terminal_run call</code>.
+</p>
+<p>
+  O modelo leu o exemplo como pedido. Trocou o <code>X</code> por <code>'nestjs'</code> e planejou o
+  scaffold — ignorando a pergunta real. Prova: <code>nestjs</code> aparecia <strong>uma vez</strong>
+  em toda a conversa, na resposta do próprio modelo, e <strong>uma vez</strong> nos prompts, no
+  exemplo.
+</p>
+<p class="key">
+  Exemplo concreto e imperativo dentro de um system prompt é indistinguível de uma ordem para um
+  modelo pequeno. O que era ilustração de formato virou conteúdo.
+</p>
+
+<h2>Defeito 2 — o plano virou promessa</h2>
+<p>
+  A instrução manda planejar antes de agir, e o modelo planejou. Mas nada dizia que o plano e a
+  primeira chamada de ferramenta vão na <strong>mesma resposta</strong>. Ele escreveu os passos —
+  inclusive "ativar a ferramenta certa" — e encerrou o turno. Anunciar que vai ativar não ativa.
+</p>
+
+<h2>Defeito 3 — o indicador de "pensando" não tinha saída</h2>
+<p>
+  O bloco <code>```plan</code> é removido do balão de propósito: os passos vão para o painel de
+  tarefas. Para cobrir o intervalo entre o plano e o conteúdo real, a bolha mostra o indicador de
+  digitação enquanto não há conteúdo visível.
+</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Condição</th><th>Antes</th><th>Depois</th></tr></thead>
+  <tbody>
+    <tr><td>Streaming, só plano até agora</td><td>gira</td><td>gira</td></tr>
+    <tr><td><strong>Run terminou, só plano</strong></td><td><strong>gira para sempre</strong></td><td>mostra os passos e um aviso</td></tr>
+    <tr><td>Run terminou, nada gerado</td><td>gira para sempre</td><td>avisa que veio vazio</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="key">
+  A condição olhava "tem conteúdo visível?" e nunca "o run acabou?". Enquanto o plano fosse seguido
+  de execução, ninguém percebia. No dia em que a execução não veio, a interface prometeu para sempre
+  algo que já tinha acabado.
+</p>
+
+<h2>Defeito 4 — três campos salvos que ninguém lia</h2>
+<p>
+  A tela de provedor oferece cinco modelos. Rastreando cada um até quem consome:
+</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Campo</th><th>Grava no banco</th><th>Quem decidia de verdade</th></tr></thead>
+  <tbody>
+    <tr><td>Conversa / executor</td><td>sim</td><td>honrado</td></tr>
+    <tr><td>Visão</td><td>sim</td><td>honrado</td></tr>
+    <tr><td>Planejador</td><td>sim</td><td><strong>YAML</strong> <code>avento.agent.planner-model</code></td></tr>
+    <tr><td>Embedding / vetores</td><td>sim</td><td><strong>bean do Spring</strong>, fixado no boot</td></tr>
+    <tr><td>Geração de imagem</td><td>sim</td><td><strong>YAML</strong> <code>avento.comfyui.*</code></td></tr>
+  </tbody>
+</table>
+</div>
+<p>
+  <code>activePlannerModel</code>, <code>activeEmbeddingModel</code> e <code>activeImageModel</code>
+  existiam, compilavam e tinham <strong>zero chamadores</strong>. Escolher um modelo ali gravava uma
+  linha e não mudava mais nada.
+</p>
+<p class="key">
+  Um controle que não faz nada é pior que um controle ausente: o ausente você procura, o inerte você
+  confia. Quem configurou <code>bge-m3</code> para os vetores passou a acreditar numa coisa que nunca
+  aconteceu.
+</p>
+
+<h2>A armadilha da dimensão</h2>
+<p>
+  Ligar o campo de embedding não é só passar o nome adiante. Vetores de modelos diferentes não são
+  comparáveis e nem têm a mesma largura: <code>nomic-embed-text</code> devolve 768 números,
+  <code>bge-m3</code> devolve 1024. Gravar os dois no mesmo índice Redis ou falha na dimensão
+  declarada ou, pior, devolve distâncias sem sentido em silêncio.
+</p>
+<p>
+  Por isso o índice passou a carregar o modelo no nome — <code>avento_index_bge_m3_latest</code>.
+  Trocar o modelo passa a apontar para um índice novo e vazio, que o indexador enche; os vetores
+  antigos continuam onde estavam, caso a escolha volte atrás.
+</p>
+
+<div class="divider"></div>
+
+<h2>O que fica</h2>
+<div class="flow">
+  <div class="step"><div class="st">Exemplo em prompt</div><div class="sd">Se for ilustração, não pode parecer ordem. Diga que é ilustração.</div></div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="st">Estado terminal</div><div class="sd">Todo spinner precisa de uma condição de fim ligada ao fim do trabalho, não à aparência da tela.</div></div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="st">Campo de configuração</div><div class="sd">Ao adicionar um, procure o chamador. Sem chamador, é enfeite.</div></div>
+</div>
+
+<p class="key">
+  No dia seguinte apareceu um quarto controle inerte, da mesma família e mais caro: o
+  <strong>seletor de modelos</strong> não trocava o modelo. Com um provedor remoto, qualquer escolha
+  caía no que estava gravado em Provedores — então comparar dois modelos na interface era comparar um
+  modelo com ele mesmo. A causa e o conserto estão no
+  <a href="10-o-numero-morria-na-traducao.html">aprendizado 10</a>, junto de um defeito maior que
+  apareceu puxando o mesmo fio.
+</p>
+
+<p class="muted">
+  Sessão de 02/08/2026. Backend 681 testes, frontend 32, todos verdes.
+</p>
+
+</div>
+</body>
+</html>

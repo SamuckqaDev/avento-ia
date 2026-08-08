@@ -540,6 +540,98 @@
             line-height: 1.6;
         }
 
+
+        /* Learnings Section */
+        .learnings {
+            padding: 80px 0;
+            background: linear-gradient(180deg, transparent, rgba(16, 42, 38, 0.35), transparent);
+        }
+
+        .learning-card {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 26px;
+            transition: var(--transition);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .learning-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 3px;
+            background: var(--mint);
+            opacity: 0.5;
+            transition: var(--transition);
+        }
+
+        .learning-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--mint);
+            box-shadow: 0 12px 30px rgba(102, 230, 200, 0.15);
+        }
+
+        .learning-card:hover::before { opacity: 1; }
+
+        .learning-skill {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--mint);
+            background: rgba(102, 230, 200, 0.1);
+            border: 1px solid var(--border-glow);
+            border-radius: 999px;
+            padding: 4px 12px;
+            margin-bottom: 16px;
+        }
+
+        .learning-title {
+            font-size: 1.12rem;
+            font-weight: 600;
+            line-height: 1.35;
+            margin-bottom: 10px;
+        }
+
+        .learning-desc {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            line-height: 1.6;
+            margin-bottom: 14px;
+        }
+
+        .learning-proof {
+            font-size: 0.82rem;
+            color: var(--text);
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+        }
+
+        .learning-proof strong { color: var(--mint); }
+
+        .learnings-entry {
+            margin-top: 28px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.92rem;
+        }
+
+        .learnings-entry a {
+            color: var(--mint);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .learnings-entry a:hover { text-decoration: underline; }
+
         /* Metrics Section */
         .metrics {
             padding: 60px 0;
@@ -735,6 +827,7 @@
                 <li><a href="#features">Funcionalidades</a></li>
                 <li><a href="#cowork">Modo Cowork</a></li>
                 <li><a href="#architecture">Arquitetura</a></li>
+                <li><a href="#learnings">Depuração</a></li>
                 <li><a href="#author">Criador</a></li>
             </ul>
             <div class="nav-actions">
@@ -801,7 +894,7 @@
                             </div>
                             <div class="task-item">
                                 <span class="task-status-done">✓</span>
-                                <span>2. Validar 608 testes automatizados</span>
+                                <span>2. Validar a suíte de testes automatizados</span>
                             </div>
                         </div>
                     </div>
@@ -822,8 +915,8 @@
                 
                 <div class="feature-card">
                     <div class="feature-icon">⚡</div>
-                    <h3 class="feature-title">Arquitetura de 2 Modelos</h3>
-                    <p class="feature-desc">Utiliza o Qwen 3.5 (9B) como Planejador para estruturar tarefas complexas e o IBM Granite 4.1 (8B) como Executor ultrarrápido para rodadas de código e ferramentas.</p>
+                    <h3 class="feature-title">Papéis de Modelo Configuráveis</h3>
+                    <p class="feature-desc">Cinco papéis independentes — conversa, planejamento, visão, geração de imagem e vetores — cada um com seu próprio modelo, escolhido na interface e não em arquivo YAML. Trocar o planejador para um modelo que raciocina melhor não obriga a pagar essa lentidão em toda rodada de execução.</p>
                 </div>
 
                 <div class="feature-card" id="cowork">
@@ -844,6 +937,12 @@
                     <p class="feature-desc">Ingestão de código e documentos com indexação numérica HNSW no Redis Stack VectorStore. O índice aquece sozinho quando o projeto é aberto e se atualiza a cada arquivo salvo, de forma incremental por hash — enquanto ele não está pronto, a busca responde por casamento literal.</p>
                 </div>
 
+                <div class="feature-card">
+                    <div class="feature-icon">🎚️</div>
+                    <h3 class="feature-title">Camada de Provedor com Janela Negociada</h3>
+                    <p class="feature-desc">Ollama local, Ollama na rede, servidores compatíveis com OpenAI, Gemini e Anthropic atrás de uma configuração só. O sistema pergunta ao endereço o que ele é, distingue a janela de contexto que o modelo <em>declara</em> da que a instância <em>carregou</em>, e negocia o tamanho na própria requisição quando o protocolo permite — em vez de mandar um prompt que será truncado em silêncio.</p>
+                </div>
+
                 <div class="feature-card" id="architecture">
                     <div class="feature-icon">🔌</div>
                     <h3 class="feature-title">Protocolo MCP (Anthropic)</h3>
@@ -860,16 +959,76 @@
         </div>
     </section>
 
+
+    <!-- Learnings Section -->
+    <section class="learnings" id="learnings">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Depuração documentada</h2>
+                <p class="section-desc">Todo defeito que custou caro para achar vira um documento: o sintoma que apareceu, a causa raiz de verdade, e como foi corrigido. Cinco casos selecionados — cada um exige uma competência diferente.</p>
+            </div>
+            <div class="features-grid">
+
+                <a class="learning-card" href="aprendizados/10-o-numero-morria-na-traducao.html">
+                    <span class="learning-skill">Medição sobre palpite</span>
+                    <h3 class="learning-title">O número existia e morria na tradução</h3>
+                    <p class="learning-desc">Um modelo de 35 bilhões de parâmetros respondia <em>porta 80</em> onde a configuração dizia 8417. Não era o modelo, nem o prompt, nem a máquina: um campo calculado corretamente e descartado um método depois, porque o protocolo de destino não o tinha.</p>
+                    <p class="learning-proof"><strong>0 de 4</strong> respostas certas com a janela truncada, <strong>4 de 4</strong> com ela inteira — mesmo modelo, mesma pergunta.</p>
+                </a>
+
+                <a class="learning-card" href="aprendizados/03-escrita-escapando-do-workspace.html">
+                    <span class="learning-skill">Segurança</span>
+                    <h3 class="learning-title">Escrever arquivo escapava do workspace</h3>
+                    <p class="learning-desc">O mesmo defeito quebrava dos dois lados: recusava escrita legítima dentro da raiz autorizada e, pelo avesso, deixava um link simbólico levar a escrita para <em>fora</em> dela.</p>
+                    <p class="learning-proof">Resolver o ancestral existente antes de comparar caminhos <strong>fecha os dois lados de uma vez</strong>.</p>
+                </a>
+
+                <a class="learning-card" href="aprendizados/01-exclusao-de-chat-apagou-midia-de-todos.html">
+                    <span class="learning-skill">Integridade de dados</span>
+                    <h3 class="learning-title">Apagar um chat apagou a mídia de todos</h3>
+                    <p class="learning-desc">O texto nunca se perdeu — os arquivos no disco sumiram. A exclusão decidia de quem era cada arquivo <em>lendo o texto da conversa</em>, em vez de consultar a tabela de posse.</p>
+                    <p class="learning-proof">Posse é <strong>dado</strong>, não inferência: quando a resposta existe numa tabela, adivinhar é escolher errar.</p>
+                </a>
+
+                <a class="learning-card" href="aprendizados/08-rag-existia-e-ninguem-chamava.html">
+                    <span class="learning-skill">Defeito sem sintoma</span>
+                    <h3 class="learning-title">O RAG existia e ninguém chamava</h3>
+                    <p class="learning-desc">Busca vetorial completa de um lado, uma ferramenta fazendo <code>contains(token)</code> do outro, e nenhuma ligação entre as duas. Nada falhava: a ferramenta respondia, só que sempre pelo caminho pobre.</p>
+                    <p class="learning-proof">Inclui a medição que derrubou o limiar de similaridade de 0.62 para <strong>0.45</strong> — o corte herdado de prosa descartava a resposta certa em metade das buscas em código.</p>
+                </a>
+
+                <a class="learning-card" href="aprendizados/05-classe-duplicada-entre-modulos.html">
+                    <span class="learning-skill">Profundidade de JVM</span>
+                    <h3 class="learning-title">A ferramenta existia, o despachante não a conhecia</h3>
+                    <p class="learning-desc">O agente respondia <em>"Tool not found"</em> para uma ferramenta registrada, documentada e exposta ao modelo. Duas classes de mesmo nome em módulos diferentes, e o classpath escolheu a defasada.</p>
+                    <p class="learning-proof">Um teste passou a <strong>proibir a divergência</strong>, porque o próximo caso não daria sintoma nenhum.</p>
+                </a>
+
+                <a class="learning-card" href="aprendizados/00-visao-geral.html">
+                    <span class="learning-skill">Comece por aqui</span>
+                    <h3 class="learning-title">IA, LLM e contexto, explicados pelo próprio projeto</h3>
+                    <p class="learning-desc">A porta de entrada: token, janela de contexto, <em>thinking</em>, o laço do agente e por que o modelo alucina — cada conceito ancorado em algo que travou de verdade neste projeto.</p>
+                    <p class="learning-proof">Escrito para quem <strong>nunca montou um assistente de IA</strong> e vai colaborar mesmo assim.</p>
+                </a>
+
+            </div>
+            <p class="learnings-entry">
+                Estes são cinco de <strong>onze</strong> casos documentados.
+                <a href="aprendizados/README.md">Ver a coleção completa →</a>
+            </p>
+        </div>
+    </section>
+
     <!-- Metrics Section -->
     <section class="metrics">
         <div class="container">
             <div class="metrics-grid">
                 <div class="metric-card">
-                    <div class="metric-value">608</div>
+                    <div class="metric-value">713</div>
                     <div class="metric-label">Testes Backend (Java 21)</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-value">27</div>
+                    <div class="metric-value">32</div>
                     <div class="metric-label">Testes Frontend (React)</div>
                 </div>
                 <div class="metric-card">
@@ -916,6 +1075,7 @@
                 <a href="https://linkedin.com/in/samuel-tomimatu" target="_blank">LinkedIn</a>
                 <a href="#features">Funcionalidades</a>
                 <a href="#architecture">Arquitetura</a>
+                <a href="#learnings">Depuração</a>
             </div>
             <p>© 2026 Avento IA · Desenvolvido por Samuel Tomimatu. Todos os direitos reservados.</p>
         </div>

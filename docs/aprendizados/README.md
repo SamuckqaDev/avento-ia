@@ -58,6 +58,18 @@ Segue o OS no claro/escuro.
   ligação entre as duas: o único chamador do RAG real era um controller REST. Sem sintoma nenhum —
   a ferramenta respondia. Inclui a medição que derrubou o limiar de similaridade de 0.62 para 0.45
   (o corte herdado de prosa descartava a resposta certa em metade das buscas em código).
+- **[09 — A tela prometia cinco modelos e três eram enfeite](09-a-tela-prometia-cinco-modelos.html)** —
+  uma pergunta sobre cotação voltou como plano de criar projeto NestJS, e o "pensando" nunca parava.
+  Quatro defeitos empilhados: o exemplo do system prompt virou tarefa, o plano virou promessa sem
+  execução, o spinner olhava "tem conteúdo?" em vez de "o run acabou?", e três dos cinco campos de
+  modelo da tela eram gravados no banco sem nenhum chamador do outro lado.
+- **[10 — O número existia e morria na tradução](10-o-numero-morria-na-traducao.html)** —
+  um 35B respondia "porta 80" onde a configuração dizia 8417. Não era o modelo: o `num_ctx` que o
+  Avento calculava era descartado pelo transporte (o protocolo da OpenAI não tem esse campo), o
+  Ollama subia com seus 4096 padrão e 62% do prompt sumia em silêncio. Mede 0/4 contra 4/4 acertos só
+  mudando a janela. Inclui a diferença entre janela **declarada** e **carregada**, uma armadilha que
+  se realimentava no primeiro conserto, o seletor de modelos que estava morto, e o alarme falso que o
+  próprio conserto criou em outra parte do código.
 
 ### O que os cinco tinham em comum
 

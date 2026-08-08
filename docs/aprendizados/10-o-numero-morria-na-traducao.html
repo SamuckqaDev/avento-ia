@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avento — O número existia e morria na tradução</title>
+<style>
+  :root {
+    --bg: #F4F7F3;
+    --surface: #FFFFFF;
+    --ink: #14231F;
+    --muted: #566661;
+    --accent: #147E6A;
+    --accent-soft: #E3F2ED;
+    --mint: #3BB79E;
+    --pop: #D6497A;
+    --pop-soft: #FBE7EE;
+    --border: #DCE6E0;
+    --code-bg: #EDF3EF;
+    --shadow: 0 1px 2px rgba(20,35,31,.05), 0 8px 24px rgba(20,35,31,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B1512;
+      --surface: #12201C;
+      --ink: #E9F1ED;
+      --muted: #9CB0A8;
+      --accent: #4FD1B4;
+      --accent-soft: #15302A;
+      --mint: #5CDDC1;
+      --pop: #F384AB;
+      --pop-soft: #2A1721;
+      --border: #21322C;
+      --code-bg: #16241F;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F4F7F3; --surface: #FFFFFF; --ink: #14231F; --muted: #566661;
+    --accent: #147E6A; --accent-soft: #E3F2ED; --mint: #3BB79E; --pop: #D6497A;
+    --pop-soft: #FBE7EE; --border: #DCE6E0; --code-bg: #EDF3EF;
+    --shadow: 0 1px 2px rgba(20,35,31,.05), 0 8px 24px rgba(20,35,31,.05);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B1512; --surface: #12201C; --ink: #E9F1ED; --muted: #9CB0A8;
+    --accent: #4FD1B4; --accent-soft: #15302A; --mint: #5CDDC1; --pop: #F384AB;
+    --pop-soft: #2A1721; --border: #21322C; --code-bg: #16241F;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 22px 96px; }
+
+  /* Header */
+  header.top { padding: 64px 0 40px; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    font-size: .72rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(2rem, 5.5vw, 3rem); line-height: 1.08; margin: 0 0 18px;
+    letter-spacing: -.02em; font-weight: 800; text-wrap: balance;
+  }
+  .lede { font-size: 1.12rem; color: var(--muted); margin: 0; max-width: 62ch; }
+  .lede strong { color: var(--ink); font-weight: 650; }
+
+  /* Sections */
+  section { padding-top: 52px; }
+  h2 {
+    font-size: 1.55rem; letter-spacing: -.01em; margin: 0 0 6px; font-weight: 750;
+    display: flex; align-items: baseline; gap: 12px; text-wrap: balance;
+  }
+  h2 .n {
+    font-size: .82rem; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums; background: var(--accent-soft);
+    padding: 3px 9px; border-radius: 999px; flex: 0 0 auto; transform: translateY(-2px);
+  }
+  h3 { font-size: 1.05rem; margin: 26px 0 6px; font-weight: 700; }
+  p { margin: 12px 0; }
+  .muted { color: var(--muted); }
+  a { color: var(--accent); }
+
+  strong.key { color: var(--pop); font-weight: 700; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: .88em; background: var(--code-bg); padding: 1px 6px; border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+
+  /* Analogy / plain-language callout */
+  .plain {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 18px 0;
+  }
+  .plain .lbl { font-weight: 750; color: var(--accent); }
+
+  /* "You saw this today" callout */
+  .saw {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin: 20px 0; box-shadow: var(--shadow);
+    position: relative;
+  }
+  .saw::before {
+    content: "VOCÊ VIU ISSO HOJE"; display: inline-block;
+    font-size: .64rem; letter-spacing: .14em; font-weight: 800; color: var(--pop);
+    background: var(--pop-soft); padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+  }
+  .saw p { margin: 6px 0; font-size: .96rem; }
+  .saw p:first-of-type { margin-top: 0; }
+
+  /* Diagram */
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 22px 0;
+  }
+  .step {
+    flex: 1 1 120px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .step .st { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .step .sd { font-size: .9rem; margin-top: 4px; }
+  .arrow { align-self: center; color: var(--muted); font-weight: 700; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--border); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: .94rem; min-width: 460px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; background: var(--code-bg); }
+  tr:last-child td { border-bottom: none; }
+  td strong { color: var(--ink); }
+
+  /* Layers stack */
+  .layers { display: flex; flex-direction: column; gap: 8px; margin: 20px 0; }
+  .layer {
+    display: flex; align-items: baseline; gap: 14px; padding: 13px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+  }
+  .layer .tag {
+    font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); flex: 0 0 96px;
+  }
+  .layer .desc { font-size: .93rem; }
+  .layer .desc b { font-weight: 700; }
+
+  .divider { height: 1px; background: var(--border); border: 0; margin: 8px 0; }
+
+  footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
+
+  ul.clean { padding-left: 20px; }
+  ul.clean li { margin: 7px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p class="eyebrow">Aprendizado 10</p>
+<h1>O número existia e morria na tradução</h1>
+<p class="lede">
+  Um modelo de 35 bilhões de parâmetros respondia <strong>porta 80</strong> quando a configuração
+  dizia <strong>8417</strong>. A causa não estava no modelo, nem no prompt, nem na máquina — estava
+  num campo que era calculado corretamente e descartado um método depois.
+</p>
+
+<div class="divider"></div>
+
+<h2>O sintoma, e por que ele apontava para o lugar errado</h2>
+<p>
+  A queixa era de qualidade: "mesmo sendo 35B ele alucina". Toda a suspeita natural cai sobre o
+  modelo — quantização ruim, modelo fraco para português, prompt mal escrito. A máquina tinha 48&nbsp;GB
+  de RAM, GPU em uso e folga de sobra, o que reforçava a leitura de que o problema era o modelo.
+</p>
+<p class="key">
+  Medido: o mesmo modelo, com a mesma pergunta e a mesma temperatura, acertou <strong>4 de 4</strong>
+  com a janela de contexto em 32768 e <strong>0 de 4</strong> com ela em 4096. Não era qualidade. Era
+  que 62% do prompt sumia antes de o modelo ver.
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Janela</th><th>Prompt que ele viu</th><th>Acertos</th><th>Resposta para <code>porta-http: 8417</code></th></tr></thead>
+  <tbody>
+    <tr><td><code>num_ctx=4096</code></td><td><strong>2.050</strong> de 5.970 tokens</td><td>0 / 4</td><td><strong>80</strong></td></tr>
+    <tr><td><code>num_ctx=32768</code></td><td>5.970 completos</td><td>4 / 4</td><td>8417</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+  Repare em <em>como</em> ele erra. Não disse "não sei": respondeu <strong>80</strong> para uma porta e
+  <strong>90</strong> para uma contagem de dias. São chutes estatisticamente razoáveis para quem não
+  viu o dado. Um modelo de 400B faria igual — ele não raciocinou mal sobre a informação, ele nunca a
+  recebeu.
+</p>
+
+<h2>Onde o número morria</h2>
+<p>Três camadas, cada uma correta isoladamente, compondo um defeito:</p>
+
+<div class="flow">
+  <div class="step"><div class="st">AgentService</div><div class="sd">monta <code>options.num_ctx = 32768</code>, calculado a partir do que o modelo declara</div></div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="st">Transporte OpenAI</div><div class="sd">descarta <code>options</code> exceto temperature, top_p e max_tokens — <strong>o protocolo da OpenAI não tem esse campo</strong></div></div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="st">Ollama</div><div class="sd">ninguém pediu janela, então usa o padrão dele: <strong>4096</strong></div></div>
+</div>
+
+<p class="key">
+  Nenhuma das três camadas está errada. O transporte descarta o campo com razão — mandar campo
+  desconhecido faz a OpenAI recusar a requisição inteira. O Ollama usa seu padrão porque ninguém
+  disse outra coisa. E ninguém disse porque o número morreu no meio do caminho, sem log e sem erro.
+</p>
+
+<h2>Quem definiu 4096? Ninguém</h2>
+<ul>
+  <li>o modelo <strong>não</strong> define <code>num_ctx</code> no Modelfile (verificado: só
+    <code>presence_penalty</code>, <code>temperature</code>, <code>top_k</code>, <code>top_p</code>)</li>
+  <li>o Avento pedia <strong>32768</strong></li>
+  <li>4096 é o <em>fallback</em> do Ollama, o valor que vale quando ninguém diz nada</li>
+</ul>
+<p>
+  O valor que quebrou tudo não foi escolhido por nenhuma pessoa nem por nenhuma linha de código. Ele
+  é o que sobra quando uma intenção se perde.
+</p>
+
+<h2>Declarado não é carregado</h2>
+<p>
+  O primeiro conserto usou o número que o modelo <em>declara</em>: <code>/api/show</code> responde
+  262144 para o <code>qwen3.5:35b</code>. A decisão era "é remoto? então confie no declarado, porque
+  quem paga a memória é o provedor".
+</p>
+<p class="key">
+  A premissa é verdadeira para Gemini e Anthropic, e falsa para um Ollama noutra máquina da rede.
+  Remoto não quer dizer nuvem paga. O eixo certo nunca foi "local ou remoto" — é
+  <strong>"quem decide o tamanho da janela"</strong>.
+</p>
+<p>
+  São dois números diferentes, e confundi-los custou caro: <code>/api/show</code> devolve o
+  <strong>teto do modelo</strong> (262144) e <code>/api/ps</code> devolve o que a instância
+  <strong>carregou de fato</strong> (4096). Confiar no primeiro quebrava dos dois lados — no caminho
+  nativo o Avento pedia um <code>num_ctx</code> cujo KV cache passa de 40&nbsp;GB, e no caminho
+  compatível com OpenAI o pedido era descartado e o prompt truncado em silêncio.
+</p>
+
+<h2>A armadilha que se realimenta</h2>
+<p>
+  O segundo conserto quase criou um defeito pior. A regra virou
+  <code>min(configurado, declarado, carregado)</code> — sensata à primeira vista. Só que esse valor
+  <strong>vira</strong> o <code>num_ctx</code> da requisição no caminho nativo:
+</p>
+<div class="flow">
+  <div class="step"><div class="st">lê carregado</div><div class="sd">4096</div></div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="st">pede</div><div class="sd">4096</div></div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="st">Ollama mantém</div><div class="sd">4096</div></div>
+  <div class="arrow">↺</div>
+  <div class="step"><div class="st">para sempre</div><div class="sd">nunca mais cresce</div></div>
+</div>
+<p class="key">
+  Ler o estado atual para decidir o que pedir é uma armadilha sempre que o pedido determina o estado.
+  A janela carregada só é orçamento quando não se pode pedir outra; quando se pode, ela é
+  consequência, não entrada.
+</p>
+
+<h2>O endpoint sempre existiu</h2>
+<p>
+  A recomendação intermediária foi editar <code>systemd</code> na máquina remota para subir o
+  <code>OLLAMA_CONTEXT_LENGTH</code>. Desnecessário: o <code>/api/chat</code> aceita
+  <code>options.num_ctx</code> e o Ollama recarrega o modelo com o que for pedido. Verificado nos dois
+  sentidos:
+</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Pedido</th><th>Janela que ficou carregada</th></tr></thead>
+  <tbody>
+    <tr><td><code>num_ctx=4096</code></td><td>4096</td></tr>
+    <tr><td><code>num_ctx=32768</code></td><td>32768</td></tr>
+  </tbody>
+</table>
+</div>
+<p>
+  O endpoint é a própria requisição. O problema nunca foi de infraestrutura — era de tradução.
+</p>
+
+<h2>O conserto: perguntar em vez de exigir que a pessoa saiba</h2>
+<p>
+  O Ollama fala os dois protocolos: o próprio em <code>/api/*</code> e o da OpenAI em <code>/v1</code>.
+  Escolher "compatível com OpenAI" apontando para um Ollama é configuração válida, comum, e
+  silenciosamente pior. Exigir que quem usa o produto conheça essa diferença é transferir para ele um
+  problema que o código pode resolver.
+</p>
+<p>
+  Agora o endereço é perguntado. Se responde <code>/api/tags</code> no formato do Ollama, o
+  <strong>tipo efetivo</strong> vira <code>OLLAMA</code> e a conversa segue pelo caminho nativo, onde a
+  janela pode ser pedida. O que está gravado não muda — a tela continua mostrando a escolha da pessoa.
+</p>
+<p class="muted">
+  Checar só o HTTP 200 não bastaria: proxy e página de erro também respondem 200, e promover o
+  provedor por causa disso mandaria a conversa para um endpoint inexistente. A verificação exige o
+  formato — <code>models</code> como lista, com <code>name</code> nos itens.
+</p>
+
+<h2>Três eixos, não um</h2>
+<p>O tipo do provedor passou a responder três perguntas independentes, que antes eram uma só:</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Pergunta</th><th>Gemini / Anthropic</th><th>Ollama</th><th>Compatível c/ OpenAI</th></tr></thead>
+  <tbody>
+    <tr><td><code>managesItsOwnContext()</code><br><span class="desc">a janela declarada é utilizável?</span></td><td>sim</td><td>não</td><td>não</td></tr>
+    <tr><td><code>canRequestContextWindow()</code><br><span class="desc">dá para pedir a janela?</span></td><td>não</td><td><strong>sim</strong></td><td>não</td></tr>
+    <tr><td><code>hasOwnModelNamespace()</code><br><span class="desc">nomeia modelos do jeito dele?</span></td><td>sim</td><td>não</td><td>não</td></tr>
+  </tbody>
+</table>
+</div>
+<p>
+  O terceiro eixo consertou um defeito irmão: <code>isLocalModelName</code> respondia "sim" para
+  qualquer nome com dois-pontos, e todo modelo do Ollama tem dois-pontos. Com um Ollama remoto, o
+  seletor de modelos ficava <strong>inteiramente morto</strong> — escolher <code>qwen3.5:9b</code> ou
+  <code>qwen2.5:32b</code> mandava sempre o modelo gravado em Provedores. A comparação entre modelos
+  que a interface oferecia era o mesmo modelo comparado consigo mesmo.
+</p>
+<p class="key">
+  Este é o <strong>segundo</strong> conserto do mesmo controle. O
+  <a href="07-seletor-de-modelo-ignorado.html">aprendizado 07</a> conta a primeira vez: um nome de
+  modelo chumbado num serviço descartava a escolha. Agora foi uma heurística de nome, no outro ramo
+  da mesma função. Um controle que já falhou uma vez merece um teste que prenda o comportamento —
+  não só o conserto da causa daquela vez.
+</p>
+
+<h2>O conserto mudou o significado de uma condição em outro lugar</h2>
+<p>
+  Minutos depois de a detecção entrar, apareceu na tela um aviso que estava errado:
+</p>
+<p class="key">
+  ⚠️ Você selecionou OPENAI_COMPATIBLE (qwen3.5:35b), mas não há transporte carregado para esse
+  provedor. Esta resposta veio de <code>qwen3.5:9b</code>, <strong>não da nuvem</strong>.
+</p>
+<p>
+  A resposta <em>tinha</em> vindo da máquina remota. O aviso existia sobre uma premissa que era
+  verdadeira e deixou de ser: <em>"sem transporte, a requisição cai no WebClient local e o usuário
+  recebe a resposta de um modelo que não escolheu"</em>. Com a detecção, a ausência de transporte
+  passou a ser <strong>o caminho correto</strong> — o nativo atende usando a mesma base URL.
+</p>
+<p>
+  O defeito não estava no aviso nem na detecção. Estava em uma condição cujo significado dependia de
+  um comportamento que mudou sem que ninguém revisasse quem mais dependia dele.
+</p>
+<p class="muted">
+  A guarda nova checa o tipo efetivo em vez de só a ausência de transporte. Um provedor de verdade
+  sem transporte continua merecendo o aviso — isso está preso por teste, junto do caso silencioso.
+</p>
+
+<p>
+  Puxando esse fio, o mesmo aviso tinha mais dois defeitos que ninguém tinha olhado:
+</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Defeito</th><th>O que acontecia</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Nomeava a escolha errada</td>
+      <td>Dizia <em>"Você selecionou (qwen3.5:35b)"</em> logo depois de a pessoa ter escolhido
+          <code>qwen3.5:9b</code> no seletor do cabeçalho. Ele lia o modelo gravado em Provedores —
+          outra escolha, de outra tela. Duas configurações com o mesmo nome numa frase só.</td>
+    </tr>
+    <tr>
+      <td>Aparecia em metade das respostas</td>
+      <td>Era montado dentro do caminho normal, e o caminho de skill <strong>retorna antes</strong> de
+          chegar lá. Com a mesma configuração quebrada, um "oi" avisava e uma busca na web ficava
+          calada — justamente a resposta em que o aviso importa.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p class="key">
+  O segundo é o mais instrutivo: o aviso estava colado ao <em>ramo</em>, não à <em>resposta</em>. Um
+  aviso que só vale em alguns caminhos não é um aviso — é uma coincidência. Agora a montagem acontece
+  antes da bifurcação e a colagem vive num método só, exercitado por teste, em vez de escrita duas
+  vezes e esquecida numa delas.
+</p>
+
+<div class="divider"></div>
+
+<h2>O que fica</h2>
+<div class="flow">
+  <div class="step"><div class="st">Tradução entre protocolos</div><div class="sd">todo campo que um formato não tem é uma intenção que morre calada. Onde descartar, registrar.</div></div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="st">Declarado ≠ efetivo</div><div class="sd">capacidade anunciada e recurso alocado são números diferentes. Guardar o errado é pior que não guardar.</div></div>
+  <div class="arrow">→</div>
+  <div class="step"><div class="st">Estado que vira pedido</div><div class="sd">nunca leia o estado atual para decidir o que pedir, se o pedido determina o estado.</div></div>
+</div>
+
+<p class="muted">
+  Sessão de 02–03/08/2026. Backend 703 testes, todos verdes. Uma hipótese medida e descartada pelo
+  caminho: o <code>presence_penalty 1.5</code> embutido no modelo, que o Avento nunca sobrescreve, não
+  tem efeito sobre a ancoragem — 5/5 com ele ligado e desligado. Resultado negativo economiza o
+  próximo palpite.
+</p>
+
+</div>
+</body>
+</html>

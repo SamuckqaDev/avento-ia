@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.avento.service.rag.VectorStoreResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,9 +54,12 @@ class RagServiceBatchingTest {
     }
 
     private RagService ragServiceWithBatchSize(VectorStore vectorStore, int batchSize) {
+        VectorStoreResolver resolver = mock(VectorStoreResolver.class);
+        org.mockito.Mockito.when(resolver.active()).thenReturn(vectorStore);
+        org.mockito.Mockito.when(resolver.activeIndexName()).thenReturn("avento_index");
         // A bare Redis mock is enough: every manifest and cache access in RagService already degrades
         // to "no manifest" when Redis does not answer, which is exactly a first indexing.
-        return new RagService(vectorStore, mock(StringRedisTemplate.class), new ObjectMapper(), 0.62, 30, 5, batchSize);
+        return new RagService(resolver, mock(StringRedisTemplate.class), new ObjectMapper(), 0.62, 30, 5, batchSize);
     }
 
     private Path projectWithFiles(int count) throws Exception {
@@ -70,5 +74,41 @@ class RagServiceBatchingTest {
                             + "}\n");
         }
         return project;
+    }
+
+    /**
+     * A remocao ia inteira num pipeline so. O Redis e single-thread: num indice de 39 mil documentos
+     * isso o segura tempo suficiente para OUTROS clientes estourarem o timeout de conexao — em
+     * producao quem apareceu no log foi a leitura de preferencias do usuario, que nao tem nada a ver
+     * com RAG. O erro apontava para a vitima, nao para a causa.
+     */
+    @Test
+    void removeChunksEmLotesTambem() throws Exception {
+        VectorStore vectorStore = mock(VectorStore.class);
+        // Um manifesto com sete chunks antigos: sem ele o servico nao tem o que remover, porque a
+        // memoria do que ja foi indexado vive no Redis.
+        String manifesto = "{\"projectRoot\":\"/tmp/projeto\",\"files\":{\"Velho.java\":"
+                + "{\"fileHash\":\"h\",\"chunkIds\":[\"c1\",\"c2\",\"c3\",\"c4\",\"c5\",\"c6\",\"c7\"]}}}";
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        @SuppressWarnings("unchecked")
+        org.springframework.data.redis.core.ValueOperations<String, String> valores =
+                mock(org.springframework.data.redis.core.ValueOperations.class);
+        org.mockito.Mockito.when(redis.opsForValue()).thenReturn(valores);
+        org.mockito.Mockito.when(valores.get(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(manifesto);
+
+        VectorStoreResolver resolver = mock(VectorStoreResolver.class);
+        org.mockito.Mockito.when(resolver.active()).thenReturn(vectorStore);
+        org.mockito.Mockito.when(resolver.activeIndexName()).thenReturn("avento_index");
+        RagService ragService = new RagService(resolver, redis, new ObjectMapper(), 0.62, 30, 5, 2);
+
+        ragService.clearProjects(List.of(Files.createDirectory(tempDir.resolve("limpar")).toString()));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<String>> remocoes = ArgumentCaptor.forClass(List.class);
+        verify(vectorStore, org.mockito.Mockito.atLeastOnce()).delete(remocoes.capture());
+        // Sete ids, lote de dois: quatro chamadas, nenhuma maior que o lote.
+        assertThat(remocoes.getAllValues()).allSatisfy(lote -> assertThat(lote).hasSizeLessThanOrEqualTo(2));
+        assertThat(remocoes.getAllValues().stream().mapToInt(List::size).sum()).isEqualTo(7);
     }
 }

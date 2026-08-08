@@ -1,6 +1,8 @@
 package com.avento.service;
 
 import com.avento.service.dto.*;
+import com.avento.service.rag.CodeAwareSplitter;
+import com.avento.service.rag.VectorStoreResolver;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -25,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,8 @@ public class RagService {
 
     private static final Logger logger = LoggerFactory.getLogger(RagService.class);
     private static final int MAX_FILES_TO_SCAN = 12000;
+    // Mude junto com o CodeAwareSplitter: e o que forca a reindexacao de tudo.
+    private static final String CHUNK_STRATEGY = "member-v1";
     private static final Duration SEARCH_CACHE_TTL = Duration.ofMinutes(10);
     private static final Set<String> IGNORED_DIRECTORIES = Set.of(
             ".git",
@@ -57,8 +60,11 @@ public class RagService {
             "piper_tts",
             "whisper.cpp");
 
-    private final VectorStore vectorStore;
+    // Resolvido a cada uso, não guardado: trocar o modelo de embedding nas configurações troca o
+    // índice, e um store fixado no construtor continuaria gravando no índice do modelo antigo.
+    private final VectorStoreResolver vectorStoreResolver;
     private final TokenTextSplitter textSplitter;
+    private final CodeAwareSplitter codeSplitter;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper mapper;
     private final double similarityThreshold;
@@ -67,20 +73,23 @@ public class RagService {
     private final int embeddingBatchSize;
 
     public RagService(
-            VectorStore vectorStore,
+            VectorStoreResolver vectorStoreResolver,
             StringRedisTemplate redisTemplate,
             ObjectMapper mapper,
             @Value("${avento.rag.similarity-threshold:0.62}") double similarityThreshold,
             @Value("${avento.rag.candidate-limit:30}") int searchCandidateLimit,
             @Value("${avento.rag.result-limit:5}") int searchResultLimit,
             @Value("${avento.rag.embedding-batch-size:32}") int embeddingBatchSize) {
-        this.vectorStore = vectorStore;
+        this.vectorStoreResolver = vectorStoreResolver;
         this.redisTemplate = redisTemplate;
         this.mapper = mapper;
         this.similarityThreshold = Math.max(0.0, Math.min(1.0, similarityThreshold));
         this.searchCandidateLimit = Math.max(1, searchCandidateLimit);
         this.searchResultLimit = Math.max(1, Math.min(this.searchCandidateLimit, searchResultLimit));
         this.embeddingBatchSize = Math.max(1, embeddingBatchSize);
+        // Teto de 6000 chars: so parte membro que sozinho estouraria a janela do embedding.
+        // Piso de 120: abaixo disso o membro cola no anterior. Ver a medicao no CodeAwareSplitter.
+        this.codeSplitter = new CodeAwareSplitter(6000, 120);
         this.textSplitter = TokenTextSplitter.builder()
                 .withChunkSize(500)
                 .withMinChunkSizeChars(100)
@@ -144,7 +153,7 @@ public class RagService {
                 .topK(searchCandidateLimit)
                 .similarityThreshold(similarityThreshold)
                 .build();
-        List<Document> results = vectorStore.similaritySearch(searchRequest).stream()
+        List<Document> results = vectorStoreResolver.active().similaritySearch(searchRequest).stream()
                 .filter(document -> belongsToProjects(document, roots))
                 .limit(searchResultLimit)
                 .toList();
@@ -215,7 +224,7 @@ public class RagService {
     private void addInBatches(List<Document> documents) {
         for (int start = 0; start < documents.size(); start += embeddingBatchSize) {
             int end = Math.min(start + embeddingBatchSize, documents.size());
-            vectorStore.add(documents.subList(start, end));
+            vectorStoreResolver.active().add(documents.subList(start, end));
         }
     }
 
@@ -242,7 +251,7 @@ public class RagService {
                         String content = Files.readString(file, StandardCharsets.UTF_8);
                         if (!content.isBlank()) {
                             String relative = root.relativize(file).toString();
-                            files.put(relative, new ScannedFile(content, sha256(content)));
+                            files.put(relative, new ScannedFile(content, contentHash(relative, content)));
                         }
                     } catch (Exception exception) {
                         logger.warn("Arquivo ignorado no RAG: {}", file, exception);
@@ -258,12 +267,21 @@ public class RagService {
 
     private List<Document> splitFile(String projectKey, Path root, String relativePath, ScannedFile file) {
         try {
-            Document source = new Document(
-                    file.content(), Map.of("source", root.resolve(relativePath).toString()));
-            List<Document> chunks = textSplitter.apply(List.of(source));
+            // Codigo corta por estrutura; o resto (markdown, json, texto) segue por tamanho, onde
+            // nao ha fronteira sintatica que valha respeitar. Ver CodeAwareSplitter.
+            List<String> textos;
+            if (CodeAwareSplitter.handles(relativePath)) {
+                textos = codeSplitter.split(file.content());
+            } else {
+                Document source = new Document(
+                        file.content(), Map.of("source", root.resolve(relativePath).toString()));
+                textos = textSplitter.apply(List.of(source)).stream()
+                        .map(Document::getText)
+                        .toList();
+            }
             List<Document> result = new ArrayList<>();
-            for (int index = 0; index < chunks.size(); index++) {
-                Document chunk = chunks.get(index);
+            for (int index = 0; index < textos.size(); index++) {
+                String textoDoChunk = textos.get(index);
                 Map<String, Object> metadata = new HashMap<>();
                 metadata.put("source", root.resolve(relativePath).toString());
                 metadata.put("filename", relativePath);
@@ -274,7 +292,7 @@ public class RagService {
                 metadata.put("chunkIndex", index);
                 String id =
                         "avento-rag-" + sha256(projectKey + ":" + relativePath + ":" + file.fileHash() + ":" + index);
-                result.add(new Document(id, chunk.getText(), metadata));
+                result.add(new Document(id, textoDoChunk, metadata));
             }
             return result;
         } catch (Exception exception) {
@@ -344,7 +362,16 @@ public class RagService {
             return;
         }
         try {
-            vectorStore.delete(ids);
+            // Em lotes pelo mesmo motivo do add, que eu havia batchado deixando este de fora: o
+            // RedisVectorStore manda a remocao inteira num pipeline so, e o Redis e single-thread.
+            // Num indice de 39 mil documentos isso o segura tempo suficiente para OUTROS clientes
+            // estourarem o timeout de conexao — foi o que derrubou a leitura de preferencias do
+            // usuario durante a indexacao de partida, com o erro apontando para a vitima e nao para
+            // a causa.
+            for (int start = 0; start < ids.size(); start += embeddingBatchSize) {
+                int end = Math.min(start + embeddingBatchSize, ids.size());
+                vectorStoreResolver.active().delete(ids.subList(start, end));
+            }
         } catch (Exception exception) {
             logger.warn("Não foi possível remover chunks antigos do RAG", exception);
         }
@@ -368,7 +395,10 @@ public class RagService {
 
     private String cacheKey(String namespace, String query) {
         String version = redisTemplate.opsForValue().get(versionKey(namespace));
-        String searchProfile = similarityThreshold + ":" + searchCandidateLimit + ":" + searchResultLimit;
+        // O índice ativo entra na chave: trocar o modelo de embedding muda o que uma mesma pergunta
+        // deve devolver, e sem isso a resposta calculada pelo modelo anterior sobreviveria à troca.
+        String searchProfile = vectorStoreResolver.activeIndexName() + ":" + similarityThreshold + ":"
+                + searchCandidateLimit + ":" + searchResultLimit;
         return "avento:rag:cache:"
                 + namespace
                 + ":"
@@ -387,6 +417,20 @@ public class RagService {
 
     private String projectKey(Path root) {
         return sha256(root.toAbsolutePath().normalize().toString());
+    }
+
+    /**
+     * Hash que decide se um arquivo precisa ser reindexado.
+     *
+     * <p>Leva a ESTRATEGIA DE CORTE junto do conteudo, e nao so o conteudo. Sem isso, trocar o
+     * chunker nao reindexava nada: o manifesto comparava hash de arquivo, os arquivos nao tinham
+     * mudado, e o indice seguia servindo chunks cortados pelo metodo antigo — para sempre, ate
+     * alguem editar o arquivo. Verificado no log de uma subida real: "94 arquivos lidos, 0 chunks
+     * atualizados" logo depois de trocar o corte.
+     */
+    private String contentHash(String relativePath, String content) {
+        String strategy = CodeAwareSplitter.handles(relativePath) ? CHUNK_STRATEGY : "size";
+        return sha256(strategy + ":" + content);
     }
 
     private String sha256(String value) {

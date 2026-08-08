@@ -4,6 +4,7 @@ import com.avento.service.RagService;
 import com.avento.service.event.WorkspaceRootRegisteredEvent;
 import jakarta.annotation.PreDestroy;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,7 @@ public class WorkspaceIndexingService {
     private final RagService ragService;
     private final boolean autoIndexEnabled;
     private final long reindexDebounceMillis;
+    private final String defaultWorkspaceRoot;
 
     private final Map<Path, IndexState> states = new ConcurrentHashMap<>();
     private final Map<Path, ScheduledFuture<?>> pendingReindexes = new ConcurrentHashMap<>();
@@ -63,10 +65,12 @@ public class WorkspaceIndexingService {
     public WorkspaceIndexingService(
             RagService ragService,
             @Value("${avento.rag.auto-index:true}") boolean autoIndexEnabled,
-            @Value("${avento.rag.reindex-debounce-millis:15000}") long reindexDebounceMillis) {
+            @Value("${avento.rag.reindex-debounce-millis:15000}") long reindexDebounceMillis,
+            @Value("${avento.workspace.default-root:}") String defaultWorkspaceRoot) {
         this.ragService = ragService;
         this.autoIndexEnabled = autoIndexEnabled;
         this.reindexDebounceMillis = Math.max(0, reindexDebounceMillis);
+        this.defaultWorkspaceRoot = defaultWorkspaceRoot;
     }
 
     @EventListener
@@ -82,6 +86,9 @@ public class WorkspaceIndexingService {
             return;
         }
         Path normalized = normalize(root);
+        if (tooBroadToIndex(normalized)) {
+            return;
+        }
         // FAILED is retried: the usual cause is a stopped embedding model, which comes back.
         IndexState previous = states.get(normalized);
         if (previous == IndexState.INDEXING || previous == IndexState.READY) {
@@ -163,6 +170,38 @@ public class WorkspaceIndexingService {
         return states.keySet().stream()
                 .filter(normalized::startsWith)
                 .max(Comparator.comparingInt(Path::getNameCount));
+    }
+
+    /**
+     * Raiz ampla demais para virar indice semantico.
+     *
+     * <p>Autorizar acesso e querer busca vetorial sao intencoes DIFERENTES, e este servico as
+     * acoplou sem querer: {@code /api/filesystem/authorize-home} existe para liberar as ferramentas
+     * de arquivo na home inteira com um clique, e desde que a indexacao passou a reagir ao registro
+     * de raiz, esse clique virou "indexe a minha pasta pessoal".
+     *
+     * <p>Medido numa subida real: 9.468 chunks no indice, e a amostra apontou 226 em 250 vindos de
+     * {@code /Users/<usuario>} — cache do Playwright, site-packages do Python, o que houvesse. Para
+     * um projeto de 97 arquivos. O trecho certo de uma busca passa a competir com milhares que nunca
+     * deveriam estar la, e cada um deles custou um embedding.
+     *
+     * <p>Recusa a home e a pasta que CONTEM os projetos. Nenhuma das duas e um projeto; uma pasta de
+     * projeto de verdade continua entrando normalmente.
+     */
+    private boolean tooBroadToIndex(Path root) {
+        Path home = Paths.get(System.getProperty("user.home")).toAbsolutePath().normalize();
+        if (root.equals(home) || home.startsWith(root)) {
+            logger.info("Indexacao ignorada para {}: raiz ampla demais para busca semantica", root);
+            return true;
+        }
+        if (defaultWorkspaceRoot != null && !defaultWorkspaceRoot.isBlank()) {
+            Path parentOfProjects = Paths.get(defaultWorkspaceRoot).toAbsolutePath().normalize();
+            if (root.equals(parentOfProjects)) {
+                logger.info("Indexacao ignorada para {}: e a pasta que contem os projetos", root);
+                return true;
+            }
+        }
+        return false;
     }
 
     private Path normalize(Path path) {

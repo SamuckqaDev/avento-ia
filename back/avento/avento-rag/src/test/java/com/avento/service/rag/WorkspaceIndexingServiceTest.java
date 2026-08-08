@@ -31,7 +31,7 @@ class WorkspaceIndexingServiceTest {
     @Test
     void indexesAProjectWhenItsWorkspaceIsRegistered() throws Exception {
         RagService ragService = mock(RagService.class);
-        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0);
+        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0, "");
         Path project = Files.createDirectory(tempDir.resolve("projeto"));
 
         indexer.onWorkspaceRegistered(new WorkspaceRootRegisteredEvent(project, null));
@@ -44,7 +44,7 @@ class WorkspaceIndexingServiceTest {
     @Test
     void indexesTheSameProjectOnlyOnce() throws Exception {
         RagService ragService = mock(RagService.class);
-        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0);
+        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0, "");
         Path project = Files.createDirectory(tempDir.resolve("projeto"));
 
         indexer.requestIndexing(project);
@@ -63,7 +63,7 @@ class WorkspaceIndexingServiceTest {
     void reportsFailureInsteadOfPretendingTheIndexIsReady() throws Exception {
         RagService ragService = mock(RagService.class);
         doThrow(new IllegalStateException("ollama offline")).when(ragService).indexProject(anyList());
-        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0);
+        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0, "");
         Path project = Files.createDirectory(tempDir.resolve("projeto"));
 
         indexer.requestIndexing(project);
@@ -77,7 +77,7 @@ class WorkspaceIndexingServiceTest {
     @Test
     void reindexesTheProjectWhenOneOfItsFilesIsSaved() throws Exception {
         RagService ragService = mock(RagService.class);
-        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0);
+        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0, "");
         Path project = Files.createDirectory(tempDir.resolve("projeto"));
         Files.createDirectory(project.resolve("src"));
         Path file = Files.writeString(project.resolve("src/App.java"), "class App {}");
@@ -94,7 +94,7 @@ class WorkspaceIndexingServiceTest {
     @Test
     void ignoresChangesOutsideAnyIndexedProject() throws Exception {
         RagService ragService = mock(RagService.class);
-        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0);
+        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0, "");
         Path loose = Files.writeString(tempDir.resolve("solto.java"), "class Solto {}");
 
         indexer.noteFileChanged(loose);
@@ -106,7 +106,7 @@ class WorkspaceIndexingServiceTest {
     @Test
     void doesNothingWhenAutoIndexingIsOff() throws Exception {
         RagService ragService = mock(RagService.class);
-        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, false, 0);
+        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, false, 0, "");
         Path project = Files.createDirectory(tempDir.resolve("projeto"));
 
         indexer.onWorkspaceRegistered(new WorkspaceRootRegisteredEvent(project, null));
@@ -120,7 +120,7 @@ class WorkspaceIndexingServiceTest {
     @Test
     void attributesAFileToTheDeepestProjectThatContainsIt() throws Exception {
         RagService ragService = mock(RagService.class);
-        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0);
+        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, true, 0, "");
         Path outer = Files.createDirectory(tempDir.resolve("fora"));
         Path inner = Files.createDirectory(outer.resolve("dentro"));
 
@@ -146,5 +146,35 @@ class WorkspaceIndexingServiceTest {
             Thread.sleep(20);
         }
         return false;
+    }
+
+    /**
+     * Autorizar acesso e querer busca vetorial sao intencoes diferentes, e a indexacao por evento as
+     * acoplou: o endpoint que libera a home inteira com um clique passou a mandar indexa-la. Numa
+     * subida real isso encheu o indice com 9.468 chunks — a amostra apontou 226 em 250 vindos da
+     * pasta pessoal — para um projeto de 97 arquivos.
+     */
+    @Test
+    void naoIndexaAPastaPessoalInteira() {
+        RagService ragService = mock(RagService.class);
+        WorkspaceIndexingService service = new WorkspaceIndexingService(ragService, true, 0, "");
+
+        service.requestIndexing(Path.of(System.getProperty("user.home")));
+
+        verify(ragService, never()).indexProject(org.mockito.ArgumentMatchers.anyList());
+        assertThat(service.stateOf(Path.of(System.getProperty("user.home"))))
+                .isEqualTo(WorkspaceIndexingService.IndexState.UNKNOWN);
+    }
+
+    /** A pasta que CONTEM os projetos tambem nao e um projeto. */
+    @Test
+    void naoIndexaAPastaQueContemOsProjetos() {
+        RagService ragService = mock(RagService.class);
+        String paiDosProjetos = tempDir.toString();
+        WorkspaceIndexingService service = new WorkspaceIndexingService(ragService, true, 0, paiDosProjetos);
+
+        service.requestIndexing(tempDir);
+
+        verify(ragService, never()).indexProject(org.mockito.ArgumentMatchers.anyList());
     }
 }

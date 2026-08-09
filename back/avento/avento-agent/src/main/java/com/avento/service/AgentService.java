@@ -7,7 +7,6 @@ import com.avento.service.dto.Skill;
 import com.avento.service.dto.SkillResolution;
 import com.avento.service.dto.ToolCall;
 import com.avento.service.image.ImageGenerationOptions;
-import com.avento.service.intent.AgentIntent;
 import com.avento.service.intent.ImageIntentService;
 import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
@@ -28,8 +27,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -55,7 +52,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -84,8 +80,6 @@ public class AgentService implements AgentExecutionEngine {
     // The model-facing instructions live in editable resource files rather than a
     // large Java string. Keep this loader as the single authoritative composition
     // point because frontend system messages are intentionally discarded later.
-
-
 
     // Palavras-chave editaveis sem recompilar: ver
     // src/main/resources/agent/heuristics/*.txt
@@ -130,6 +124,7 @@ public class AgentService implements AgentExecutionEngine {
     private final int maxProjectTools;
     private final boolean exposeAllTools;
     private final Set<String> projectToolkit;
+    private final com.avento.service.tools.AgentToolSelector toolSelector;
 
     // Teto de ferramentas fora do kit que a intencao da mensagem pode trazer junto em chats
     // com projeto. Pequeno de proposito: extras raros preservam o prefixo estavel do prompt
@@ -286,7 +281,8 @@ public class AgentService implements AgentExecutionEngine {
         this.repeatPenalty = Math.max(0.0, repeatPenalty);
         this.enableThinking = enableThinking;
         this.keepAlive = keepAlive;
-        this.maxToolsPerRequest = Math.max(ALWAYS_EXPOSED_TOOLS.size(), maxToolsPerRequest);
+        this.maxToolsPerRequest =
+                Math.max(com.avento.service.tools.AgentToolSelector.ALWAYS_EXPOSED_TOOLS.size(), maxToolsPerRequest);
         // Nunca abaixo do teto geral: este ramo existe para expor MAIS, nao menos.
         this.maxProjectTools = Math.max(this.maxToolsPerRequest, maxProjectTools);
         this.exposeAllTools = exposeAllTools;
@@ -294,6 +290,15 @@ public class AgentService implements AgentExecutionEngine {
                 .map(String::trim)
                 .filter(name -> !name.isBlank())
                 .toList());
+        this.toolSelector = new com.avento.service.tools.AgentToolSelector(
+                mapper,
+                intentRouter,
+                imageIntentService,
+                this.projectToolkit,
+                exposeAllTools,
+                maxToolsPerRequest,
+                maxProjectTools,
+                PROJECT_TOOLKIT_EXTRA_LIMIT);
         this.maxModelMessages = Math.max(2, maxModelMessages);
         this.maxMessageContentChars = Math.max(500, maxMessageContentChars);
         this.maxToolResultChars = Math.max(500, maxToolResultChars);
@@ -1044,112 +1049,35 @@ public class AgentService implements AgentExecutionEngine {
         return false;
     }
 
+    // Delegador mantido porque AgentServiceDirectAutomationTest o alcanca por reflexao. Alterar
+    // aquele teste junto com a extracao anularia a prova de que o comportamento nao mudou.
+    private boolean shouldExposeTool(
+            String toolName, String normalizedMessage, IntentProfile intentProfile, AgentRunState state) {
+        return toolSelector.shouldExpose(
+                toolName,
+                normalizedMessage,
+                intentProfile,
+                new com.avento.service.tools.AgentToolSelector.SelectionContext(
+                        state.workspaceRoots,
+                        state.requiredToolNames,
+                        state.requiredToolName,
+                        state.extraExposedToolNames,
+                        state.forceFullToolset));
+    }
+
+    // Delega para AgentToolSelector. A assinatura fica aqui de proposito: os testes de
+    // caracterizacao escritos ANTES da extracao continuam batendo neste ponto, e sao eles que
+    // provam que mover o codigo nao mudou o comportamento.
     private ArrayNode selectToolsForCurrentRequest(ArrayNode tools, ArrayNode messages, AgentRunState state) {
-        ArrayNode selectedTools = mapper.createArrayNode();
-        if (tools == null || tools.isEmpty()) {
-            return selectedTools;
-        }
-
-        // Skill ativa com `Ferramenta:` declarada: a ferramenta dela e a resposta, ponto.
-        // As heuristicas de keyword abaixo ja roubaram pedido de video pro generate_image;
-        // a declaracao explicita da skill nao pode perder pra elas.
-        if (state.requiredToolNames != null && !state.requiredToolNames.isEmpty()) {
-            ArrayNode required = filterToolsByName(tools, state.requiredToolNames);
-            if (!required.isEmpty()) {
-                return required;
-            }
-        }
-
-        String lastUserMessage = MessageText.lastUserMessage(messages);
-        if (lastUserMessage == null || lastUserMessage.isBlank()) {
-            return selectedTools;
-        }
-
-        String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(lastUserMessage));
-        if (MessageText.isCasualUserMessage(normalized)) {
-            return selectedTools;
-        }
-
-        // Chat com projeto conectado usa um kit FIXO de ferramentas de desenvolvimento em vez
-        // de selecao por intencao. Dois motivos, ambos aprendidos em producao: (1) a selecao
-        // por mensagem errava — um pedido de apagar arquivo chegou ao modelo sem delete_file
-        // e o turno terminou vazio; (2) a lista variando a cada mensagem muda o prefixo do
-        // prompt e quebra o cache de prompt do llama.cpp, forcando reprocessar sistema +
-        // schemas toda vez. Kit estavel = ferramentas sempre presentes + prefixo cacheavel.
-        // Mockup/tela/interface = bloco ui-preview (HTML), nao ferramenta. Devolve conjunto vazio
-        // para o modelo escrever o preview direto — e, crucial, para que generate_image nao fique
-        // exposto e o modelo nao caia em gerar uma imagem feia e cara no lugar do preview.
-        if (imageIntentService.wantsInterfacePrototype(normalized)) {
-            return selectedTools;
-        }
-        // Pedido de imagem/captura PRIORIZA a ferramenta correspondente, mas nao exclui as demais:
-        // o retorno exclusivo anterior quebrava pedidos compostos ("gera uma imagem E faz um pdf
-        // dela" ficava so com generate_image). A prioridade garante a ferramenta certa no topo e
-        // dentro do teto; o resto da selecao continua valendo.
-        Set<String> priorityTools = new HashSet<>();
-        if (imageIntentService.wantsImageGeneration(normalized)) {
-            priorityTools.add("generate_image");
-        }
-        if (wantsScreenCapture(normalized)) {
-            priorityTools.add("capture_screen");
-        }
-        if (!state.workspaceRoots.isEmpty()) {
-            // Kit fixo primeiro (prefixo estavel pro cache de prompt), e ate 6 extras que a
-            // intencao da mensagem pedir explicitamente — "conecta o mcp do git", "gera uma
-            // imagem", "cria um projeto vite" trazem a ferramenta correspondente junto sem
-            // abrir mao da estabilidade nas mensagens puras de codigo (que nao ativam extra
-            // nenhum e mantem o payload identico ao da mensagem anterior).
-            ArrayNode kit = filterToolsByName(tools, projectToolkit);
-            IntentProfile intentProfile = intentRouter.classify(normalized);
-            int extras = 0;
-            for (JsonNode tool : tools) {
-                String name = tool.path("name").asText("");
-                if (projectToolkit.contains(name)) {
-                    continue;
-                }
-                // Prioridade, auto-conectadas e ativadas via activate_tools entram SEMPRE
-                // (fora do limite de extras): o modelo pediu por elas explicitamente.
-                if (priorityTools.contains(name) || state.extraExposedToolNames.contains(name)) {
-                    kit.add(tool);
-                    continue;
-                }
-                if (extras < PROJECT_TOOLKIT_EXTRA_LIMIT && intentRouter.shouldExposeTool(name, intentProfile)) {
-                    kit.add(tool);
-                    extras++;
-                }
-            }
-            // Este ramo devolvia o kit SEM teto nenhum: o limite de extras acima nao alcanca as
-            // ativadas por activate_tools nem as fixadas, que entram sempre. Numa run longa elas se
-            // acumulam em Redis rodada apos rodada — medido em producao: rodada 3 saiu com 22
-            // schemas, contra o teto declarado de 12, e cada schema extra custa tempo em TODA rodada
-            // seguinte. O kit do projeto continua inteiro (e a razao de ser deste ramo); o que passa
-            // a ter fim e o crescimento em cima dele.
-            return capProjectKit(kit, projectToolkit);
-        }
-
-        // classify() dispara uma chamada de embedding; calcular uma vez aqui e
-        // reusar no loop evita uma chamada por ferramenta (dezenas de chamadas
-        // redundantes ao Ollama para a mesma mensagem com MCP externo conectado).
-        IntentProfile intentProfile = intentRouter.classify(normalized);
-        // Sob o teto, as locais (inicio do catalogo) enchem as vagas e ferramentas externas de
-        // intencao escassa nunca entram — medido ao vivo: "Executa a pesquisa" casou WEB, mas as
-        // 12 vagas foram para filesystem e o fetch ficou de fora (o modelo precisou de 2 rodadas
-        // de descoberta para alcanca-lo). O leitor web e A ferramenta da intencao WEB: prioridade.
-        if (intentProfile.has(AgentIntent.WEB)) {
-            priorityTools.add("fetch");
-        }
-        if (intentProfile.has(AgentIntent.DOCUMENT)) {
-            priorityTools.add("generate_pdf");
-        }
-        for (JsonNode tool : tools) {
-            String name = tool.path("name").asText("");
-            if (priorityTools.contains(name)
-                    || state.extraExposedToolNames.contains(name)
-                    || shouldExposeTool(name, normalized, intentProfile, state)) {
-                selectedTools.add(tool);
-            }
-        }
-        return capToolCount(selectedTools, priorityTools, state.extraExposedToolNames);
+        return toolSelector.select(
+                tools,
+                messages,
+                new com.avento.service.tools.AgentToolSelector.SelectionContext(
+                        state.workspaceRoots,
+                        state.requiredToolNames,
+                        state.requiredToolName,
+                        state.extraExposedToolNames,
+                        state.forceFullToolset));
     }
 
     // Preserva a ordem do catalogo: com o mesmo conjunto, o payload de tools fica identico
@@ -1173,145 +1101,6 @@ public class AgentService implements AgentExecutionEngine {
             }
         }
         return filtered;
-    }
-
-    // Um esquema de ferramenta por si so e barato, mas 20+ deles somados ao prompt de
-    // sistema empurram o custo de prompt_eval a ponto de uma rodada nunca terminar dentro
-    // do timeout de inatividade da run — medido ao vivo: 23 ferramentas selecionadas levaram
-    // uma rodada a exceder 6 minutos sem sinal algum, enquanto o mesmo pedido com poucas
-    // ferramentas fecha em menos de 90s.
-    //
-    // Quando o teto forca uma escolha, as ferramentas casadas com a INTENCAO da tarefa
-    // entram primeiro e as ALWAYS_EXPOSED preenchem o que sobrar — nao o contrario. As
-    // sempre-expostas sao 10; dando prioridade a elas sobravam so 2 vagas, e um pedido
-    // de apagar arquivo chegou ao modelo sem delete_file/edit_file/terminal_run: ele
-    // "planejou" a acao no thinking e terminou o turno sem conseguir agir.
-    /**
-     * Teto do ramo de projeto conectado, onde o kit e fixo e o resto pode crescer sem parar.
-     *
-     * <p>O kit inteiro sobrevive — expo-lo e o proposito deste ramo. O corte cai sobre o que foi
-     * acrescentado em cima dele, na ordem em que veio, para que uma run longa nao termine mandando o
-     * dobro de schemas que a configuracao declara.
-     */
-    private ArrayNode capProjectKit(ArrayNode kit, Set<String> projectToolkit) {
-        if (exposeAllTools || kit.size() <= maxProjectTools) {
-            return kit;
-        }
-        ArrayNode capped = mapper.createArrayNode();
-        for (JsonNode tool : kit) {
-            if (projectToolkit.contains(tool.path("name").asText(""))) {
-                capped.add(tool);
-            }
-        }
-        for (JsonNode tool : kit) {
-            if (capped.size() >= maxProjectTools) {
-                break;
-            }
-            if (!projectToolkit.contains(tool.path("name").asText(""))) {
-                capped.add(tool);
-            }
-        }
-        return capped;
-    }
-
-    private ArrayNode capToolCount(ArrayNode selectedTools, Set<String> priorityTools, Set<String> extraExposed) {
-        // No modo "mostra tudo" nao ha teto: o objetivo e justamente nao esconder ferramenta.
-        if (exposeAllTools) {
-            return selectedTools;
-        }
-        if (selectedTools.size() <= maxToolsPerRequest) {
-            return selectedTools;
-        }
-        // Tres faixas, na ordem: (1) prioridade explicita da mensagem + auto-conectadas/ativadas,
-        // (2) casadas com a intencao, (3) ALWAYS_EXPOSED preenchendo o que sobrar.
-        ArrayNode capped = mapper.createArrayNode();
-        Set<String> added = new HashSet<>();
-        for (JsonNode tool : selectedTools) {
-            String name = tool.path("name").asText("");
-            if (capped.size() >= maxToolsPerRequest) {
-                break;
-            }
-            if (priorityTools.contains(name) || extraExposed.contains(name)) {
-                capped.add(tool);
-                added.add(name);
-            }
-        }
-        for (JsonNode tool : selectedTools) {
-            String name = tool.path("name").asText("");
-            if (capped.size() >= maxToolsPerRequest) {
-                break;
-            }
-            if (!added.contains(name) && !ALWAYS_EXPOSED_TOOLS.contains(name)) {
-                capped.add(tool);
-                added.add(name);
-            }
-        }
-        for (JsonNode tool : selectedTools) {
-            String name = tool.path("name").asText("");
-            if (capped.size() >= maxToolsPerRequest) {
-                break;
-            }
-            if (!added.contains(name) && ALWAYS_EXPOSED_TOOLS.contains(name)) {
-                capped.add(tool);
-                added.add(name);
-            }
-        }
-        return capped;
-    }
-
-    // Ferramentas baratas (schema pequeno) e de alto valor ficam sempre visíveis
-    // ao modelo, em vez de dependerem de detecção de intenção por palavra-chave.
-    // O filtro por intenção existe para conter o custo de contexto dos clusters
-    // grandes de MCP externo (Git, Chrome DevTools etc.), não para ferramentas
-    // isoladas como esta, cujo custo de sempre expor é desprezível.
-    private static final Set<String> ALWAYS_EXPOSED_TOOLS = Set.of(
-            "generate_image",
-            "generate_video",
-            "capture_screen",
-            "read_document",
-            "list_mcp_servers",
-            "connect_mcp_server",
-            "sequentialthinking",
-            "read_graph",
-            "search_nodes",
-            "open_nodes",
-            // O par de descoberta progressiva precisa estar SEMPRE na mesa: é a porta de entrada
-            // para qualquer capacidade fora do toolset atual ("procura a ferramenta e usa").
-            "search_capabilities",
-            "activate_tools");
-
-    private boolean shouldExposeTool(
-            String toolName, String normalizedMessage, IntentProfile intentProfile, AgentRunState state) {
-        // Modo "mostra tudo": entrega o toolset inteiro ao modelo sem triagem por intencao. Viavel
-        // agora que o cache de prompt volta a funcionar (schemas ficam no prefixo cacheado e sao
-        // avaliados uma vez, nao a cada mensagem). Custo: prompt maior e mais chance de o modelo
-        // pequeno escolher errado. Ligar/desligar por AVENTO_AGENT_EXPOSE_ALL_TOOLS.
-        if (exposeAllTools) {
-            return true;
-        }
-        if (ALWAYS_EXPOSED_TOOLS.contains(toolName)) {
-            return true;
-        }
-
-        if (state.forceFullToolset) {
-            return true;
-        }
-
-        if (!state.requiredToolName.isEmpty() && state.requiredToolName.equals(toolName)) {
-            return true;
-        }
-
-        if (!state.requiredToolNames.isEmpty() && state.requiredToolNames.contains(toolName)) {
-            return true;
-        }
-
-        if (imageIntentService.wantsImageGeneration(normalizedMessage)) {
-            return "generate_image".equals(toolName);
-        }
-        if (wantsScreenCapture(normalizedMessage)) {
-            return "capture_screen".equals(toolName);
-        }
-        return intentRouter.shouldExposeTool(toolName, intentProfile);
     }
 
     // Pedido de mockup/tela/interface NUNCA e geracao de imagem — vai para um bloco ui-preview
@@ -2174,7 +1963,8 @@ public class AgentService implements AgentExecutionEngine {
         if (normalizedMessage == null || normalizedMessage.isBlank()) {
             return false;
         }
-        if (imageIntentService.wantsImageGeneration(normalizedMessage) || wantsScreenCapture(normalizedMessage)) {
+        if (imageIntentService.wantsImageGeneration(normalizedMessage)
+                || com.avento.service.tools.AgentToolSelector.wantsScreenCapture(normalizedMessage)) {
             return true;
         }
         for (String actionWord : PROJECT_ACTION_WORDS) {
@@ -2799,7 +2589,7 @@ public class AgentService implements AgentExecutionEngine {
             return null;
         }
 
-        if (wantsScreenCapture(normalized)) {
+        if (com.avento.service.tools.AgentToolSelector.wantsScreenCapture(normalized)) {
             return new ToolCall(
                     "call_direct_" + UUID.randomUUID().toString().substring(0, 8),
                     "capture_screen",
@@ -2902,24 +2692,6 @@ public class AgentService implements AgentExecutionEngine {
                 "pesquisa",
                 "busca",
                 "resultado");
-    }
-
-    private boolean wantsScreenCapture(String normalizedMessage) {
-        return MessageText.containsAny(
-                normalizedMessage,
-                "tira um print",
-                "tirar um print",
-                "tira print",
-                "tirar print",
-                "faz um print",
-                "fazer um print",
-                "print da minha tela",
-                "print da tela",
-                "screenshot",
-                "captura minha tela",
-                "capturar minha tela",
-                "captura a tela",
-                "capturar a tela");
     }
 
     private boolean wantsMacAppListing(String normalizedMessage) {

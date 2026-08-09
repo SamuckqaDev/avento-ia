@@ -85,8 +85,6 @@ public class AgentService implements AgentExecutionEngine {
     // src/main/resources/agent/heuristics/*.txt
     private static final Set<String> CASUAL_PHRASES =
             Set.copyOf(HeuristicWordLists.loadLines("agent/heuristics/casual-phrases.txt"));
-    private static final Set<String> PROJECT_ACTION_WORDS =
-            Set.copyOf(HeuristicWordLists.loadLines("agent/heuristics/project-action-words.txt"));
     private static final Map<String, List<String>> IMAGE_PROMPT_SIGNALS =
             HeuristicWordLists.loadSections("agent/heuristics/image-prompt-signals.txt");
     // Frases que sozinhas ja pedem uma imagem, ao contrario das secoes que pontuam prompt longo.
@@ -125,6 +123,7 @@ public class AgentService implements AgentExecutionEngine {
     private final boolean exposeAllTools;
     private final Set<String> projectToolkit;
     private final com.avento.service.tools.AgentToolSelector toolSelector;
+    private final com.avento.service.execution.TurnEndPolicy turnEndPolicy;
 
     // Teto de ferramentas fora do kit que a intencao da mensagem pode trazer junto em chats
     // com projeto. Pequeno de proposito: extras raros preservam o prefixo estavel do prompt
@@ -290,6 +289,7 @@ public class AgentService implements AgentExecutionEngine {
                 .map(String::trim)
                 .filter(name -> !name.isBlank())
                 .toList());
+        this.turnEndPolicy = new com.avento.service.execution.TurnEndPolicy(imageIntentService);
         this.toolSelector = new com.avento.service.tools.AgentToolSelector(
                 mapper,
                 intentRouter,
@@ -1703,7 +1703,7 @@ public class AgentService implements AgentExecutionEngine {
             boolean emptyTurn = capture.assistantText.toString().isBlank();
             // Anunciar sem executar falha igual ao turno vazio, e para o usuario e pior: parece que
             // algo esta acontecendo. A guarda antiga exigia texto em branco e deixava passar.
-            boolean announcedOnly = announcedActionWithoutCalling(
+            boolean announcedOnly = com.avento.service.execution.TurnEndPolicy.announcedActionWithoutCalling(
                     capture.assistantText.toString(), false, !state.availableToolNames.isEmpty());
             if ((emptyTurn || announcedOnly) && !state.retriedEmptyTurn) {
                 state.retriedEmptyTurn = true;
@@ -1927,52 +1927,31 @@ public class AgentService implements AgentExecutionEngine {
         forward(runTurn(model, messages, state, round + 1), sink, state);
     }
 
-    // Rede de seguranca contra falso negativo do filtro de intencao (Opcao 2):
-    // se a primeira rodada nao chamou nenhuma ferramenta para uma mensagem que
-    // nao e conversa casual, tenta de novo uma unica vez com todas as
-    // ferramentas visiveis, em vez de assumir que o modelo decidiu nao agir.
-    private boolean shouldRetryWithFullToolset(AgentRunState state, int round, ArrayNode messages) {
-        if (round != 1 || state.retriedWithFullToolset || state.forceFullToolset) {
-            return false;
-        }
-        String lastUserMessage = MessageText.lastUserMessage(messages);
-        if (lastUserMessage == null || lastUserMessage.contains("[Project Analysis]")) {
-            return false;
-        }
-        String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(lastUserMessage));
-        return isActionableToolRequest(normalized);
+    // Delegador estatico: AgentServiceAnnouncedActionTest chama este metodo diretamente.
+    static boolean announcedActionWithoutCalling(
+            String assistantText, boolean roundCalledATool, boolean toolsAvailable) {
+        return com.avento.service.execution.TurnEndPolicy.announcedActionWithoutCalling(
+                assistantText, roundCalledATool, toolsAvailable);
     }
 
-    // state.executedToolCalls só sobe quando uma ferramenta é de fato
-    // executada (nunca em aprovação rejeitada) — é a única fonte confiável
-    // pra saber se "algo aconteceu de verdade" nesta resposta, ao contrário
-    // do texto do modelo, que pode alegar sucesso sem ter feito nada.
+    // Delegadores para TurnEndPolicy. As assinaturas ficam porque AgentServiceDirectAutomationTest
+    // as alcanca por reflexao — alterar aquele teste junto com a extracao anularia a prova de que o
+    // comportamento nao mudou.
+    private boolean shouldRetryWithFullToolset(AgentRunState state, int round, ArrayNode messages) {
+        return turnEndPolicy.shouldRetryWithFullToolset(turnContext(state), round, messages);
+    }
+
     private boolean shouldWarnAboutNoToolExecution(AgentRunState state, ArrayNode messages) {
-        if (state.executedToolCalls > 0) {
-            return false;
-        }
-        String lastUserMessage = MessageText.lastUserMessage(messages);
-        if (lastUserMessage == null) {
-            return false;
-        }
-        String normalized = MessageText.normalizeIntentText(MessageText.extractDirectUserRequest(lastUserMessage));
-        return isActionableToolRequest(normalized);
+        return turnEndPolicy.shouldWarnAboutNoToolExecution(turnContext(state), messages);
     }
 
     private boolean isActionableToolRequest(String normalizedMessage) {
-        if (normalizedMessage == null || normalizedMessage.isBlank()) {
-            return false;
-        }
-        if (imageIntentService.wantsImageGeneration(normalizedMessage)
-                || com.avento.service.tools.AgentToolSelector.wantsScreenCapture(normalizedMessage)) {
-            return true;
-        }
-        for (String actionWord : PROJECT_ACTION_WORDS) {
-            if (normalizedMessage.contains(actionWord)) {
-                return true;
-            }
-        }
-        return false;
+        return turnEndPolicy.isActionableToolRequest(normalizedMessage);
+    }
+
+    private com.avento.service.execution.TurnEndPolicy.TurnContext turnContext(AgentRunState state) {
+        return new com.avento.service.execution.TurnEndPolicy.TurnContext(
+                state.executedToolCalls, state.retriedWithFullToolset, state.forceFullToolset);
     }
 
     private List<ToolCall> detectToolCalls(TurnCapture capture, AgentRunState state) {
@@ -2900,45 +2879,7 @@ public class AgentService implements AgentExecutionEngine {
     }
 
     private boolean shouldIgnoreToolCallsForCasualMessage(ArrayNode messages) {
-        String lastUserMessage = MessageText.lastUserMessage(messages);
-        if (lastUserMessage == null) {
-            return false;
-        }
-        return MessageText.isCasualUserMessage(MessageText.extractDirectUserRequest(lastUserMessage));
-    }
-
-    // Verbos de acao que so se cumprem com ferramenta. "vou explicar" nao entra: e coisa que o
-    // modelo faz em texto mesmo.
-    private static final Pattern ANNOUNCED_ACTION = Pattern.compile(
-            "\\b(vou|irei|deixa\\s+eu|deixe-me|estou)\\s+(?:\\w+\\s+)?"
-                    + "(pesquisar|pesquisando|buscar|buscando|procurar|procurando|acessar|acessando|"
-                    + "consultar|consultando|verificar|verificando|ler|lendo|baixar|baixando|"
-                    + "executar|executando|rodar|rodando|abrir|abrindo|analisar|analisando)\\b",
-            Pattern.CASE_INSENSITIVE);
-
-    /** Limite acima do qual o texto ja e uma resposta de verdade, nao um preambulo vazio. */
-    private static final int ANNOUNCEMENT_MAX_CHARS = 900;
-
-    /**
-     * Detecta a rodada em que o modelo ANUNCIA uma acao e nao executa nada.
-     *
-     * <p>A guarda de turno vazio nao pegava isto: ela exige texto em branco, e aqui o modelo escreve
-     * "Vou pesquisar agora!" e encerra. Para o usuario e pior que o silencio — parece que algo esta
-     * acontecendo. Observado quatro vezes seguidas, duas delas repetindo o mesmo paragrafo palavra
-     * por palavra, com a ferramenta disponivel na mesa.
-     *
-     * <p>So vale quando havia ferramenta para chamar: sem toolset, prometer e a unica saida.
-     */
-    static boolean announcedActionWithoutCalling(
-            String assistantText, boolean roundCalledATool, boolean toolsAvailable) {
-        if (roundCalledATool || !toolsAvailable || assistantText == null) {
-            return false;
-        }
-        String text = assistantText.trim();
-        if (text.isEmpty() || text.length() > ANNOUNCEMENT_MAX_CHARS) {
-            return false;
-        }
-        return ANNOUNCED_ACTION.matcher(text).find();
+        return turnEndPolicy.shouldIgnoreToolCallsForCasualMessage(messages);
     }
 
     private void appendAssistantToolRequest(ArrayNode messages, TurnCapture capture) {

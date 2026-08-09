@@ -2,8 +2,8 @@ package com.avento.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.avento.service.tools.AgentToolSelector;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -24,12 +24,37 @@ import org.junit.jupiter.api.Test;
  */
 class AgentServiceToolSelectionCharacterizationTest extends AgentServiceCharacterizationHarness {
 
-    private Method selectTools() throws Exception {
-        return privateMethod("selectToolsForCurrentRequest", ArrayNode.class, ArrayNode.class, stateClass());
+    // Bate direto no AgentToolSelector: a selecao saiu do AgentService e nao precisa mais de
+    // reflexao. As assercoes abaixo nao mudaram desde antes da extracao — o que muda e so por onde
+    // se entra. O seletor e lido do proprio AgentService para garantir a MESMA configuracao
+    // (teto, kit fixo, exposeAllTools) que o harness monta.
+    private AgentToolSelector selector() throws Exception {
+        java.lang.reflect.Field field = AgentService.class.getDeclaredField("toolSelector");
+        field.setAccessible(true);
+        return (AgentToolSelector) field.get(service);
     }
 
     private ArrayNode select(ArrayNode tools, ArrayNode messages, Object state) throws Exception {
-        return (ArrayNode) selectTools().invoke(service, tools, messages, state);
+        return selector()
+                .select(
+                        tools,
+                        messages,
+                        new AgentToolSelector.SelectionContext(
+                                castList(get(state, "workspaceRoots")),
+                                castSet(get(state, "requiredToolNames")),
+                                (String) get(state, "requiredToolName"),
+                                castSet(get(state, "extraExposedToolNames")),
+                                (boolean) get(state, "forceFullToolset")));
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> castList(Object value) {
+        return (List<String>) value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Set<String> castSet(Object value) {
+        return (Set<String>) value;
     }
 
     /** Catálogo grande o suficiente para o teto de 18 do ramo de projeto ser exercitado. */

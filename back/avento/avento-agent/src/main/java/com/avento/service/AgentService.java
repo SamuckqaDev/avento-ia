@@ -8,7 +8,6 @@ import com.avento.service.dto.SkillResolution;
 import com.avento.service.dto.ToolCall;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.intent.ImageIntentService;
-import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
 import com.avento.service.orchestration.AgentExecutionEngine;
 import com.avento.service.provider.ModelTransport;
@@ -1049,22 +1048,6 @@ public class AgentService implements AgentExecutionEngine {
         return false;
     }
 
-    // Delegador mantido porque AgentServiceDirectAutomationTest o alcanca por reflexao. Alterar
-    // aquele teste junto com a extracao anularia a prova de que o comportamento nao mudou.
-    private boolean shouldExposeTool(
-            String toolName, String normalizedMessage, IntentProfile intentProfile, AgentRunState state) {
-        return toolSelector.shouldExpose(
-                toolName,
-                normalizedMessage,
-                intentProfile,
-                new com.avento.service.tools.AgentToolSelector.SelectionContext(
-                        state.workspaceRoots,
-                        state.requiredToolNames,
-                        state.requiredToolName,
-                        state.extraExposedToolNames,
-                        state.forceFullToolset));
-    }
-
     // Delega para AgentToolSelector. A assinatura fica aqui de proposito: os testes de
     // caracterizacao escritos ANTES da extracao continuam batendo neste ponto, e sao eles que
     // provam que mover o codigo nao mudou o comportamento.
@@ -1927,13 +1910,6 @@ public class AgentService implements AgentExecutionEngine {
         forward(runTurn(model, messages, state, round + 1), sink, state);
     }
 
-    // Delegador estatico: AgentServiceAnnouncedActionTest chama este metodo diretamente.
-    static boolean announcedActionWithoutCalling(
-            String assistantText, boolean roundCalledATool, boolean toolsAvailable) {
-        return com.avento.service.execution.TurnEndPolicy.announcedActionWithoutCalling(
-                assistantText, roundCalledATool, toolsAvailable);
-    }
-
     // Delegadores para TurnEndPolicy. As assinaturas ficam porque AgentServiceDirectAutomationTest
     // as alcanca por reflexao — alterar aquele teste junto com a extracao anularia a prova de que o
     // comportamento nao mudou.
@@ -1943,10 +1919,6 @@ public class AgentService implements AgentExecutionEngine {
 
     private boolean shouldWarnAboutNoToolExecution(AgentRunState state, ArrayNode messages) {
         return turnEndPolicy.shouldWarnAboutNoToolExecution(turnContext(state), messages);
-    }
-
-    private boolean isActionableToolRequest(String normalizedMessage) {
-        return turnEndPolicy.isActionableToolRequest(normalizedMessage);
     }
 
     private com.avento.service.execution.TurnEndPolicy.TurnContext turnContext(AgentRunState state) {

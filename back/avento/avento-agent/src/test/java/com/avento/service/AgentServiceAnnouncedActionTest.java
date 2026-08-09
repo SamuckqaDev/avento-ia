@@ -2,6 +2,7 @@ package com.avento.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.avento.service.execution.TurnEndPolicy;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -15,38 +16,38 @@ class AgentServiceAnnouncedActionTest {
 
     @Test
     void detectsAPromiseWithNoToolCall() {
-        assertThat(AgentService.announcedActionWithoutCalling("Vou pesquisar agora!", false, true))
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling("Vou pesquisar agora!", false, true))
                 .isTrue();
-        assertThat(AgentService.announcedActionWithoutCalling(
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling(
                         "Vou buscar informações atualizadas sobre hardware de IA da NVIDIA!", false, true))
                 .isTrue();
-        assertThat(AgentService.announcedActionWithoutCalling("Deixa eu procurar isso pra você.", false, true))
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling("Deixa eu procurar isso pra você.", false, true))
                 .isTrue();
-        assertThat(AgentService.announcedActionWithoutCalling("Estou acessando a página agora.", false, true))
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling("Estou acessando a página agora.", false, true))
                 .isTrue();
     }
 
     // Se a ferramenta FOI chamada, anunciar antes é comportamento normal.
     @Test
     void ignoresThePromiseWhenTheRoundActuallyCalledATool() {
-        assertThat(AgentService.announcedActionWithoutCalling("Vou pesquisar agora!", true, true))
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling("Vou pesquisar agora!", true, true))
                 .isFalse();
     }
 
     // Sem toolset, prometer é a única saída — não é falha do modelo.
     @Test
     void ignoresThePromiseWhenNoToolWasAvailable() {
-        assertThat(AgentService.announcedActionWithoutCalling("Vou pesquisar agora!", false, false))
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling("Vou pesquisar agora!", false, false))
                 .isFalse();
     }
 
     // "vou explicar" se cumpre em texto: não é ação de ferramenta e não pode disparar retry.
     @Test
     void doesNotFlagPromisesThatAreFulfilledInText() {
-        assertThat(AgentService.announcedActionWithoutCalling(
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling(
                         "Vou explicar como isso funciona: o parser lê o JSON.", false, true))
                 .isFalse();
-        assertThat(AgentService.announcedActionWithoutCalling("Vou resumir os pontos principais.", false, true))
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling("Vou resumir os pontos principais.", false, true))
                 .isFalse();
     }
 
@@ -56,14 +57,14 @@ class AgentServiceAnnouncedActionTest {
         String longAnswer =
                 "Vou pesquisar isso, mas antes segue o panorama completo. " + "Detalhe relevante. ".repeat(60);
 
-        assertThat(AgentService.announcedActionWithoutCalling(longAnswer, false, true))
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling(longAnswer, false, true))
                 .isFalse();
     }
 
     @Test
     void handlesEmptyAndNullText() {
-        assertThat(AgentService.announcedActionWithoutCalling("", false, true)).isFalse();
-        assertThat(AgentService.announcedActionWithoutCalling(null, false, true))
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling("", false, true)).isFalse();
+        assertThat(TurnEndPolicy.announcedActionWithoutCalling(null, false, true))
                 .isFalse();
     }
 }

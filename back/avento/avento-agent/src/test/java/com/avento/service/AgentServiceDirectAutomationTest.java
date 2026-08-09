@@ -950,41 +950,22 @@ class AgentServiceDirectAutomationTest {
         assertFalse(shouldWarnAboutNoToolExecution(0, "Me explica para que serve o Redis"));
     }
 
-    private boolean shouldWarnAboutNoToolExecution(int executedToolCalls, String userMessage) throws Exception {
-        Class<?> stateClass = Class.forName("com.avento.service.AgentService$AgentRunState");
-        Constructor<?> stateConstructor = stateClass.getDeclaredConstructor();
-        stateConstructor.setAccessible(true);
-        Object state = stateConstructor.newInstance();
+    // Chamam TurnEndPolicy direto: a politica saiu do AgentService e nao precisa mais de reflexao.
+    // As assercoes destes testes nao mudaram — so o ponto de entrada.
+    private final com.avento.service.execution.TurnEndPolicy turnEndPolicy =
+            new com.avento.service.execution.TurnEndPolicy(new ImageIntentService(new VisualIntentClassifier()));
 
-        Field executedToolCallsField = stateClass.getDeclaredField("executedToolCalls");
-        executedToolCallsField.setAccessible(true);
-        executedToolCallsField.set(state, executedToolCalls);
-
-        Method method =
-                AgentService.class.getDeclaredMethod("shouldWarnAboutNoToolExecution", stateClass, ArrayNode.class);
-        method.setAccessible(true);
-        return (boolean) method.invoke(service, state, userMessages(userMessage));
+    private boolean shouldWarnAboutNoToolExecution(int executedToolCalls, String userMessage) {
+        return turnEndPolicy.shouldWarnAboutNoToolExecution(
+                new com.avento.service.execution.TurnEndPolicy.TurnContext(executedToolCalls, false, false),
+                userMessages(userMessage));
     }
 
-    private boolean shouldRetryWithFullToolset(int round, boolean retried, boolean forced, String userMessage)
-            throws Exception {
-        Class<?> stateClass = Class.forName("com.avento.service.AgentService$AgentRunState");
-        Constructor<?> stateConstructor = stateClass.getDeclaredConstructor();
-        stateConstructor.setAccessible(true);
-        Object state = stateConstructor.newInstance();
-
-        Field retriedField = stateClass.getDeclaredField("retriedWithFullToolset");
-        retriedField.setAccessible(true);
-        retriedField.set(state, retried);
-
-        Field forcedField = stateClass.getDeclaredField("forceFullToolset");
-        forcedField.setAccessible(true);
-        forcedField.set(state, forced);
-
-        Method method = AgentService.class.getDeclaredMethod(
-                "shouldRetryWithFullToolset", stateClass, int.class, ArrayNode.class);
-        method.setAccessible(true);
-        return (boolean) method.invoke(service, state, round, userMessages(userMessage));
+    private boolean shouldRetryWithFullToolset(int round, boolean retried, boolean forced, String userMessage) {
+        return turnEndPolicy.shouldRetryWithFullToolset(
+                new com.avento.service.execution.TurnEndPolicy.TurnContext(0, retried, forced),
+                round,
+                userMessages(userMessage));
     }
 
     @Test
@@ -1579,15 +1560,19 @@ class AgentServiceDirectAutomationTest {
         IntentRouter router = (IntentRouter) intentRouterField.get(service);
         IntentProfile profile = router.classify(normalized);
 
-        Class<?> stateClass = Class.forName("com.avento.service.AgentService$AgentRunState");
-        var stateCtor = stateClass.getDeclaredConstructor();
-        stateCtor.setAccessible(true);
-        Object state = stateCtor.newInstance();
+        return toolSelector()
+                .shouldExpose(
+                        toolName,
+                        normalized,
+                        profile,
+                        new com.avento.service.tools.AgentToolSelector.SelectionContext(
+                                java.util.List.of(), java.util.Set.of(), "", java.util.Set.of(), false));
+    }
 
-        Method method = AgentService.class.getDeclaredMethod(
-                "shouldExposeTool", String.class, String.class, IntentProfile.class, stateClass);
-        method.setAccessible(true);
-        return (boolean) method.invoke(service, toolName, normalized, profile, state);
+    private com.avento.service.tools.AgentToolSelector toolSelector() throws Exception {
+        java.lang.reflect.Field field = AgentService.class.getDeclaredField("toolSelector");
+        field.setAccessible(true);
+        return (com.avento.service.tools.AgentToolSelector) field.get(service);
     }
 
     private ObjectNode buildOllamaRequest(String model, ArrayNode messages) throws Exception {

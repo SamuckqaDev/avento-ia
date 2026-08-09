@@ -167,9 +167,7 @@ public class WorkspaceIndexingService {
             return Optional.empty();
         }
         Path normalized = normalize(path);
-        return states.keySet().stream()
-                .filter(normalized::startsWith)
-                .max(Comparator.comparingInt(Path::getNameCount));
+        return states.keySet().stream().filter(normalized::startsWith).max(Comparator.comparingInt(Path::getNameCount));
     }
 
     /**
@@ -195,7 +193,8 @@ public class WorkspaceIndexingService {
             return true;
         }
         if (defaultWorkspaceRoot != null && !defaultWorkspaceRoot.isBlank()) {
-            Path parentOfProjects = Paths.get(defaultWorkspaceRoot).toAbsolutePath().normalize();
+            Path parentOfProjects =
+                    Paths.get(defaultWorkspaceRoot).toAbsolutePath().normalize();
             if (root.equals(parentOfProjects)) {
                 logger.info("Indexacao ignorada para {}: e a pasta que contem os projetos", root);
                 return true;

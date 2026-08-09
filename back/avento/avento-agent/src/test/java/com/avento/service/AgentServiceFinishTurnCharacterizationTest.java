@@ -165,8 +165,8 @@ class AgentServiceFinishTurnCharacterizationTest extends AgentServiceCharacteriz
     /** Um "oi" não aciona ferramenta, mesmo que o modelo tenha pedido uma. */
     @Test
     void casualMessageIgnoresToolCallsAndGreetsBack() throws Exception {
-        String emissions =
-                emissionsOf(userMessages("oi"), settledState(), 1, captureWithToolCall("read_file", "{\"path\":\"/tmp\"}"));
+        String emissions = emissionsOf(
+                userMessages("oi"), settledState(), 1, captureWithToolCall("read_file", "{\"path\":\"/tmp\"}"));
 
         assertThat(emissions).contains("tool.ignored");
         assertThat(emissions).contains("Estou por aqui");

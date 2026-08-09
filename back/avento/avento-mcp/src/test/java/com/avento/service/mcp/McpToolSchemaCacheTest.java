@@ -28,8 +28,7 @@ class McpToolSchemaCacheTest {
     }
 
     private McpToolSchemaCache cacheWith(Path file, Map<String, String> digests) {
-        return new McpToolSchemaCache(
-                mapper, file, image -> Optional.ofNullable(digests.get(image)));
+        return new McpToolSchemaCache(mapper, file, image -> Optional.ofNullable(digests.get(image)));
     }
 
     @Test
@@ -38,7 +37,9 @@ class McpToolSchemaCacheTest {
 
         cache.record("mcp/fetch", List.of(tool("fetch")));
 
-        assertThat(cache.tools("mcp/fetch")).extracting(ToolDefinition::exposedName).containsExactly("fetch");
+        assertThat(cache.tools("mcp/fetch"))
+                .extracting(ToolDefinition::exposedName)
+                .containsExactly("fetch");
     }
 
     @Test

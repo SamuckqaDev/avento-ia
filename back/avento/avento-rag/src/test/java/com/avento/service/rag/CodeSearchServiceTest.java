@@ -41,9 +41,7 @@ class CodeSearchServiceTest {
 
         project = Files.createDirectory(tempDir.resolve("projeto"));
         Files.createDirectory(project.resolve("src"));
-        Files.writeString(
-                project.resolve("src/Pagamento.java"),
-                """
+        Files.writeString(project.resolve("src/Pagamento.java"), """
                 package loja;
 
                 public class Pagamento {
@@ -127,8 +125,9 @@ class CodeSearchServiceTest {
         CodeSearchService.Result result = codeSearchService.search(project.resolve("src"), "cobranca", 5);
 
         assertThat(result.strategy()).isEqualTo(CodeSearchService.Strategy.VECTOR);
-        assertThat(result.hits()).singleElement().satisfies(hit -> assertThat(hit.filePath())
-                .endsWith("Pagamento.java"));
+        assertThat(result.hits())
+                .singleElement()
+                .satisfies(hit -> assertThat(hit.filePath()).endsWith("Pagamento.java"));
     }
 
     /** A hit the user cannot open is half an answer, so the chunk is located back in its file. */

@@ -61,9 +61,13 @@ public class ProviderEmbeddingProfileSource implements EmbeddingProfileSource {
     }
 
     private EmbeddingModel embeddingModel(String baseUrl, String modelName) {
-        return cache.computeIfAbsent(baseUrl + "|" + modelName, ignored -> OllamaEmbeddingModel.builder()
-                .ollamaApi(OllamaApi.builder().baseUrl(baseUrl).build())
-                .defaultOptions(OllamaEmbeddingOptions.builder().model(modelName).build())
-                .build());
+        return cache.computeIfAbsent(
+                baseUrl + "|" + modelName,
+                ignored -> OllamaEmbeddingModel.builder()
+                        .ollamaApi(OllamaApi.builder().baseUrl(baseUrl).build())
+                        .defaultOptions(OllamaEmbeddingOptions.builder()
+                                .model(modelName)
+                                .build())
+                        .build());
     }
 }

@@ -274,7 +274,8 @@ public class RagService {
                 textos = codeSplitter.split(file.content());
             } else {
                 Document source = new Document(
-                        file.content(), Map.of("source", root.resolve(relativePath).toString()));
+                        file.content(),
+                        Map.of("source", root.resolve(relativePath).toString()));
                 textos = textSplitter.apply(List.of(source)).stream()
                         .map(Document::getText)
                         .toList();

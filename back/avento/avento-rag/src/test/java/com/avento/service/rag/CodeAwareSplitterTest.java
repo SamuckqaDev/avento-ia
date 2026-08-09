@@ -75,8 +75,7 @@ class CodeAwareSplitterTest {
     /** Chave dentro de string nao pode contar como bloco, senao tudo dali para a frente desalinha. */
     @Test
     void ignoraChaveDentroDeTextoEComentario() {
-        String codigo =
-                """
+        String codigo = """
                 public class A {
                     void x() {
                         String s = "isto { nao abre bloco";

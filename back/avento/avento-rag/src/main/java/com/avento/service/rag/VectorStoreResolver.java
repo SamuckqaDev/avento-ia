@@ -68,7 +68,9 @@ public class VectorStoreResolver {
 
     /** Name of the index in use, for diagnostics and for the docs to be checkable. */
     public String activeIndexName() {
-        return activeProfile().map(profile -> baseIndexName + "_" + profile.indexSuffix()).orElse(baseIndexName);
+        return activeProfile()
+                .map(profile -> baseIndexName + "_" + profile.indexSuffix())
+                .orElse(baseIndexName);
     }
 
     private Optional<EmbeddingProfile> activeProfile() {

@@ -418,8 +418,7 @@ public class McpServerCatalogService {
                 // e um `rev-parse` volta em 0,28s. O que mata e a varredura de nao-rastreados sobre
                 // o bind mount do Docker Desktop no macOS — cada stat custa, e sao dezenas de
                 // milhares. Ferramenta que anda na arvore do host pertence ao host.
-                yield executable(
-                        "uvx", List.of("uvx", "mcp-server-git", "--repository", repository), Map.of());
+                yield executable("uvx", List.of("uvx", "mcp-server-git", "--repository", repository), Map.of());
             }
             case "dbhub" -> {
                 Optional<DatabaseConfiguration> configuration = roots.isEmpty()

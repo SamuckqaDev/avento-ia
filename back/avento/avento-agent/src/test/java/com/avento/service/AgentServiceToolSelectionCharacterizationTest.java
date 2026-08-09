@@ -58,8 +58,8 @@ class AgentServiceToolSelectionCharacterizationTest extends AgentServiceCharacte
         Object state = newRunState();
         set(state, "requiredToolNames", new HashSet<>(Set.of("generate_video")));
 
-        ArrayNode selected =
-                select(toolsNamed("generate_video", "generate_image", "read_file"), userMessages("faz uma imagem"), state);
+        ArrayNode selected = select(
+                toolsNamed("generate_video", "generate_image", "read_file"), userMessages("faz uma imagem"), state);
 
         assertThat(namesOf(selected)).containsExactly("generate_video");
     }

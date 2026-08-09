@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -53,11 +52,7 @@ public class OrphanReplyRescue {
             ObjectProvider<ChatRepository> chatRepositoryProvider,
             ObjectMapper mapper,
             @Value("${avento.agent.orphan-reply-grace:20s}") Duration gracePeriod) {
-        this(
-                messageRepositoryProvider.getIfAvailable(),
-                chatRepositoryProvider.getIfAvailable(),
-                mapper,
-                gracePeriod);
+        this(messageRepositoryProvider.getIfAvailable(), chatRepositoryProvider.getIfAvailable(), mapper, gracePeriod);
     }
 
     /** Sem repositório vira no-op: é o que serve para quem monta o orquestrador à mão, nos testes. */
@@ -151,8 +146,8 @@ public class OrphanReplyRescue {
     private boolean replyAlreadySaved(Long chatId, LocalDateTime runStartedAt) {
         return messageRepository.findByChatIdOrderByTimestampAsc(chatId).stream()
                 .filter(message -> "assistant".equals(message.getRole()))
-                .anyMatch(message -> message.getTimestamp() != null
-                        && message.getTimestamp().isAfter(runStartedAt));
+                .anyMatch(message ->
+                        message.getTimestamp() != null && message.getTimestamp().isAfter(runStartedAt));
     }
 
     /** O texto visível de um chunk no formato da OpenAI; vazio para evento de ciclo de vida. */

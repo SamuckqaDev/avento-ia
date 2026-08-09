@@ -28,8 +28,8 @@ class ApiExceptionHandlerSseTest {
 
     @Test
     void naoTentaSerializarCorpoQuandoOClienteJaFoiEmbora() {
-        AsyncRequestNotUsableException exception =
-                new AsyncRequestNotUsableException("ServletOutputStream failed to flush", new java.io.IOException("Broken pipe"));
+        AsyncRequestNotUsableException exception = new AsyncRequestNotUsableException(
+                "ServletOutputStream failed to flush", new java.io.IOException("Broken pipe"));
 
         ResponseEntity<Void> resposta = handler.handleClientGoneAway(exception, requestTo("/api/ai/runs/run_1/events"));
 

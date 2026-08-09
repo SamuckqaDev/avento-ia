@@ -102,7 +102,8 @@ class RagServiceBatchingTest {
         org.mockito.Mockito.when(resolver.activeIndexName()).thenReturn("avento_index");
         RagService ragService = new RagService(resolver, redis, new ObjectMapper(), 0.62, 30, 5, 2);
 
-        ragService.clearProjects(List.of(Files.createDirectory(tempDir.resolve("limpar")).toString()));
+        ragService.clearProjects(
+                List.of(Files.createDirectory(tempDir.resolve("limpar")).toString()));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<String>> remocoes = ArgumentCaptor.forClass(List.class);

@@ -62,8 +62,8 @@ class AgentServiceRunTurnCharacterizationTest extends AgentServiceCharacterizati
     /** O número da rodada emitido acompanha o argumento, e não um contador interno. */
     @Test
     void announcedRoundNumberFollowsTheArgument() throws Exception {
-        String first =
-                invokeRunTurn(userMessages("lê o arquivo pom.xml"), stateWithRun(), 4).blockFirst(Duration.ofSeconds(10));
+        String first = invokeRunTurn(userMessages("lê o arquivo pom.xml"), stateWithRun(), 4)
+                .blockFirst(Duration.ofSeconds(10));
 
         assertThat(first).contains("Rodada 4");
     }
@@ -97,9 +97,7 @@ class AgentServiceRunTurnCharacterizationTest extends AgentServiceCharacterizati
 
         assertThat(subscriptions.isDisposed()).isFalse();
 
-        invokeRunTurn(userMessages("lê o arquivo pom.xml"), state, 1)
-                .take(1)
-                .blockLast(Duration.ofSeconds(10));
+        invokeRunTurn(userMessages("lê o arquivo pom.xml"), state, 1).take(1).blockLast(Duration.ofSeconds(10));
 
         assertThat(subscriptions.isDisposed()).isTrue();
     }

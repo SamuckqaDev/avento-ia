@@ -190,7 +190,11 @@ public class ProviderModelCatalog {
                     .GET()
                     .timeout(Duration.ofSeconds(2))
                     .build();
-            return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode() / 100 == 2;
+            return httpClient
+                                    .send(request, HttpResponse.BodyHandlers.discarding())
+                                    .statusCode()
+                            / 100
+                    == 2;
         } catch (Exception exception) {
             return false;
         }

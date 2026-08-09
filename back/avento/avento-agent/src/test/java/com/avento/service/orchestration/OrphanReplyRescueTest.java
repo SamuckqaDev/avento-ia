@@ -63,8 +63,9 @@ class OrphanReplyRescueTest {
         rescue.onRunFinished("run_1", CHAT);
 
         ArgumentCaptor<Message> salva = ArgumentCaptor.forClass(Message.class);
-        Awaitility.await().atMost(Duration.ofSeconds(2)).untilAsserted(() -> verify(repository)
-                .save(salva.capture()));
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(2))
+                .untilAsserted(() -> verify(repository).save(salva.capture()));
         assertThat(salva.getValue().getRole()).isEqualTo("assistant");
         assertThat(salva.getValue().getContent()).isEqualTo("Onze minutos de trabalho.");
     }
@@ -105,7 +106,8 @@ class OrphanReplyRescueTest {
     /** Sem repositório o componente existe e não faz nada — é o modo dos testes do orquestrador. */
     @Test
     void naoEstouraSemRepositorio() {
-        OrphanReplyRescue rescue = new OrphanReplyRescue((MessageRepository) null, (ChatRepository) null, MAPPER, Duration.ofMillis(10));
+        OrphanReplyRescue rescue =
+                new OrphanReplyRescue((MessageRepository) null, (ChatRepository) null, MAPPER, Duration.ofMillis(10));
 
         rescue.observe("run_4", chunk("algo"));
         rescue.onRunFinished("run_4", CHAT);

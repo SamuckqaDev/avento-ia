@@ -91,7 +91,10 @@ public class CodeSearchService {
         if (filePath == null || filePath.isBlank()) {
             return false;
         }
-        return Paths.get(filePath).toAbsolutePath().normalize().startsWith(directory.toAbsolutePath().normalize());
+        return Paths.get(filePath)
+                .toAbsolutePath()
+                .normalize()
+                .startsWith(directory.toAbsolutePath().normalize());
     }
 
     private List<Hit> literalSearch(Path root, String query, int maxResults) {

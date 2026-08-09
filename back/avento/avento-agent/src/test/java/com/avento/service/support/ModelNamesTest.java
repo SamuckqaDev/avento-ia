@@ -132,8 +132,10 @@ class ModelNamesTest {
     /** Sem escolha no pedido, cai no padrão de configuração. */
     @Test
     void fallsBackToTheDefaultWhenNothingIsPicked() {
-        assertThat(ModelNames.chooseChatModel("", "", "granite4.1:8b", false, false)).isEqualTo("granite4.1:8b");
-        assertThat(ModelNames.chooseChatModel(null, "", "granite4.1:8b", false, false)).isEqualTo("granite4.1:8b");
+        assertThat(ModelNames.chooseChatModel("", "", "granite4.1:8b", false, false))
+                .isEqualTo("granite4.1:8b");
+        assertThat(ModelNames.chooseChatModel(null, "", "granite4.1:8b", false, false))
+                .isEqualTo("granite4.1:8b");
     }
 
     /** Com modelo gravado em Provedores e nada escolhido, o gravado vale. */

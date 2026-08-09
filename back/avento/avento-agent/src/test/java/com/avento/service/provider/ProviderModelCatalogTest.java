@@ -130,7 +130,8 @@ class ProviderModelCatalogTest {
     /** Ollama recem-instalado, sem modelo nenhum, continua sendo um Ollama. */
     @Test
     void recognizesAnOllamaWithNoModelsPulledYet() throws Exception {
-        assertThat(ProviderModelCatalog.isOllamaTagsBody(json("{\"models\":[]}"))).isTrue();
+        assertThat(ProviderModelCatalog.isOllamaTagsBody(json("{\"models\":[]}")))
+                .isTrue();
     }
 
     /**

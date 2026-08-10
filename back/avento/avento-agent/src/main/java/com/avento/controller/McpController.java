@@ -32,10 +32,12 @@ import com.avento.service.rag.CodeSearchService;
 import com.avento.service.rag.DocumentReaderService;
 import com.avento.service.rag.WorkspaceIndexingService;
 import com.avento.service.tools.LocalToolNames;
+import com.avento.service.tools.LocalToolDefinitions;
 import com.avento.service.tools.TerminalCommandPolicy;
 import com.avento.service.tools.ToolCatalogService;
 import com.avento.service.tools.ToolExecutionContext;
 import com.avento.service.tools.ToolProvider;
+import com.avento.service.tools.ToolSchemaNormalizer;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -50,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -61,6 +64,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -81,6 +86,8 @@ import tools.jackson.databind.node.ObjectNode;
 public class McpController implements ToolProvider {
 
     private final ObjectMapper mapper = new ObjectMapper();
+    private final ToolSchemaNormalizer toolSchemaNormalizer = new ToolSchemaNormalizer(mapper);
+    private final LocalToolDefinitions localToolDefinitions = new LocalToolDefinitions(this);
     private static final Set<String> LOCAL_TOOL_NAMES = LocalToolNames.ALL;
     private static final Set<String> IGNORED_DIRECTORY_NAMES = Set.of(
             ".git",
@@ -338,458 +345,33 @@ public class McpController implements ToolProvider {
     }
 
     private void addLocalTools(ArrayNode allTools) {
-        allTools.add(tool(
-                "directory_tree",
-                "Lista a arvore de arquivos e pastas dentro de um workspace autorizado. Use antes de criar ou editar quando precisar entender a estrutura.",
-                Map.of(
-                        "path", stringProperty("Diretorio absoluto dentro de [Workspace Roots]."),
-                        "maxDepth", numberProperty("Profundidade maxima opcional, padrao 4.")),
-                List.of("path")));
-        allTools.add(tool(
-                "read_file",
-                "Le o conteudo de um arquivo dentro de um workspace autorizado.",
-                Map.of("path", stringProperty("Caminho absoluto do arquivo autorizado.")),
-                List.of("path")));
-        allTools.add(tool(
-                "read_document",
-                "Le documentos locais dentro de um workspace autorizado. Converte PDF, Word, Excel, PowerPoint, EPUB, ZIP, imagens com OCR, audio e formatos de texto para Markdown usando MarkItDown local.",
-                Map.of("path", stringProperty("Caminho absoluto do documento dentro de um workspace autorizado.")),
-                List.of("path")));
-        allTools.add(tool(
-                "list_mcp_servers",
-                "Lista servidores MCP locais disponiveis, configuracao ausente e estado da conexao. Use para descobrir capacidades antes de conectar.",
-                Map.of(
-                        "projectPaths",
-                        arrayProperty("Workspaces absolutos opcionais para validar servidores de arquivos e Git.")),
-                List.of()));
-        allTools.add(tool(
-                "connect_mcp_server",
-                "Conecta um servidor do catalogo sob demanda. IDs: filesystem, markitdown, memory, sequential-thinking, time, desktop-commander, macos-automator, apple, playwright, chrome-devtools, puppeteer, fetch, searxng, git, dbhub, docker-gateway.",
-                Map.of(
-                        "serverId", stringProperty("ID exato do servidor no catalogo."),
-                        "projectPaths", arrayProperty("Workspaces absolutos necessarios para filesystem e git.")),
-                List.of("serverId")));
-        allTools.add(tool(
-                "disconnect_mcp_server",
-                "Desconecta um servidor MCP do catalogo pelo ID.",
-                Map.of("serverId", stringProperty("ID exato do servidor conectado.")),
-                List.of("serverId")));
-        allTools.add(tool(
-                "write_file",
-                "Cria ou sobrescreve um arquivo dentro de um workspace autorizado. Cria diretorios pais quando necessario e gera backup antes de sobrescrever.",
-                Map.of(
-                        "path", stringProperty("Caminho absoluto do arquivo a criar ou sobrescrever."),
-                        "content", stringProperty("Conteudo completo que deve ser salvo no arquivo.")),
-                List.of("path", "content")));
-        allTools.add(tool(
-                "edit_file",
-                "Substitui um trecho exato dentro de um arquivo existente, sem reescrever o arquivo inteiro. Prefira esta ferramenta a write_file quando o arquivo ja existe e a mudanca e pontual. old_string precisa aparecer exatamente uma vez no arquivo (inclua linhas de contexto ao redor para garantir isso), a menos que replace_all seja true. Gera backup antes de aplicar.",
-                Map.of(
-                        "path", stringProperty("Caminho absoluto do arquivo existente a editar."),
-                        "old_string",
-                                stringProperty(
-                                        "Trecho exato do conteudo atual do arquivo a ser substituido, incluindo indentacao e contexto suficiente para ser unico."),
-                        "new_string",
-                                stringProperty(
-                                        "Trecho que deve substituir old_string. Pode ser vazio para apagar o trecho."),
-                        "replace_all",
-                                booleanProperty(
-                                        "Se true, substitui todas as ocorrencias de old_string em vez de exigir ocorrencia unica. Padrao false.")),
-                List.of("path", "old_string", "new_string")));
-        allTools.add(tool(
-                "delete_file",
-                "Remove um arquivo dentro de um workspace autorizado. Gera backup antes de apagar e exige aprovacao do usuario.",
-                Map.of("path", stringProperty("Caminho absoluto do arquivo autorizado a remover.")),
-                List.of("path")));
-        allTools.add(tool(
-                "delete_directory",
-                "Remove uma pasta inteira e todo o seu conteudo dentro de um workspace autorizado. Gera backup"
-                        + " antes de apagar quando a pasta tem ate 5000 arquivos; acima disso a exclusao roda sem"
-                        + " backup (ex.: pastas com node_modules). Sempre exige aprovacao do usuario, mesmo com um"
-                        + " plano ja aprovado. Recusa apagar a raiz de um workspace inteiro.",
-                Map.of("path", stringProperty("Caminho absoluto da pasta autorizada a remover, com todo o conteudo.")),
-                List.of("path")));
-        allTools.add(tool(
-                "create_directory",
-                "Cria um diretorio dentro de um workspace autorizado, incluindo pais ausentes.",
-                Map.of("path", stringProperty("Caminho absoluto do diretorio a criar.")),
-                List.of("path")));
-        allTools.add(tool(
-                "search_files",
-                "Procura arquivos por nome dentro de um workspace autorizado, ignorando pastas pesadas como node_modules, .git, build e target.",
-                Map.of(
-                        "path", stringProperty("Diretorio absoluto dentro de [Workspace Roots]."),
-                        "pattern", stringProperty("Texto a procurar no nome do arquivo ou pasta."),
-                        "maxResults", numberProperty("Quantidade maxima opcional de resultados, padrao 50.")),
-                List.of("path", "pattern")));
-        allTools.add(tool(
-                "find_symbol",
-                "Acha ONDE um simbolo e DEFINIDO no projeto (classe, interface, record, enum, funcao,"
-                        + " metodo, type, const) — busca a definicao, nao toda mencao. Use para entender o"
-                        + " codigo e navegar antes de editar. Retorna arquivo, linha e o texto da definicao.",
-                Map.of(
-                        "path", stringProperty("Diretorio absoluto do projeto dentro de [Workspace Roots]."),
-                        "symbol", stringProperty("Nome exato do simbolo a localizar (ex.: AgentService, generate).")),
-                List.of("path", "symbol")));
-        allTools.add(tool(
-                "remember",
-                "Guarda na memoria de longo prazo um fato ou preferencia DURAVEL do usuario, para lembrar em"
-                        + " conversas futuras (ex.: 'prefere styled-components', 'chama o projeto de monicare',"
-                        + " 'gosta de respostas em PT-BR informal'). Use SO para coisas que valem alem desta"
-                        + " conversa — nao use para pedidos pontuais nem para o que ja esta no historico. A memoria"
-                        + " fica PENDENTE ate o usuario confirmar, entao nao anuncie que ja lembrou em definitivo.",
-                Map.of(
-                        "content",
-                                stringProperty(
-                                        "O fato/preferencia em uma frase curta e objetiva, na terceira pessoa (ex.: 'Prefere TypeScript a JavaScript')."),
-                        "category",
-                                stringProperty(
-                                        "Rotulo opcional: preferencia, projeto, fato ou referencia. Padrao: fato.")),
-                List.of("content")));
-        allTools.add(tool(
-                "create_skill",
-                "Cria uma SKILL nova e reutilizavel quando o usuario pede uma capacidade que ele quer repetir depois"
-                        + " (ex.: 'cria uma skill de cotacao que busca no fetch e mostra em tabela'). A skill e um"
-                        + " procedimento em texto que o Avento passa a seguir automaticamente sempre que a mensagem"
-                        + " casar com um dos gatilhos — nao e codigo novo. Use quando o pedido for claramente 'crie/salve"
-                        + " uma skill/capacidade/atalho'. Depois de criar, confirme ao usuario o nome e os gatilhos.",
-                Map.of(
-                        "name",
-                                stringProperty(
-                                        "Identificador em kebab-case, so minusculas/numeros/hifen (ex.: 'cotacao-moedas')."),
-                        "description", stringProperty("Uma frase dizendo o que a skill faz."),
-                        "triggers",
-                                arrayProperty(
-                                        "Frases-gatilho que ativam a skill (ex.: ['cotacao', 'cotacao do dolar', 'preco do euro'])."),
-                        "instructions",
-                                stringProperty(
-                                        "O procedimento que o Avento deve seguir quando a skill dispara, em passos claros"
-                                                + " (quais ferramentas usar e como formatar a resposta).")),
-                List.of("name", "description", "instructions")));
-        allTools.add(tool(
-                "list_skills",
-                "Lista as skills disponiveis (embutidas e criadas pelo usuario), com nome, descricao e gatilhos.",
-                Map.of(),
-                List.of()));
-        allTools.add(tool(
-                "delete_skill",
-                "Apaga uma skill CRIADA pelo usuario pelo nome. Skills embutidas do sistema nao podem ser apagadas.",
-                Map.of("name", stringProperty("Nome exato da skill a apagar.")),
-                List.of("name")));
-        allTools.add(tool(
-                "create_vite_project",
-                "Cria um projeto novo com Vite dentro de um workspace autorizado. Use quando o usuario pedir para criar projeto React/Vite, Vue/Vite etc. Para React com TypeScript, use template react-ts.",
-                Map.of(
-                        "path",
-                                stringProperty(
-                                        "Diretorio absoluto autorizado onde o projeto sera criado. Use a raiz do workspace quando o usuario pedir para criar dentro dela."),
-                        "projectName",
-                                stringProperty(
-                                        "Nome da pasta do projeto. Use . apenas quando a pasta path ja for o diretorio vazio do projeto."),
-                        "template",
-                                stringProperty(
-                                        "Template Vite. Exemplos: react-ts, react, react-swc-ts, vue-ts, vanilla-ts."),
-                        "installDependencies",
-                                booleanProperty(
-                                        "Se true, roda npm install apos criar o projeto. Padrao false para evitar travar maquinas lentas.")),
-                List.of("path", "projectName", "template")));
-        allTools.add(tool(
-                "list_macos_apps",
-                "Lista os aplicativos instalados no macOS em /Applications, ~/Applications e pastas de sistema. Use quando o usuario pedir todos os apps do Mac, lista de aplicativos, ou procurar um app instalado pelo nome.",
-                Map.of(
-                        "query",
-                        stringProperty("Texto opcional para filtrar por nome do aplicativo, por exemplo Antigravity.")),
-                List.of()));
-        allTools.add(tool(
-                "open_app",
-                "Abre um aplicativo instalado no macOS pelo nome. Use para pedidos como abrir VS Code, Finder, Terminal, navegador ou outro app local.",
-                Map.of(
-                        "appName",
-                        stringProperty(
-                                "Nome do aplicativo macOS, por exemplo Visual Studio Code, Finder, Terminal ou Safari.")),
-                List.of("appName")));
-        allTools.add(tool(
-                "close_app",
-                "Fecha um aplicativo aberto no macOS pelo nome usando AppleScript. Use para pedidos como fechar VS Code, Finder, Terminal, Safari ou Chrome. Nao use terminal_stop para apps abertos por open_app.",
-                Map.of(
-                        "appName",
-                        stringProperty(
-                                "Nome do aplicativo macOS, por exemplo Visual Studio Code, Finder, Terminal ou Safari.")),
-                List.of("appName")));
-        allTools.add(tool(
-                "open_browser_tab",
-                "Abre uma nova aba em um navegador macOS, como Brave Browser, Google Chrome ou Safari. Use para pedidos como nova aba no Brave ou abrir nova guia no navegador.",
-                Map.of(
-                        "browserName",
-                                stringProperty(
-                                        "Nome do navegador macOS, por exemplo Brave Browser, Google Chrome ou Safari."),
-                        "url",
-                                stringProperty(
-                                        "URL http/https opcional para abrir na nova aba. Se ausente, abre aba em branco/pagina inicial.")),
-                List.of("browserName")));
-        allTools.add(tool(
-                "close_browser_tab",
-                "Fecha somente a aba ativa de um navegador macOS, sem encerrar o aplicativo. Use para pedidos como fechar aba, fechar guia ou fechar a aba da pesquisa. Nao use close_app para fechar abas.",
-                Map.of(
-                        "browserName",
-                        stringProperty("Nome do navegador macOS, por exemplo Brave Browser, Google Chrome ou Safari.")),
-                List.of("browserName")));
-        allTools.add(tool(
-                "open_url",
-                "Abre uma URL http ou https no navegador padrao do sistema.",
-                Map.of("url", stringProperty("URL absoluta começando com http:// ou https://.")),
-                List.of("url")));
-        allTools.add(tool(
-                "open_path",
-                "Abre um arquivo ou pasta existente dentro de um workspace autorizado usando o app padrao do sistema.",
-                Map.of("path", stringProperty("Caminho absoluto existente dentro de um workspace autorizado.")),
-                List.of("path")));
-        allTools.add(tool(
-                "reveal_in_finder",
-                "Mostra um arquivo ou pasta existente dentro de um workspace autorizado no Finder.",
-                Map.of("path", stringProperty("Caminho absoluto existente dentro de um workspace autorizado.")),
-                List.of("path")));
-        allTools.add(tool(
-                "run_shortcut",
-                "Executa um atalho do app Shortcuts do macOS pelo nome. Use apenas quando o usuario pedir explicitamente um atalho existente.",
-                Map.of("shortcutName", stringProperty("Nome exato do atalho no app Shortcuts.")),
-                List.of("shortcutName")));
-        allTools.add(tool(
-                "capture_screen",
-                "Captura um screenshot da tela atual no macOS e salva em Pictures/Avento Screenshots. Use apenas quando o usuario pedir explicitamente para tirar print/screenshot da tela.",
-                Map.of(),
-                List.of()));
-        allTools.add(tool(
-                "generate_pdf",
-                "Gera um documento PDF a partir de conteúdo Markdown ou HTML e salva na pasta de media."
-                        + " Use para relatorios e exportacoes de texto/tabela. NAO use para mockup, tela,"
-                        + " wireframe ou prototipo de interface — esses vao para um bloco ui-preview, nunca PDF.",
-                Map.of(
-                        "title", stringProperty("Título do documento PDF."),
-                        "markdown", stringProperty("Conteúdo em Markdown para converter."),
-                        "html", stringProperty("Conteúdo HTML direto se não usar markdown.")),
-                List.of("title")));
-        allTools.add(tool(
-                "generate_image",
-                "Gera uma imagem local usando o modelo de imagem selecionado no header. Pode usar ComfyUI ou Ollama e salva em Pictures/Avento Generated Images. Use quando o usuario pedir para criar/gerar uma imagem, arte, foto, ilustração, mockup visual ou algo parecido.",
-                Map.ofEntries(
-                        Map.entry(
-                                "prompt",
-                                stringProperty(
-                                        "Prompt detalhado da imagem a gerar. Preserve o idioma e descreva estilo, assunto, composição e detalhes visuais.")),
-                        Map.entry(
-                                "model",
-                                stringProperty(
-                                        "Modelo opcional. Use um nome Ollama ou um checkpoint ComfyUI com prefixo comfyui:.")),
-                        Map.entry("size", stringProperty("Tamanho opcional em pixels.")),
-                        Map.entry("qualityPreset", stringProperty("Qualidade: draft, balanced ou quality.")),
-                        Map.entry("aspectRatio", stringProperty("Proporção: square, portrait ou landscape.")),
-                        Map.entry(
-                                "subjectType",
-                                stringProperty(
-                                        "Tipo principal escolhido na interface: auto, person, object, environment, vehicle ou animal.")),
-                        Map.entry("seed", numberProperty("Seed opcional para repetir uma composição.")),
-                        Map.entry(
-                                "subjectCount",
-                                numberProperty("Quantidade exata de sujeitos; zero detecta pelo prompt.")),
-                        Map.entry("enhancePrompt", booleanProperty("Melhora determinística de composição e anatomia.")),
-                        Map.entry(
-                                "refinementEnabled",
-                                booleanProperty("Ativa segundo passe de refinamento em resolução maior.")),
-                        Map.entry("refinementStrength", numberProperty("Denoise do segundo passe, entre 0.15 e 0.55.")),
-                        Map.entry("detailMode", stringProperty("Detalhamento opcional: none, face ou face-hands.")),
-                        Map.entry("cfgScale", numberProperty("CFG opcional entre 1 e 12.")),
-                        Map.entry(
-                                "referenceImageDataUrl",
-                                stringProperty(
-                                        "Imagem geral opcional para preservar composição e objetos via img2img.")),
-                        Map.entry(
-                                "referenceStrength",
-                                numberProperty("Fidelidade à imagem geral de referência, entre 0.1 e 0.9.")),
-                        Map.entry("poseReferenceDataUrl", stringProperty("Imagem de pose opcional em data URL.")),
-                        Map.entry("poseStrength", numberProperty("Força da referência de pose, entre 0.2 e 1.5."))),
-                List.of("prompt")));
-        allTools.add(tool(
-                "generate_video",
-                "Gera um vídeo curto local via ComfyUI. No modo auto, usa a imagem mais recente do chat como quadro"
-                        + " inicial quando houver uma; use mode=text somente quando o vídeo deve ser criado do zero."
-                        + " Salva em Pictures/Avento Generated Images e pode levar vários minutos.",
-                Map.of(
-                        "prompt",
-                                stringProperty(
-                                        "Prompt detalhado do vídeo a gerar: assunto, movimento/ação, estilo, câmera."),
-                        "size",
-                                stringProperty(
-                                        "Tamanho opcional em pixels, por exemplo 832x480. O padrão auto preserva a proporção da imagem."),
-                        "seconds", numberProperty("Duração opcional em segundos, entre 1 e 5. Padrao 2."),
-                        "mode",
-                                stringProperty(
-                                        "Modo: auto usa a última imagem do chat se existir; image exige essa imagem; text cria do zero.")),
-                List.of("prompt")));
-        allTools.add(tool(
-                "terminal_run",
-                "Executa um comando de terminal permitido e curto dentro de um workspace autorizado. Use para npm"
-                        + " create vite@latest, npm install, npm run build/test/lint/typecheck/validate, mvn"
-                        + " test/package/verify, git status/diff/log, docker compose ps/down/logs, mkdir -p <caminho"
-                        + " relativo> para criar pasta e rm -rf <caminho relativo> para apagar arquivo ou pasta (o"
-                        + " alvo desses dois tem que ser relativo ao path informado, sem .. e sem comecar com / ou"
-                        + " ~; para apagar uma pasta inteira com backup e confirmacao sempre exigida, prefira a"
-                        + " ferramenta delete_directory).",
-                Map.of(
-                        "path", stringProperty("Diretorio absoluto autorizado onde o comando deve rodar."),
-                        "command", stringProperty("Comando exato permitido a executar."),
-                        "timeoutSeconds",
-                                numberProperty(
-                                        "Timeout opcional em segundos, maximo 300. Padrao 240 para comandos npm/npx"
-                                                + " (instalam dependencias e podem demorar), 120 para os demais. Em"
-                                                + " scaffolds pesados (ex.: npx @nestjs/cli new, npm create), passe"
-                                                + " 300 explicitamente.")),
-                List.of("path", "command")));
-        allTools.add(tool(
-                "terminal_start",
-                "Inicia um processo longo permitido dentro de um workspace autorizado e retorna um processId. Use para npm run dev ou mvn spring-boot:run.",
-                Map.of(
-                        "path", stringProperty("Diretorio absoluto autorizado onde o processo deve rodar."),
-                        "command",
-                                stringProperty(
-                                        "Comando longo permitido a iniciar. Exemplos: npm run dev, mvn spring-boot:run.")),
-                List.of("path", "command")));
-        allTools.add(tool("terminal_list", "Lista processos longos iniciados pelo Avento.", Map.of(), List.of()));
-        allTools.add(tool(
-                "schedule_task",
-                "Agenda uma nova atividade autônoma ou lembrete para a IA rodar na agenda do Cowork (Cron ou horário específico).",
-                Map.of(
-                        "name", stringProperty("Nome amigável da tarefa ou lembrete (ex: Backup Diário das 03:57 AM)."),
-                        "cronExpression",
-                                stringProperty(
-                                        "Expressão Cron no formato de 5 partes (ex: '57 3 * * *' para todos os dias às 03:57)."),
-                        "prompt",
-                                stringProperty("Instrução completa e detalhada que a IA executará de forma autônoma."),
-                        "description", stringProperty("Descrição adicional opcional.")),
-                List.of("name", "cronExpression", "prompt")));
-        allTools.add(tool(
-                "terminal_logs",
-                "Retorna logs recentes de um processo iniciado pelo Avento.",
-                Map.of(
-                        "processId", stringProperty("ID retornado por terminal_start."),
-                        "maxChars", numberProperty("Quantidade maxima opcional de caracteres, padrao 8000.")),
-                List.of("processId")));
-        allTools.add(tool(
-                "terminal_stop",
-                "Para um processo iniciado pelo Avento usando o processId interno.",
-                Map.of("processId", stringProperty("ID retornado por terminal_start.")),
-                List.of("processId")));
-        allTools.add(tool(
-                "verify_project",
-                "Roda a verificacao do projeto (teste/build) no workspace e retorna se passou e os erros"
-                        + " resumidos. Detecta o comando sozinho: package.json (validate/build/typecheck/test/lint)"
-                        + " ou pom.xml (mvn test). USE SEMPRE depois de editar codigo: se ok=false, leia o"
-                        + " errorSummary, corrija os arquivos e chame de novo, ate ok=true.",
-                Map.of(
-                        "path",
-                        stringProperty("Diretorio absoluto autorizado do projeto (com package.json ou pom.xml).")),
-                List.of("path")));
-        allTools.add(tool(
-                "revert_changes",
-                "Desfaz (reverte) as alteracoes de arquivo da ultima resposta que editou o projeto —"
-                        + " restaura os arquivos ao estado anterior aquelas edicoes. Use quando o usuario pedir"
-                        + " para desfazer, reverter ou voltar o que voce mudou. Chamar de novo desfaz a resposta"
-                        + " anterior a essa.",
-                Map.of(),
-                List.of()));
-        allTools.add(tool(
-                "search_capabilities",
-                "Pesquisa FERRAMENTAS no catalogo interno do Avento (locais, MCP conectadas e"
-                        + " servidores disponiveis). NAO pesquisa a internet e NAO busca dados/noticias —"
-                        + " para conteudo da web use a ferramenta fetch. Use SOMENTE quando precisar"
-                        + " descobrir qual ferramenta ativar para uma capacidade que nao esta na sua"
-                        + " lista atual (ex.: query 'pdf', 'planilha', 'web'). Depois ative com"
-                        + " activate_tools.",
-                Map.of(
-                        "query",
-                        stringProperty("Palavras-chave da CAPACIDADE procurada (ex.: 'gerar pdf'),"
-                                + " nunca o assunto da pesquisa do usuario.")),
-                List.of("query")));
-        allTools.add(tool(
-                "activate_tools",
-                "Ativa ferramentas pelo nome para o restante DESTA execucao: os schemas completos delas"
-                        + " passam a ser enviados ao modelo nas proximas rodadas. Se a ferramenta pertencer a"
-                        + " um servidor MCP disponivel mas desconectado, o servidor e conectado"
-                        + " automaticamente. Ative somente o minimo necessario.",
-                Map.of("tools", arrayNameProperty("Nomes exatos das ferramentas a ativar.")),
-                List.of("tools")));
-        allTools.add(tool(
-                "search_code",
-                "Procura trechos dentro do codigo do projeto conectado. Quando o indice do projeto ja"
-                        + " esta pronto, casa por SIGNIFICADO e aceita pergunta em linguagem natural;"
-                        + " enquanto o indice esta sendo montado, cai para casamento LITERAL de termo. O"
-                        + " campo 'matching' da resposta diz qual dos dois respondeu: se veio 'literal',"
-                        + " prefira nome exato de metodo, classe, constante ou mensagem de erro. Para"
-                        + " achar a DEFINICAO de um simbolo use find_symbol; para achar pelo NOME do"
-                        + " arquivo use search_files.",
-                Map.of(
-                        "path", stringProperty("Diretorio raiz autorizado do projeto."),
-                        "query", stringProperty("Pergunta ou termos do que procurar no codigo."),
-                        "maxResults", numberProperty("Maximo de trechos retornados, padrao 5.")),
-                List.of("path", "query")));
+        Map<String, ObjectNode> annotatedTools = annotatedLocalTools();
+        for (String toolName : LocalToolDefinitions.NAMES) {
+            ObjectNode tool = annotatedTools.get(toolName);
+            if (tool == null) {
+                throw new IllegalStateException("Missing annotated local tool definition: " + toolName);
+            }
+            allTools.add(tool);
+        }
     }
 
-    private ObjectNode tool(
-            String name, String description, Map<String, ObjectNode> properties, List<String> required) {
-        ObjectNode tool = mapper.createObjectNode();
-        tool.put("name", name);
-        tool.put("description", description);
+    private Map<String, ObjectNode> annotatedLocalTools() {
+        Map<String, ObjectNode> tools = new LinkedHashMap<>();
+        ToolCallback[] callbacks = MethodToolCallbackProvider.builder()
+                .toolObjects(localToolDefinitions)
+                .build()
+                .getToolCallbacks();
 
-        ObjectNode schema = mapper.createObjectNode();
-        schema.put("type", "object");
-        ObjectNode props = mapper.createObjectNode();
-        properties.forEach(props::set);
-        schema.set("properties", props);
+        for (ToolCallback callback : callbacks) {
+            var definition = callback.getToolDefinition();
+            ObjectNode tool = mapper.createObjectNode();
+            tool.put("name", definition.name());
+            tool.put("description", definition.description());
+            tool.set("inputSchema", mapper.readTree(toolSchemaNormalizer.normalise(definition.inputSchema())));
+            tools.put(definition.name(), tool);
+        }
 
-        ArrayNode requiredNode = mapper.createArrayNode();
-        required.forEach(requiredNode::add);
-        schema.set("required", requiredNode);
-        schema.put("additionalProperties", false);
-
-        tool.set("inputSchema", schema);
-        return tool;
-    }
-
-    private ObjectNode stringProperty(String description) {
-        ObjectNode property = mapper.createObjectNode();
-        property.put("type", "string");
-        property.put("description", description);
-        return property;
-    }
-
-    private ObjectNode numberProperty(String description) {
-        ObjectNode property = mapper.createObjectNode();
-        property.put("type", "number");
-        property.put("description", description);
-        return property;
-    }
-
-    private ObjectNode booleanProperty(String description) {
-        ObjectNode property = mapper.createObjectNode();
-        property.put("type", "boolean");
-        property.put("description", description);
-        return property;
-    }
-
-    private ObjectNode arrayProperty(String description) {
-        ObjectNode property = mapper.createObjectNode();
-        property.put("type", "array");
-        property.put("description", description);
-        property.set("items", stringProperty("Caminho absoluto."));
-        return property;
-    }
-
-    private ObjectNode arrayNameProperty(String description) {
-        ObjectNode property = mapper.createObjectNode();
-        property.put("type", "array");
-        property.put("description", description);
-        property.set("items", stringProperty("Nome exato da ferramenta."));
-        return property;
+        return tools;
     }
 
     @GetMapping("/tools")

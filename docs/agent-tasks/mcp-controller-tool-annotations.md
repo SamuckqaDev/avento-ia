@@ -15,6 +15,29 @@ divergirem, o padrão do repo vence e você reporta a divergência.
 está escrito. Você não precisa refazer o que está marcado como medido — precisa confiar e verificar
 só se algo não bater.
 
+
+---
+
+## ESTADO ATUAL DA ÁRVORE — leia antes de decidir parar
+
+⚠️ **A árvore de trabalho já contém trabalho de uma execução anterior, e há UMA falha conhecida e
+esperada. Ela NÃO é motivo para parar — é a tarefa.**
+
+Já feito e correto (não refaça):
+
+- `LocalToolSchemaCharacterizationTest.java` + `src/test/resources/tool-schemas-baseline.json` — a
+  T1, com 810 testes verdes quando foi criada
+- `LocalToolDefinitions.java` — primeiro lote parcial
+- `McpController.java` — integração parcial com `@Tool` e o normalizador
+
+**A falha conhecida:** o `edit_file` em `LocalToolDefinitions.java` declara os parâmetros como
+`oldString`, `newString`, `replaceAll`, e o baseline exige `old_string`, `new_string`,
+`replace_all`. **O conserto está no item 3.5 desta spec** — renomeie os parâmetros Java para
+snake_case. Faça isso e continue.
+
+A regra de "pare e reporte" vale para falha **nova**, que sua mudança causou. Esta é anterior,
+diagnosticada, e tem conserto escrito.
+
 ---
 
 ## 1. O problema

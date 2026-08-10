@@ -341,3 +341,59 @@ para o javadoc da classe pequena ou para `docs/aprendizados/`.
 - Não trocar `git`/`filesystem` para container junto com os cinco limpos. São decisão de segurança.
 - Não deixar dois docs decidindo o mesmo ponto em direções opostas. Foi assim que este plano nasceu
   recomendando inverter uma trava de segurança sem saber que ela era deliberada.
+
+---
+
+## Fase 6 — Dívida estrutural · aberta em 10/08/2026
+
+O agente configurável está pronto (Fases 0 a 2 concluídas, a 3 com o back feito). Esta fase é o que
+ficou de dívida, e ela é medida — não é impressão.
+
+### O saldo estrutural da sessão de 08–10/08 foi NEGATIVO
+
+| | Antes | Agora |
+|---|---:|---:|
+| `AgentService` | 3.322 linhas | **3.470** |
+| Classes duplicadas entre módulos | 24 | **26** |
+| Lombok | 31 de 350 | 31 de **399** |
+
+A funcionalidade avançou muito (727 → 809 testes, Boot 4.1, Spring AI 2.0, MCP nos dois sentidos,
+RAG no contrato do Spring AI). Mas **a ligação do perfil foi parar dentro do `AgentService`**, a
+classe que este plano chama de maior passivo. Registrado para não se contar história melhor que os
+números.
+
+### Ordem, com o motivo
+
+**6.1 — `McpController` → `@Tool`** · spec pronta em `docs/agent-tasks/mcp-controller-tool-annotations.md`
+
+Primeiro porque o trabalho de projeto já está pago: armadilhas mapeadas, `ToolSchemaNormalizer`
+construído e testado, launcher verificado. Corta ~450 linhas e conserta a instabilidade de cache de
+prompt das 17 ferramentas que usam `Map.of` (ordem randomizada por execução da JVM — medido).
+
+**6.2 — As 26 classes duplicadas entre módulos**
+
+Mecânico, o compilador confere, e está **piscando**: 24 → 26 numa sessão. Entre elas há repository
+duplicado (`AgentTimelineEventRepository`) e contexto de execução (`ToolExecutionContext`). O teste
+que "impede divergirem" é band-aid; o certo é um lugar comum para contrato.
+
+**6.3 — Voltar a extrair o `AgentService`**
+
+Sobrou: o laço de execução de ferramenta dentro do `finishTurn` (~130 linhas, entrelaçado com sink e
+permissão), `buildOllamaRequest` → `ModelTransport` (que já existe), e as 148 linhas de perfil que a
+sessão de 08–10/08 acrescentou — o perfil merece classe própria, não campo injetado no monólito.
+
+**6.4 — Consolidar `docs/`**
+
+23 arquivos, e dois já decidiram o mesmo ponto em direções opostas — foi o que fez este plano nascer
+recomendando inverter uma trava de segurança sem saber que era deliberada. Um `ARCHITECTURE.md` que
+decide, um `HANDOFF.md` que é estado, e o resto vira histórico.
+
+### Depois, e por quê depois
+
+- **Front da tela de agentes** — o back está pronto e testado; é trabalho de UI que não muda
+  arquitetura.
+- **Lombok nas 368 restantes** — decisão do dono já tomada, mas é volume puro com o risco de
+  reflexão do `BeanUtils` já registrado neste plano, e retorno estético.
+- **`@McpResource` e a reescrita do laço em advisors** — dependem de uma medição que ainda não foi
+  feita: se o prefixo do prompt se mantém estável passando pelo `ChatClient`. Sem esse número,
+  qualquer decisão sobre advisors é palpite.

@@ -11,8 +11,6 @@ import com.avento.repository.ImageGenerationJobRepository;
 import com.avento.service.dto.ImageJobView;
 import com.avento.service.image.ImageGenerationJobWorker;
 import com.avento.service.image.ImageGenerator;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -24,6 +22,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 class ImageGenerationJobServiceTest {
 

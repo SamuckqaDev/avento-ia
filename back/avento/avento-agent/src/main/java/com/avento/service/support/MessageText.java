@@ -1,10 +1,10 @@
 package com.avento.service.support;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ArrayNode;
 import java.text.Normalizer;
 import java.util.Locale;
 import java.util.Set;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
 
 /**
  * Leitura do que o usuário realmente escreveu, separado do que o Avento injetou em volta.

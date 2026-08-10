@@ -6,9 +6,6 @@ import com.avento.model.ExecutionOutboxEvent;
 import com.avento.repository.AgentRunJobRepository;
 import com.avento.repository.ExecutionOutboxEventRepository;
 import com.avento.service.dto.AgentRunView;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +14,9 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 @Service
 public class AgentRunSubmissionService {

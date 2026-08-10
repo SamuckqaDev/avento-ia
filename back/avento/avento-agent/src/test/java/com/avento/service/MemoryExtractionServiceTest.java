@@ -13,12 +13,12 @@ import com.avento.model.Chat;
 import com.avento.model.Message;
 import com.avento.repository.ChatRepository;
 import com.avento.repository.MessageRepository;
-import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 class MemoryExtractionServiceTest {
 

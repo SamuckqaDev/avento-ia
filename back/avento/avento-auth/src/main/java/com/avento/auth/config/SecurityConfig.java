@@ -4,7 +4,6 @@ import com.avento.api.ApiCodes;
 import com.avento.api.ApiErrorResponses;
 import com.avento.auth.config.AuthProperties;
 import com.avento.auth.security.JwtCookieAuthenticationFilter;
-import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -30,6 +29,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 @EnableWebSecurity

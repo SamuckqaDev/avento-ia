@@ -14,7 +14,6 @@ import com.avento.model.ExecutionOutboxEvent;
 import com.avento.repository.AgentRunJobRepository;
 import com.avento.repository.ExecutionOutboxEventRepository;
 import com.avento.service.dto.AgentRunView;
-import tools.jackson.databind.ObjectMapper;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -22,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
+import tools.jackson.databind.ObjectMapper;
 
 class AgentRunSubmissionServiceTest {
 

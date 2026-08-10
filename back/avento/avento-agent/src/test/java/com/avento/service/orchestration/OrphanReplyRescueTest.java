@@ -10,13 +10,13 @@ import static org.mockito.Mockito.when;
 import com.avento.model.Message;
 import com.avento.repository.ChatRepository;
 import com.avento.repository.MessageRepository;
-import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Quem grava a resposta do assistente é o frontend, depois de consumir o stream SSE. Quando a conexão

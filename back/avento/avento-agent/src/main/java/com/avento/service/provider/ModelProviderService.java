@@ -6,10 +6,6 @@ import com.avento.api.dto.ProviderTestRequest;
 import com.avento.api.dto.ProviderTestResponse;
 import com.avento.model.ProviderSettings;
 import com.avento.repository.ProviderSettingsRepository;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.ObjectNode;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +17,10 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Configuração de provedor: um provedor ativo por usuário, com o TIPO dirigindo o comportamento.

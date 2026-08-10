@@ -1,7 +1,7 @@
 package com.avento.service.image;
 
-import tools.jackson.databind.node.ObjectNode;
 import java.util.Map;
+import tools.jackson.databind.node.ObjectNode;
 
 public interface ImageGenerator {
     ObjectNode generate(Map<String, Object> payload);

@@ -9,13 +9,13 @@ import static org.mockito.Mockito.when;
 
 import com.avento.model.ProviderSettings;
 import com.avento.repository.ProviderSettingsRepository;
-import tools.jackson.databind.ObjectMapper;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * O Ollama fala os dois protocolos — o próprio em {@code /api/*} e o da OpenAI em {@code /v1} — então

@@ -2,8 +2,8 @@ package com.avento.service.image;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 class ImagePromptTranslatorTest {
 

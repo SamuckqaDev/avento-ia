@@ -4,9 +4,6 @@ import com.avento.model.ImageGenerationJob;
 import com.avento.model.ImageGenerationJob.Status;
 import com.avento.repository.ImageGenerationJobRepository;
 import com.avento.service.GeneratedMediaAssetService;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,6 +19,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 @Service
 public class ImageGenerationJobWorker {

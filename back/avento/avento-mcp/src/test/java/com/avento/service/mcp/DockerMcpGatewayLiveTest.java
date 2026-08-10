@@ -3,7 +3,6 @@ package com.avento.service.mcp;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.avento.service.dto.ConnectionResult;
-import tools.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -13,6 +12,7 @@ import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * O Avento conectando no Docker MCP Gateway de verdade.

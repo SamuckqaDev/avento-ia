@@ -3,7 +3,6 @@ package com.avento.service;
 import com.avento.service.dto.LocalModelInfo;
 import com.avento.service.provider.ModelProviderService;
 import com.avento.service.support.ModelNames;
-import tools.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -15,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.JsonNode;
 
 /**
  * Os modelos oferecidos aos seletores da interface.

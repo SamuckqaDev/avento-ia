@@ -3,8 +3,6 @@ package com.avento.service.orchestration;
 import com.avento.model.Message;
 import com.avento.repository.ChatRepository;
 import com.avento.repository.MessageRepository;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -18,6 +16,8 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Guarda a resposta que o servidor produziu quando ninguém estava ouvindo.

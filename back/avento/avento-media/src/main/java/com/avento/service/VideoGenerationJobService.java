@@ -6,8 +6,6 @@ import com.avento.repository.VideoGenerationJobRepository;
 import com.avento.service.dto.*;
 import com.avento.service.dto.VideoStatus;
 import com.avento.service.dto.VideoSubmission;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,6 +27,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 @Service
 public class VideoGenerationJobService {

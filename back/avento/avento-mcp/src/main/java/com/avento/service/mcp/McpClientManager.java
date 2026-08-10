@@ -1,16 +1,11 @@
 package com.avento.service.mcp;
 
 import com.avento.service.dto.*;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.ObjectNode;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.client.transport.StdioClientTransport;
 import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
-import tools.jackson.databind.json.JsonMapper;
 import io.modelcontextprotocol.spec.McpSchema.CallToolRequest;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.Implementation;
@@ -31,6 +26,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** Owns official MCP SDK clients and isolates discovery and routing by chat scope. */
 @Service
@@ -91,8 +91,8 @@ public class McpClientManager {
             // protocolo MCP nao deve herdar configuracao de serializacao da aplicacao — o que trafega
             // aqui e JSON-RPC, nao DTO nosso. O copy() defensivo do Jackson 2 sumiu junto: o mapper
             // agora e imutavel.
-            StdioClientTransport transport =
-                    new StdioClientTransport(parameters, new JacksonMcpJsonMapper(JsonMapper.builder().build()));
+            StdioClientTransport transport = new StdioClientTransport(
+                    parameters, new JacksonMcpJsonMapper(JsonMapper.builder().build()));
             transport.setStdErrorHandler(line -> logger.debug("MCP {} [{}]: {}", serverName, normalizedScope, line));
 
             McpSyncClient client = McpClient.sync(transport)

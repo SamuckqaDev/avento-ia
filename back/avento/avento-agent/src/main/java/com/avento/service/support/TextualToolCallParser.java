@@ -1,9 +1,9 @@
 package com.avento.service.support;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ObjectNode;
 import java.util.List;
 import java.util.regex.Pattern;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Recupera a chamada de ferramenta que o modelo escreveu como texto em vez de emitir no campo

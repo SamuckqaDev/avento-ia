@@ -7,8 +7,6 @@ import static com.avento.service.support.MessageText.lastUserMessage;
 import static com.avento.service.support.MessageText.normalizeIntentText;
 
 import com.avento.service.support.HeuristicWordLists;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ArrayNode;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -16,6 +14,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
 
 /**
  * Decide se a mensagem pede uma imagem, e com que prompt.

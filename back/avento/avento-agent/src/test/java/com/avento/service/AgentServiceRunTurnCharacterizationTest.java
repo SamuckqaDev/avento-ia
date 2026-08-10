@@ -2,13 +2,13 @@ package com.avento.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import tools.jackson.databind.node.ArrayNode;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
+import tools.jackson.databind.node.ArrayNode;
 
 /**
  * Caracteriza {@code AgentService.runTurn} — 64 linhas, zero testes até 08/08/2026.

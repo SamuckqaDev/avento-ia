@@ -3,9 +3,9 @@ package com.avento.service.execution;
 import com.avento.service.intent.ImageIntentService;
 import com.avento.service.support.HeuristicWordLists;
 import com.avento.service.support.MessageText;
-import tools.jackson.databind.node.ArrayNode;
 import java.util.Set;
 import java.util.regex.Pattern;
+import tools.jackson.databind.node.ArrayNode;
 
 /**
  * Politica de FIM DE TURNO: decide se a rodada merece nova tentativa, se merece aviso, e se um

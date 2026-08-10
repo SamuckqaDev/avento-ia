@@ -5,12 +5,12 @@ import com.avento.service.intent.ImageIntentService;
 import com.avento.service.intent.IntentProfile;
 import com.avento.service.intent.IntentRouter;
 import com.avento.service.support.MessageText;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ArrayNode;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
 
 /**
  * Decide QUAIS ferramentas o modelo enxerga nesta rodada.

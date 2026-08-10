@@ -59,8 +59,7 @@ class AgentRunWorkerTest {
     }
 
     private boolean requiresFolder(String payloadJson) throws Exception {
-        tools.jackson.databind.JsonNode request =
-                new tools.jackson.databind.ObjectMapper().readTree(payloadJson);
+        tools.jackson.databind.JsonNode request = new tools.jackson.databind.ObjectMapper().readTree(payloadJson);
         return request.path("taskId").asLong(0L) > 0L;
     }
 

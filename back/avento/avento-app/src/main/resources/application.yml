@@ -172,6 +172,11 @@ avento:
     memory-guard-enabled: ${AVENTO_COMFYUI_MEMORY_GUARD_ENABLED:true}
     adherence-min-score: ${AVENTO_COMFYUI_ADHERENCE_MIN_SCORE:85}
   mcp:
+    server:
+      # Desligado por padrao de proposito: ligar abre uma porta que serve conteudo do workspace a
+      # quem alcanca-la. O servidor MCP nao tem autenticacao propria, e o requireAuthorized limita
+      # QUAL pasta, nao QUEM chama. So ferramentas de leitura sao publicadas — ver AventoMcpServer.
+      enabled: ${AVENTO_MCP_SERVER_ENABLED:false}
     # Conexão sob demanda por intenção: os gatilhos (id do servidor -> palavras-chave) ficam em
     # resources/agent/mcp-auto-connect.md, por categoria — fora do yml.
     packages:

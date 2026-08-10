@@ -11,7 +11,6 @@ import com.avento.repository.VideoGenerationJobRepository;
 import com.avento.service.dto.ImageReference;
 import com.avento.service.dto.VideoStatus;
 import com.avento.service.dto.VideoSubmission;
-import tools.jackson.databind.ObjectMapper;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,6 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.ObjectMapper;
 
 class VideoGenerationJobServiceTest {
 

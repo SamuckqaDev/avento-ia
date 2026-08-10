@@ -1,8 +1,8 @@
 package com.avento.service.tools;
 
+import java.util.Map;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
-import java.util.Map;
 
 /** Provider contract for the agent tool catalog and execution transport. */
 public interface ToolProvider {

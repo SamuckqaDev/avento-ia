@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.avento.service.FileBackupService;
 import com.avento.service.WorkspaceAccessService;
 import com.avento.service.tools.ToolExecutionContext;
-import tools.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.databind.JsonNode;
 
 /**
  * Executa de verdade as ferramentas que não dependem de serviço externo, num workspace temporário.

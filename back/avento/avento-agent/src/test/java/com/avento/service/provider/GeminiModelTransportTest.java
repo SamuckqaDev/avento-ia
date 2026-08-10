@@ -2,11 +2,11 @@ package com.avento.service.provider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
-import org.junit.jupiter.api.Test;
 
 /**
  * O agente é quem tem as ferramentas; o modelo é processamento. A primeira versão errou nisso — o

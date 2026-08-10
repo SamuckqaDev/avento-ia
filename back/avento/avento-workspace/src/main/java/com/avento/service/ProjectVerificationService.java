@@ -3,14 +3,13 @@ package com.avento.service;
 import com.avento.service.dto.ProjectCommandRequest;
 import com.avento.service.dto.ProjectCommandResult;
 import com.avento.service.dto.VerificationResult;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * O elo que fecha o loop "editar → verificar → corrigir": detecta o comando canônico de

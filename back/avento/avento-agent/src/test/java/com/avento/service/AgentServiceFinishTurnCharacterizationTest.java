@@ -2,8 +2,6 @@ package com.avento.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.ObjectNode;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -12,6 +10,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Caracteriza {@code AgentService.finishTurn} — 241 linhas, zero testes até 08/08/2026.

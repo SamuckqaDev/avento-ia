@@ -8,7 +8,6 @@ import com.avento.api.dto.ProviderTestRequest;
 import com.avento.api.dto.ProviderTestResponse;
 import com.avento.auth.security.AuthPrincipal;
 import com.avento.service.provider.ModelProviderService;
-import tools.jackson.databind.JsonNode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,6 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
 
 @RestController
 @RequestMapping("/api/ai/providers")

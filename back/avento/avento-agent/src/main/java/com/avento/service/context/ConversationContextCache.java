@@ -3,10 +3,6 @@ package com.avento.service.context;
 import com.avento.config.RedisExecutionProperties;
 import com.avento.model.Message;
 import com.avento.repository.MessageRepository;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.ObjectNode;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -15,6 +11,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** Rebuildable cache of recent canonical chat messages. PostgreSQL remains the source of truth. */
 @Service

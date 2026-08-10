@@ -3,8 +3,6 @@ package com.avento.service;
 import com.avento.service.dto.*;
 import com.avento.service.rag.CodeAwareSplitter;
 import com.avento.service.rag.VectorStoreResolver;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
@@ -30,6 +28,8 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class RagService {

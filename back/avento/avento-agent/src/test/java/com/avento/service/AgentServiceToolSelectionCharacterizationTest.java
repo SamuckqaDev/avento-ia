@@ -3,12 +3,12 @@ package com.avento.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.avento.service.tools.AgentToolSelector;
-import tools.jackson.databind.node.ArrayNode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.node.ArrayNode;
 
 /**
  * Caracteriza {@code AgentService.selectToolsForCurrentRequest} — 107 linhas, zero testes até

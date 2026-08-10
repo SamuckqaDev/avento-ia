@@ -1,8 +1,8 @@
 package com.avento.service.image;
 
-import tools.jackson.databind.JsonNode;
 import java.util.Locale;
 import java.util.Map;
+import tools.jackson.databind.JsonNode;
 
 public record ImageGenerationOptions(
         String qualityPreset,

@@ -10,12 +10,12 @@ import static org.mockito.Mockito.when;
 
 import com.avento.model.AgentTimelineEvent;
 import com.avento.repository.AgentTimelineEventRepository;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 class AgentTimelineServiceTest {
 

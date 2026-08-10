@@ -21,10 +21,6 @@ import com.avento.service.tools.ToolCapabilityRegistry;
 import com.avento.service.tools.ToolExecutionContext;
 import com.avento.service.tools.ToolExecutionGateway;
 import com.avento.service.tools.ToolResultVerifier;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.ObjectNode;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -38,6 +34,10 @@ import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 class AgentServiceDirectAutomationTest {
 

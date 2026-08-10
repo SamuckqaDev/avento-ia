@@ -1,7 +1,7 @@
 package com.avento.service.dto;
 
-import tools.jackson.databind.node.ArrayNode;
 import java.util.List;
+import tools.jackson.databind.node.ArrayNode;
 
 public record SkillResolution(
         boolean invoked,

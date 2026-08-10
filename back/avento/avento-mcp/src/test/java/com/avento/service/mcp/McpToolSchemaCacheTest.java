@@ -3,7 +3,6 @@ package com.avento.service.mcp;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.avento.service.dto.ToolDefinition;
-import tools.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -11,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * O cache existe para responder "quais ferramentas esta imagem tem?" sem subir o container.

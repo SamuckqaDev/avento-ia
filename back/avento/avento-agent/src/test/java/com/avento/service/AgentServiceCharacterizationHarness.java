@@ -11,14 +11,14 @@ import com.avento.service.tools.ToolCapabilityRegistry;
 import com.avento.service.tools.ToolExecutionContext;
 import com.avento.service.tools.ToolExecutionGateway;
 import com.avento.service.tools.ToolResultVerifier;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.ObjectNode;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Base compartilhada dos testes de CARACTERIZAÇÃO do miolo do {@link AgentService}.

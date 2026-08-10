@@ -7,11 +7,11 @@ import static org.mockito.Mockito.when;
 import com.avento.service.dto.LocalModelInfo;
 import com.avento.service.provider.ModelProviderService;
 import com.avento.service.provider.ProviderKind;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Com o Gemini ativo, o seletor continuava listando os modelos do Ollama: a interface chama

@@ -7,8 +7,6 @@ import static com.avento.service.support.MessageText.lastUserMessage;
 import static com.avento.service.support.MessageText.normalizeIntentText;
 
 import com.avento.service.support.HeuristicWordLists;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ArrayNode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,6 +24,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
 
 /**
  * Monta o system prompt de uma rodada.

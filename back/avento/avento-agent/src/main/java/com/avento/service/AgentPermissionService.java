@@ -4,7 +4,6 @@ import com.avento.model.AgentPermissionRule;
 import com.avento.repository.AgentPermissionRuleRepository;
 import com.avento.service.dto.*;
 import com.avento.service.tools.RunToolPolicyRegistry;
-import tools.jackson.databind.JsonNode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -14,6 +13,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
 
 @Service
 public class AgentPermissionService {

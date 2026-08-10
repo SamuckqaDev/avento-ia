@@ -1,9 +1,9 @@
 package com.avento.service.tools;
 
-import tools.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
 
 /**
  * Validador estrito de JSON Schema para chamadas de ferramentas.

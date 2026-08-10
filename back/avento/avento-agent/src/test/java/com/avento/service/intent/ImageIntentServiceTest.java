@@ -2,9 +2,9 @@ package com.avento.service.intent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
-import org.junit.jupiter.api.Test;
 
 /**
  * Os três julgamentos que se parecem e não são a mesma coisa: protótipo de interface, geração de

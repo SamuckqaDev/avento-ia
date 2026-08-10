@@ -8,13 +8,13 @@ import com.avento.config.RedisExecutionProperties;
 import com.avento.model.AgentRunJob;
 import com.avento.repository.AgentRunJobRepository;
 import com.avento.repository.AgentTimelineEventRepository;
-import tools.jackson.databind.ObjectMapper;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 class RunEventStreamServiceTest {
 

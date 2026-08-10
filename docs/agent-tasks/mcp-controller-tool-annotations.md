@@ -30,10 +30,12 @@ Já feito e correto (não refaça):
 - `LocalToolDefinitions.java` — primeiro lote parcial
 - `McpController.java` — integração parcial com `@Tool` e o normalizador
 
-**A falha conhecida:** o `edit_file` em `LocalToolDefinitions.java` declara os parâmetros como
-`oldString`, `newString`, `replaceAll`, e o baseline exige `old_string`, `new_string`,
-`replace_all`. **O conserto está no item 3.5 desta spec** — renomeie os parâmetros Java para
-snake_case. Faça isso e continue.
+**Estado após a segunda execução:** a conversão está feita — o `McpController` caiu de 2.240 para
+**1.847 linhas** e `stringProperty(` não ocorre mais nele. O `edit_file` já usa snake_case (item 3.5).
+
+**A falha que resta** é a descrição de item de array, e o conserto está no **item 3.6**: aceitar a
+diferença e regenerar o baseline **apenas** nas três entradas listadas lá. Faça isso, rode a suíte
+completa e conclua.
 
 A regra de "pare e reporte" vale para falha **nova**, que sua mudança causou. Esta é anterior,
 diagnosticada, e tem conserto escrito.
@@ -191,6 +193,35 @@ public String editFile(
 o `edit_file` está no kit fixo do chat com projeto conectado, é das mais usadas, e a própria
 descrição cita `old_string` pelo nome. Mudar o schema mudaria o contrato com o modelo, e a decisão 1
 da seção 4 proíbe tocar em descrição.
+
+### 3.6. Descrição de item de array: perda aceita, e só esta
+
+**Descoberta na segunda execução.** O `arrayProperty` artesanal punha descrição no ITEM do array; o
+Spring AI gera `items: {"type":"string"}`, sem descrição. O normalizador não resolve — não há de onde
+tirar o texto.
+
+Medido: são **três** parâmetros de array em todo o catálogo, e em todos a descrição do **pai** já
+carrega a mesma orientação:
+
+| Parâmetro | Descrição do pai | Item dizia |
+|---|---|---|
+| `projectPaths` (list_mcp_servers) | "Workspaces **absolutos** opcionais…" | "Caminho absoluto." |
+| `projectPaths` (connect_mcp_server) | "Workspaces **absolutos** necessarios…" | "Caminho absoluto." |
+| `tools` (activate_tools) | "Nomes **exatos** das ferramentas a ativar." | "Nome exato da ferramenta." |
+
+A informação que o modelo precisa — que é caminho absoluto, que é nome exato — **sobrevive no pai**.
+A perda é redundância.
+
+**Decisão:** aceite a diferença e **regenere o baseline apenas nessas três entradas**, registrando o
+motivo no commit.
+
+⚠️ **Isto NÃO é licença para regenerar o baseline.** A permissão é estreita e literal: apenas a chave
+`items.description` dessas três propriedades de array. **Qualquer outra diferença continua sendo
+motivo para parar e reportar** — inclusive outra chave nas mesmas três.
+
+A distinção que importa: afrouxar teste para esconder defeito é proibido; atualizar um baseline
+porque o contrato mudou **de propósito, com o motivo escrito e a perda medida**, é decisão de projeto.
+A diferença entre as duas é se alguém verificou o que se perdeu. Aqui foi verificado.
 
 ---
 

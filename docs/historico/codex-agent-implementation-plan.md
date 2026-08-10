@@ -1,8 +1,8 @@
 # Surgical Implementation Plan - Specialized Agents
 
-> **Primary implementation document.** Read `docs/agent-corrections-plan.md` first. Preserve the
-> foundation described in `docs/autonomous-agent-plan.md`. Run the audit in
-> `docs/codex-review-plan.md` after implementation.
+> **Primary implementation document.** Read `../agent-corrections-plan.md` first. Preserve the
+> foundation described in `autonomous-agent-plan.md`. Run the audit in `codex-review-plan.md` after
+> implementation.
 >
 > This plan was checked against the current code. Do not rebuild `PlanExecutionService`,
 > verification/checkpoint/revert, worker/outbox, cancellation, or boot recovery.

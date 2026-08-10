@@ -410,12 +410,12 @@ O Avento é local-first, mas executa ações reais no computador. Antes de permi
 | [Aprendizados](docs/aprendizados/README.md) | Os bugs que custaram mais caro, do sintoma à causa raiz |
 | [Identidade e personalidade](docs/AVENTO_IDENTITY.md) | Origem, autoria de Samuel Tomimatu, serviços verificados, voz e comportamento |
 | [Arquitetura atual](docs/ARCHITECTURE.md) | Diagrama dos componentes, fluxos, dados, voz, mídia e MCP |
-| [Plano de evolução](docs/IMPLEMENTATION_PLAN.md) | Fases futuras explicadas, critérios de aceite e decisões pendentes |
+| [Plano de evolução (histórico)](docs/historico/IMPLEMENTATION_PLAN.md) | Fases e critérios originais; o comportamento atual está na arquitetura |
 | [Setup local](docs/SETUP.md) | Instalação, serviços, voz, segurança e diagnóstico |
 | [Orquestração](docs/ORCHESTRATION.md) | Ciclo do agente, estados e integração MCP |
 | [Catálogo MCP](docs/LOCAL_MCP_CATALOG.md) | Servidores, perfis, banco do projeto e configuração |
 | [Prototipação de interfaces](docs/INTERFACE_PROTOTYPING.md) | Prévia HTML local, isolamento, revisão e aprovação antes do código |
-| [Roadmap](docs/AGENT_ROADMAP.md) | Evolução planejada do agente |
+| [Roadmap (histórico)](docs/historico/AGENT_ROADMAP.md) | Evolução inicial planejada do agente; o comportamento atual está na arquitetura |
 | [Identidade visual](docs/BRAND.md) | Logo, paleta e diretrizes da marca |
 | [Contribuição](CONTRIBUTING.md) | Padrões e validações do código |
 

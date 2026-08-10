@@ -1,7 +1,7 @@
 # Codex Review and Correction Plan
 
-> **Workflow position:** Antigravity implements `docs/autonomous-agent-plan.md` -> Codex audits and
-> fixes -> Codex implements specialized agents through `docs/codex-agent-implementation-plan.md` ->
+> **Workflow position:** Antigravity implements `autonomous-agent-plan.md` -> Codex audits and
+> fixes -> Codex implements specialized agents through `codex-agent-implementation-plan.md` ->
 > Claude performs the final review.
 >
 > **Role:** act as a senior reviewer and fixer. Do not reimplement working architecture. Audit the
@@ -43,7 +43,7 @@
 
 ## 2. Autonomous-Agent Specification Compliance
 
-Check the implementation point by point against `docs/autonomous-agent-plan.md`:
+Check the implementation point by point against `autonomous-agent-plan.md`:
 
 - [ ] `AgentPlan` and `AgentTask` exist with effective non-null ownership and user indexes.
 - [ ] `PlanBuilderService` creates a bounded ordered structured task list, not loose text, and handles
@@ -135,8 +135,7 @@ consolidate it into the existing components instead of maintaining parallel impl
 
 ## 6. Specialized-Agent Review
 
-Audit against `docs/agent-corrections-plan.md` and
-`docs/codex-agent-implementation-plan.md`.
+Audit against `../agent-corrections-plan.md` and `codex-agent-implementation-plan.md`.
 
 ### 6.1 Profiles and ownership
 

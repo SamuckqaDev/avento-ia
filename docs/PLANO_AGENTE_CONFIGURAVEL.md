@@ -192,7 +192,7 @@ maior parte dela já está construída — ver "A ligação perfil → ferrament
 - [ ] Interseção/resolução vazia **falha a run com erro visível**, nomeando o perfil e as ferramentas
       inexistentes. Nem `tools: []` (turno vazio), nem fallback pro kit inteiro (escala privilégio)
 - [ ] Validar `allowed_tools` contra o registry real **na gravação do perfil** — já é item não marcado
-      em `docs/codex-review-plan.md:145`. Barrar na escrita é melhor que descobrir na run
+      em `docs/historico/codex-review-plan.md:145`. Barrar na escrita é melhor que descobrir na run
 - [ ] Canonicalizar a ordem da lista do perfil antes de montar o payload — preserva o cache de prompt
 - [ ] Teste de caracterização primeiro: hoje, allow-list que não intersecta o kit devolve vazio.
       Fixar esse comportamento antes de mudá-lo

@@ -38,9 +38,9 @@ Medido:
 | Doc | Citado por |
 |---|---|
 | `agent-corrections-plan.md` | **`AgentService.java`**, `AgentProfileToolPolicyTest.java`, e 4 docs |
-| `codex-review-plan.md` | 4 arquivos |
+| `historico/codex-review-plan.md` | 4 arquivos |
 | `REDIS_EXECUTION.md` | 7 arquivos |
-| `IMPLEMENTATION_PLAN.md`, `codex-agent-implementation-plan.md`, `autonomous-agent-plan.md`, `INTERFACE_PROTOTYPING.md` | 3 cada |
+| `historico/IMPLEMENTATION_PLAN.md`, `historico/codex-agent-implementation-plan.md`, `historico/autonomous-agent-plan.md`, `INTERFACE_PROTOTYPING.md` | 3 cada |
 
 **Um doc que o código aponta não é morto — é registro de decisão.** Arquivar sem atualizar o ponteiro
 troca um problema por outro.

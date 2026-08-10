@@ -401,12 +401,12 @@ Avento is local-first, but it performs real actions on the computer. Before allo
 | [Learnings](docs/aprendizados/README.md) | The bugs that cost the most, explained from the symptom to the root cause |
 | [Identity and personality](docs/AVENTO_IDENTITY.md) | Origin, Samuel Tomimatu's authorship, verified services, voice, and behavior |
 | [Current architecture](docs/ARCHITECTURE.md) | Diagram of components, flows, data, voice, media, and MCP |
-| [Evolution plan](docs/IMPLEMENTATION_PLAN.md) | Future phases explained, acceptance criteria, and pending decisions |
+| [Evolution plan (historical)](docs/historico/IMPLEMENTATION_PLAN.md) | Original phases and acceptance criteria; current behavior is documented in the architecture |
 | [Local setup](docs/SETUP.md) | Installation, services, voice, security, and diagnostics |
 | [Orchestration](docs/ORCHESTRATION.md) | Agent loop, states, and MCP integration |
 | [MCP catalog](docs/LOCAL_MCP_CATALOG.md) | Servers, profiles, project database, and configuration |
 | [Interface prototyping](docs/INTERFACE_PROTOTYPING.md) | Local HTML preview, isolation, review, and approval before code |
-| [Roadmap](docs/AGENT_ROADMAP.md) | Planned agent evolution |
+| [Roadmap (historical)](docs/historico/AGENT_ROADMAP.md) | Initial planned agent evolution; current behavior is documented in the architecture |
 | [Visual identity](docs/BRAND.md) | Logo, palette, and brand guidelines |
 | [Contributing](CONTRIBUTING.md) | Code standards and validations |
 

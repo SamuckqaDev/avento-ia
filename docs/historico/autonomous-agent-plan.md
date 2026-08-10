@@ -6,7 +6,7 @@
 >
 > **Current position:** the first implementation already exists and must not be rebuilt. For the
 > specialized-agent evolution, follow this order:
-> `agent-corrections-plan.md` (architecture decisions) ->
+> `../agent-corrections-plan.md` (architecture decisions) ->
 > `codex-agent-implementation-plan.md` (implementation) -> `codex-review-plan.md` (final audit).
 
 ---

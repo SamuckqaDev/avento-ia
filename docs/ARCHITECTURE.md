@@ -814,4 +814,4 @@ workflows necessarios para encontra-los ou prepara-los na maquina local.
 - O ambiente foi desenhado primeiro para macOS e loopback; acesso remoto exige outra camada de
   seguranca e operacao.
 
-As mudancas planejadas para esses pontos ficam em [Plano de evolucao](IMPLEMENTATION_PLAN.md).
+As mudancas planejadas para esses pontos ficam em [Plano de evolucao](historico/IMPLEMENTATION_PLAN.md).

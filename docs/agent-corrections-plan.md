@@ -1,8 +1,9 @@
 # Agent Mode Corrections and Specialized Agents
 
 > **Purpose:** record the diagnosis and architectural decisions. The surgical implementation guide
-> is `docs/codex-agent-implementation-plan.md`. The original specification remains in
-> `docs/autonomous-agent-plan.md`, and the final audit is in `docs/codex-review-plan.md`.
+> is `docs/historico/codex-agent-implementation-plan.md`. The original specification remains in
+> `docs/historico/autonomous-agent-plan.md`, and the final audit is in
+> `docs/historico/codex-review-plan.md`.
 
 ---
 
@@ -157,6 +158,12 @@ Mandatory decisions:
 - An empty `allowedTools` preserves the current eligible tool set. A non-empty list is a strict cap:
   `eligible tools intersected with profile tools`. An empty intersection remains empty; it never
   falls back to all.
+
+  > **Supersession note (10/08/2026):** the strict-cap/intersection portion of this decision was
+  > revoked by Phase 1 of `PLANO_AGENTE_CONFIGURAVEL.md`: the profile now defines the tool universe
+  > before selection instead of filtering an already eligible set. The remaining security rule is
+  > still in force: a resolution with no tools never falls back to the full catalog.
+
 - A tool allow-list does not grant permission. Allowed risky tools still pass through the permission
   engine and user approval.
 - If the preferred model is unavailable, emit an observable fallback event and use the default.

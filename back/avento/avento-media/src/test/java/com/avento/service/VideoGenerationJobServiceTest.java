@@ -11,7 +11,7 @@ import com.avento.repository.VideoGenerationJobRepository;
 import com.avento.service.dto.ImageReference;
 import com.avento.service.dto.VideoStatus;
 import com.avento.service.dto.VideoSubmission;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;

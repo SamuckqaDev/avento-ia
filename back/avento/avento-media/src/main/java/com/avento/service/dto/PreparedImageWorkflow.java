@@ -1,6 +1,6 @@
 package com.avento.service.dto;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 
 public record PreparedImageWorkflow(
         ObjectNode workflow,

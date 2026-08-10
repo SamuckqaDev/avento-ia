@@ -2,10 +2,10 @@ package com.avento.service.provider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -119,7 +119,7 @@ class AnthropicModelTransportTest {
         assertThat(AnthropicModelTransport.toInternalChunk(delta1, MAPPER, acc)).isNull();
 
         String delta2 = "event: content_block_delta\ndata: {\"index\":0,\"type\":\"content_block_delta\","
-                + "\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"m.xml\\\"}}\"}}";
+                + "\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"m.xml\\\"}\"}}";
         assertThat(AnthropicModelTransport.toInternalChunk(delta2, MAPPER, acc)).isNull();
 
         // 3. content_block_stop → emite o tool_call completo

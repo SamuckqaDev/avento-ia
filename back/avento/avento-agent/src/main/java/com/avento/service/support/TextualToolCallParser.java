@@ -1,7 +1,7 @@
 package com.avento.service.support;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -80,7 +80,7 @@ public final class TextualToolCallParser {
                 return parsed.get(wrapper);
             }
         }
-        ObjectNode args = parsed.deepCopy();
+        ObjectNode args = (ObjectNode) parsed.deepCopy();
         NAME_FIELDS.forEach(args::remove);
         return args;
     }

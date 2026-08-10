@@ -1,8 +1,8 @@
 package com.avento.service.orchestration;
 
 import com.avento.service.dto.*;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;

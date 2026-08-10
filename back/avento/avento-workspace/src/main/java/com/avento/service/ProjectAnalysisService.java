@@ -1,8 +1,8 @@
 package com.avento.service;
 
 import com.avento.service.dto.*;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
@@ -180,8 +180,8 @@ public class ProjectAnalysisService {
                     JsonNode scriptNode = packageJson.path("scripts");
                     if (scriptNode.isObject()) {
                         scriptNode
-                                .fields()
-                                .forEachRemaining(entry -> scripts.add(new ProjectScript(
+                                .properties()
+                                .forEach(entry -> scripts.add(new ProjectScript(
                                         "npm", entry.getKey(), entry.getValue().asText(), modulePath.toString())));
                     }
                 });
@@ -340,7 +340,7 @@ public class ProjectAnalysisService {
         if (!node.isObject()) {
             return;
         }
-        node.fields().forEachRemaining(entry -> target.put(entry.getKey(), entry.getValue()));
+        node.properties().forEach(entry -> target.put(entry.getKey(), entry.getValue()));
     }
 
     private boolean fileContains(Path path, String value) {

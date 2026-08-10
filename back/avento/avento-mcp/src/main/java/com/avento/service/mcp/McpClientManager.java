@@ -1,15 +1,16 @@
 package com.avento.service.mcp;
 
 import com.avento.service.dto.*;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.client.transport.StdioClientTransport;
-import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
+import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.modelcontextprotocol.spec.McpSchema.CallToolRequest;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.Implementation;
@@ -85,8 +86,13 @@ public class McpClientManager {
                     .args(command.subList(1, command.size()))
                     .env(environment == null ? Map.of() : environment)
                     .build();
+            // JsonMapper dedicado, e nao o ObjectMapper da aplicacao, por dois motivos: no Jackson 3
+            // o JacksonMcpJsonMapper exige a classe concreta JsonMapper; e o enquadramento do
+            // protocolo MCP nao deve herdar configuracao de serializacao da aplicacao — o que trafega
+            // aqui e JSON-RPC, nao DTO nosso. O copy() defensivo do Jackson 2 sumiu junto: o mapper
+            // agora e imutavel.
             StdioClientTransport transport =
-                    new StdioClientTransport(parameters, new JacksonMcpJsonMapper(mapper.copy()));
+                    new StdioClientTransport(parameters, new JacksonMcpJsonMapper(JsonMapper.builder().build()));
             transport.setStdErrorHandler(line -> logger.debug("MCP {} [{}]: {}", serverName, normalizedScope, line));
 
             McpSyncClient client = McpClient.sync(transport)

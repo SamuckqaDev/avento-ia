@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.avento.service.FileBackupService;
 import com.avento.service.WorkspaceAccessService;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;

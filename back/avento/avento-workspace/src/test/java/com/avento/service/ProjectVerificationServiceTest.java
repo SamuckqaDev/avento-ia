@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import com.avento.service.dto.ProjectCommandRequest;
 import com.avento.service.dto.ProjectCommandResult;
 import com.avento.service.dto.VerificationResult;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;

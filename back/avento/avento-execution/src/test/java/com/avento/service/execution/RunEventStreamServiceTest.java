@@ -8,7 +8,7 @@ import com.avento.config.RedisExecutionProperties;
 import com.avento.model.AgentRunJob;
 import com.avento.repository.AgentRunJobRepository;
 import com.avento.repository.AgentTimelineEventRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

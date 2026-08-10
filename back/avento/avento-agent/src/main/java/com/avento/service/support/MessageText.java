@@ -1,7 +1,7 @@
 package com.avento.service.support;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
 import java.text.Normalizer;
 import java.util.Locale;
 import java.util.Set;

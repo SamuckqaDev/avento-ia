@@ -1,7 +1,7 @@
 package com.avento.service.orchestration;
 
 import com.avento.service.image.ImageGenerationOptions;
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ArrayNode;
 import java.util.List;
 import java.util.UUID;
 import reactor.core.publisher.Flux;

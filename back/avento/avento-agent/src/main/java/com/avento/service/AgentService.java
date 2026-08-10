@@ -21,11 +21,11 @@ import com.avento.service.support.SkillRegistry;
 import com.avento.service.support.TextualToolCallParser;
 import com.avento.service.tools.ToolCapabilityRegistry;
 import com.avento.service.tools.ToolExecutionGateway;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -670,7 +670,7 @@ public class AgentService implements AgentExecutionEngine {
         String expandedContent =
                 "[Skill: " + skill.get().name() + "]\n" + skill.get().body() + "\n\nArgumento fornecido pelo usuário: "
                         + (argument.isBlank() ? "(nenhum)" : argument);
-        ArrayNode augmented = messages.deepCopy();
+        ArrayNode augmented = (ArrayNode) messages.deepCopy();
         ((ObjectNode) augmented.get(lastUserIndex)).put("content", expandedContent);
         return new SkillResolution(
                 true,
@@ -711,7 +711,7 @@ public class AgentService implements AgentExecutionEngine {
         String expandedContent = content + "\n\n[Skill ativada automaticamente: "
                 + skill.get().name() + "]\nSiga este procedimento para atender o pedido acima:\n"
                 + skill.get().body();
-        ArrayNode augmented = messages.deepCopy();
+        ArrayNode augmented = (ArrayNode) messages.deepCopy();
         ((ObjectNode) augmented.get(lastUserIndex)).put("content", expandedContent);
         // Ativacao automatica preserva o texto do usuario e vai pro modelo; o argumento fica
         // vazio de proposito — chamada direta de ferramenta so na invocacao explicita com barra.
@@ -1700,7 +1700,7 @@ public class AgentService implements AgentExecutionEngine {
                                         ? "O modelo terminou a rodada sem texto e sem ferramenta; repetindo com instrução explícita."
                                         : "O modelo disse que ia agir mas não chamou nenhuma ferramenta; repetindo com instrução explícita."));
                 String originalRequest = MessageText.lastUserMessage(messages);
-                ArrayNode nudged = messages.deepCopy();
+                ArrayNode nudged = (ArrayNode) messages.deepCopy();
                 ObjectNode nudge = nudged.addObject();
                 nudge.put("role", "user");
                 nudge.put(
@@ -1773,7 +1773,7 @@ public class AgentService implements AgentExecutionEngine {
                         "agent.limit.reached",
                         "Limite de ferramentas atingido",
                         "Fechando com o que já foi coletado, sem novas ferramentas."));
-                ArrayNode closing = messages.deepCopy();
+                ArrayNode closing = (ArrayNode) messages.deepCopy();
                 ObjectNode instruction = closing.addObject();
                 instruction.put("role", "user");
                 instruction.put(
@@ -2085,7 +2085,7 @@ public class AgentService implements AgentExecutionEngine {
                 || imageModel.isBlank()) {
             return toolCall;
         }
-        ObjectNode arguments = toolCall.arguments().deepCopy();
+        ObjectNode arguments = (ObjectNode) toolCall.arguments().deepCopy();
         arguments.put("model", imageModel.trim());
         return new ToolCall(toolCall.id(), toolCall.name(), arguments);
     }
@@ -2095,7 +2095,7 @@ public class AgentService implements AgentExecutionEngine {
             return toolCall;
         }
         ImageGenerationOptions options = imageOptions == null ? ImageGenerationOptions.defaults() : imageOptions;
-        ObjectNode arguments = toolCall.arguments().deepCopy();
+        ObjectNode arguments = (ObjectNode) toolCall.arguments().deepCopy();
         arguments.put("qualityPreset", options.qualityPreset());
         arguments.put("aspectRatio", options.aspectRatio());
         arguments.put("subjectType", options.subjectType());
@@ -2138,7 +2138,7 @@ public class AgentService implements AgentExecutionEngine {
         if (toolCall == null || userId == null) {
             return toolCall;
         }
-        ObjectNode arguments = toolCall.arguments().deepCopy();
+        ObjectNode arguments = (ObjectNode) toolCall.arguments().deepCopy();
         if (chatId != null) {
             arguments.put("_chatId", chatId);
         }
@@ -2153,7 +2153,7 @@ public class AgentService implements AgentExecutionEngine {
         if (toolCall == null || !toolCall.arguments().isObject()) {
             return toolCall == null ? mapper.createObjectNode() : toolCall.arguments();
         }
-        ObjectNode arguments = toolCall.arguments().deepCopy();
+        ObjectNode arguments = (ObjectNode) toolCall.arguments().deepCopy();
         arguments.remove("_chatId");
         arguments.remove("_userId");
         arguments.remove("_runId");
@@ -2886,7 +2886,7 @@ public class AgentService implements AgentExecutionEngine {
     // re-parses the stored string into an object only for the copy sent back to
     // Ollama.
     private ObjectNode toOutgoingToolCall(ObjectNode nativeCall) {
-        ObjectNode outgoing = nativeCall.deepCopy();
+        ObjectNode outgoing = (ObjectNode) nativeCall.deepCopy();
         JsonNode functionNode = outgoing.path("function");
         if (functionNode.isObject() && functionNode.path("arguments").isTextual()) {
             try {

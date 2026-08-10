@@ -1,6 +1,6 @@
 package com.avento.service.provider;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import reactor.core.publisher.Flux;
 
 /**

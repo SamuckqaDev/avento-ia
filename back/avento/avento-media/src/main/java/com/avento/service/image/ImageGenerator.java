@@ -1,6 +1,6 @@
 package com.avento.service.image;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import java.util.Map;
 
 public interface ImageGenerator {

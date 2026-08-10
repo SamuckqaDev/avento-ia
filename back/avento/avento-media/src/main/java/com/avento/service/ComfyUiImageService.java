@@ -7,10 +7,10 @@ import com.avento.service.image.ImageModelPreset;
 import com.avento.service.image.ImageModelPresetCatalog;
 import com.avento.service.image.ImagePromptPlan;
 import com.avento.service.image.ImagePromptPlanner;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -693,9 +693,8 @@ public class ComfyUiImageService {
     }
 
     private int findVideoSteps(ObjectNode workflow) {
-        var fields = workflow.fields();
-        while (fields.hasNext()) {
-            JsonNode node = fields.next().getValue();
+        for (var field : workflow.properties()) {
+            JsonNode node = field.getValue();
             if ("KSampler".equals(node.path("class_type").asText())) {
                 return Math.max(1, node.path("inputs").path("steps").asInt(20));
             }
@@ -720,7 +719,7 @@ public class ComfyUiImageService {
     // WAN 2.2 TI2V usa um único workflow para texto e imagem. Sem start_image ele cria do zero;
     // com start_image preserva o quadro inicial e aplica o movimento descrito no prompt.
     private void applyVideoWorkflowInputs(ObjectNode workflow, String prompt, int width, int height, int frames) {
-        workflow.fields().forEachRemaining(entry -> {
+        workflow.properties().forEach(entry -> {
             JsonNode node = entry.getValue();
             if (!node.isObject()) {
                 return;
@@ -775,12 +774,11 @@ public class ComfyUiImageService {
 
     private void connectVideoSourceImage(ObjectNode workflow, String uploadedName) throws IOException {
         ObjectNode loadImage = addNode(workflow, "avento_video_source", "LoadImage", "Avento Video Source");
-        loadImage.with("inputs").put("image", uploadedName);
+        loadImage.withObjectProperty("inputs").put("image", uploadedName);
 
         boolean connected = false;
-        var fields = workflow.fields();
-        while (fields.hasNext()) {
-            JsonNode node = fields.next().getValue();
+        for (var field : workflow.properties()) {
+            JsonNode node = field.getValue();
             if ("Wan22ImageToVideoLatent".equals(node.path("class_type").asText(""))) {
                 ((ObjectNode) node.path("inputs")).set("start_image", reference("avento_video_source", 0));
                 connected = true;
@@ -907,7 +905,7 @@ public class ComfyUiImageService {
             boolean sdxl,
             ImageModelPreset preset) {
         int[] refinedDimensions = refinedDimensions(width, height, sdxl ? 1280 : 896);
-        workflow.fields().forEachRemaining(entry -> {
+        workflow.properties().forEach(entry -> {
             JsonNode node = entry.getValue();
             if (!node.isObject()) {
                 return;
@@ -979,7 +977,7 @@ public class ComfyUiImageService {
             ImageGenerationOptions options,
             ImageModelPreset preset) {
         String naturalPrompt = prompt.replaceAll("\\(([^()]+):\\d+(?:\\.\\d+)?\\)", "$1");
-        workflow.fields().forEachRemaining(entry -> {
+        workflow.properties().forEach(entry -> {
             JsonNode node = entry.getValue();
             if (!node.isObject() || !node.path("inputs").isObject()) {
                 return;
@@ -1171,11 +1169,11 @@ public class ComfyUiImageService {
             String uploadedImage = uploadDataUrlReference(
                     options.referenceImageDataUrl(), "imagem de referência", "avento-reference-");
             ObjectNode loadImage = addNode(workflow, "avento_reference_image", "LoadImage", "Avento Image Reference");
-            loadImage.with("inputs").put("image", uploadedImage);
+            loadImage.withObjectProperty("inputs").put("image", uploadedImage);
 
             ObjectNode imageScale =
                     addNode(workflow, "avento_reference_scale", "ImageScale", "Avento Scale Image Reference");
-            ObjectNode scaleInputs = imageScale.with("inputs");
+            ObjectNode scaleInputs = imageScale.withObjectProperty("inputs");
             scaleInputs.set("image", reference("avento_reference_image", 0));
             scaleInputs.put("upscale_method", "lanczos");
             scaleInputs.put("width", dimensions[0]);
@@ -1184,7 +1182,7 @@ public class ComfyUiImageService {
 
             ObjectNode vaeEncode =
                     addNode(workflow, "avento_reference_encode", "VAEEncode", "Avento Encode Image Reference");
-            ObjectNode encodeInputs = vaeEncode.with("inputs");
+            ObjectNode encodeInputs = vaeEncode.withObjectProperty("inputs");
             encodeInputs.set("pixels", reference("avento_reference_scale", 0));
             encodeInputs.set("vae", reference(vaeId, 0));
 
@@ -1223,16 +1221,16 @@ public class ComfyUiImageService {
             String uploadedImage = uploadDataUrlReference(
                     options.referenceImageDataUrl(), "referência de identidade", "avento-identity-");
             ObjectNode loadImage = addNode(workflow, "avento_identity_image", "LoadImage", "Avento Identity Reference");
-            loadImage.with("inputs").put("image", uploadedImage);
+            loadImage.withObjectProperty("inputs").put("image", uploadedImage);
 
             ObjectNode loader =
                     addNode(workflow, "avento_ipadapter_loader", "IPAdapterUnifiedLoader", "Avento IP-Adapter Loader");
-            ObjectNode loaderInputs = loader.with("inputs");
+            ObjectNode loaderInputs = loader.withObjectProperty("inputs");
             loaderInputs.set("model", reference(checkpointId, 0));
             loaderInputs.put("preset", humanSubject ? "PLUS FACE (portraits)" : "PLUS (high strength)");
 
             ObjectNode apply = addNode(workflow, "avento_ipadapter_apply", "IPAdapter", "Avento Apply IP-Adapter");
-            ObjectNode applyInputs = apply.with("inputs");
+            ObjectNode applyInputs = apply.withObjectProperty("inputs");
             applyInputs.set("model", reference("avento_ipadapter_loader", 0));
             applyInputs.set("ipadapter", reference("avento_ipadapter_loader", 1));
             applyInputs.set("image", reference("avento_identity_image", 0));
@@ -1281,11 +1279,11 @@ public class ComfyUiImageService {
                     options.referenceImageDataUrl(), "referência de composição", "avento-structure-");
             ObjectNode loadImage =
                     addNode(workflow, "avento_structure_image", "LoadImage", "Avento Structure Reference");
-            loadImage.with("inputs").put("image", uploadedImage);
+            loadImage.withObjectProperty("inputs").put("image", uploadedImage);
 
             ObjectNode preprocess =
                     addNode(workflow, "avento_structure_preprocess", preprocessor, "Avento Structure Preprocessor");
-            ObjectNode preprocessInputs = preprocess.with("inputs");
+            ObjectNode preprocessInputs = preprocess.withObjectProperty("inputs");
             preprocessInputs.set("image", reference("avento_structure_image", 0));
             preprocessInputs.put("resolution", 1024);
             if (depth) {
@@ -1297,12 +1295,12 @@ public class ComfyUiImageService {
 
             ObjectNode loader =
                     addNode(workflow, "avento_structure_loader", "ControlNetLoader", "Avento Structure ControlNet");
-            loader.with("inputs").put("control_net_name", controlModel);
+            loader.withObjectProperty("inputs").put("control_net_name", controlModel);
 
             ConditioningReferences conditioning = currentConditioning(workflow);
             ObjectNode apply =
                     addNode(workflow, "avento_structure_apply", "ControlNetApplyAdvanced", "Avento Apply Structure");
-            ObjectNode applyInputs = apply.with("inputs");
+            ObjectNode applyInputs = apply.withObjectProperty("inputs");
             applyInputs.set("positive", conditioning.positive());
             applyInputs.set("negative", conditioning.negative());
             applyInputs.set("control_net", reference("avento_structure_loader", 0));
@@ -1361,10 +1359,10 @@ public class ComfyUiImageService {
             String uploadedImage =
                     uploadDataUrlReference(options.poseReferenceDataUrl(), "referência de pose", "avento-pose-");
             ObjectNode loadImage = addNode(workflow, "avento_pose_image", "LoadImage", "Avento Pose Reference");
-            loadImage.with("inputs").put("image", uploadedImage);
+            loadImage.withObjectProperty("inputs").put("image", uploadedImage);
 
             ObjectNode dwPose = addNode(workflow, "avento_dwpose", "DWPreprocessor", "Avento DWPose");
-            ObjectNode dwInputs = dwPose.with("inputs");
+            ObjectNode dwInputs = dwPose.withObjectProperty("inputs");
             dwInputs.set("image", reference("avento_pose_image", 0));
             dwInputs.put("detect_hand", "enable");
             dwInputs.put("detect_body", "enable");
@@ -1375,12 +1373,12 @@ public class ComfyUiImageService {
             dwInputs.put("scale_stick_for_xinsr_cn", "disable");
 
             ObjectNode loader = addNode(workflow, "avento_openpose_loader", "ControlNetLoader", "Avento OpenPose");
-            loader.with("inputs").put("control_net_name", poseModel);
+            loader.withObjectProperty("inputs").put("control_net_name", poseModel);
 
             ConditioningReferences conditioning = currentConditioning(workflow);
             ObjectNode apply =
                     addNode(workflow, "avento_openpose_apply", "ControlNetApplyAdvanced", "Avento Apply OpenPose");
-            ObjectNode applyInputs = apply.with("inputs");
+            ObjectNode applyInputs = apply.withObjectProperty("inputs");
             applyInputs.set("positive", conditioning.positive());
             applyInputs.set("negative", conditioning.negative());
             applyInputs.set("control_net", reference("avento_openpose_loader", 0));
@@ -1528,11 +1526,11 @@ public class ComfyUiImageService {
         String detectorId = "avento_" + suffix + "_detector";
         ObjectNode detector =
                 addNode(workflow, detectorId, "UltralyticsDetectorProvider", "Avento " + suffix + " detector");
-        detector.with("inputs").put("model_name", detectorModel);
+        detector.withObjectProperty("inputs").put("model_name", detectorModel);
 
         String segmentsId = "avento_" + suffix + "_segments";
         ObjectNode segments = addNode(workflow, segmentsId, "BboxDetectorSEGS", "Avento " + suffix + " segments");
-        ObjectNode segmentInputs = segments.with("inputs");
+        ObjectNode segmentInputs = segments.withObjectProperty("inputs");
         segmentInputs.set("bbox_detector", reference(detectorId, 0));
         segmentInputs.set("image", reference(sourceId, 0));
         segmentInputs.put("threshold", threshold);
@@ -1544,7 +1542,7 @@ public class ComfyUiImageService {
         String filterId = "avento_" + suffix + "_filter";
         ObjectNode filter =
                 addNode(workflow, filterId, "ImpactSEGSOrderedFilter", "Avento " + suffix + " confidence filter");
-        ObjectNode filterInputs = filter.with("inputs");
+        ObjectNode filterInputs = filter.withObjectProperty("inputs");
         filterInputs.set("segs", reference(segmentsId, 0));
         filterInputs.put("target", "confidence");
         filterInputs.put("order", true);
@@ -1553,7 +1551,7 @@ public class ComfyUiImageService {
 
         String detailerId = "avento_" + suffix + "_detailer";
         ObjectNode detailer = addNode(workflow, detailerId, "DetailerForEach", "Avento " + suffix + " detailer");
-        ObjectNode inputs = detailer.with("inputs");
+        ObjectNode inputs = detailer.withObjectProperty("inputs");
         inputs.set("image", reference(sourceId, 0));
         inputs.set("segs", reference(filterId, 0));
         inputs.set("model", samplingModel.deepCopy());
@@ -1597,7 +1595,7 @@ public class ComfyUiImageService {
     }
 
     private void setSamplerConditioning(ObjectNode workflow, String nodeId, int positiveOutput, int negativeOutput) {
-        workflow.fields().forEachRemaining(entry -> {
+        workflow.properties().forEach(entry -> {
             JsonNode node = entry.getValue();
             if ("KSampler".equals(node.path("class_type").asText(""))) {
                 ObjectNode inputs = (ObjectNode) node.path("inputs");
@@ -1608,7 +1606,7 @@ public class ComfyUiImageService {
     }
 
     private void setSamplerModel(ObjectNode workflow, String nodeId, int output) {
-        workflow.fields().forEachRemaining(entry -> {
+        workflow.properties().forEach(entry -> {
             JsonNode node = entry.getValue();
             if ("KSampler".equals(node.path("class_type").asText(""))) {
                 ((ObjectNode) node.path("inputs")).set("model", reference(nodeId, output));
@@ -1629,9 +1627,8 @@ public class ComfyUiImageService {
     }
 
     private Optional<ObjectNode> findNodeByTitle(ObjectNode workflow, String title) {
-        var fields = workflow.fields();
-        while (fields.hasNext()) {
-            JsonNode node = fields.next().getValue();
+        for (var field : workflow.properties()) {
+            JsonNode node = field.getValue();
             if (node.isObject() && title.equals(node.path("_meta").path("title").asText(""))) {
                 return Optional.of((ObjectNode) node);
             }
@@ -1640,9 +1637,7 @@ public class ComfyUiImageService {
     }
 
     private String findNodeIdByTitle(ObjectNode workflow, String title) {
-        var fields = workflow.fields();
-        while (fields.hasNext()) {
-            var entry = fields.next();
+        for (var entry : workflow.properties()) {
             if (title.equals(entry.getValue().path("_meta").path("title").asText(""))) {
                 return entry.getKey();
             }
@@ -1659,7 +1654,7 @@ public class ComfyUiImageService {
 
     private void removeNodesWithPrefix(ObjectNode workflow, String... prefixes) {
         List<String> nodeIds = new ArrayList<>();
-        workflow.fieldNames().forEachRemaining(nodeId -> {
+        workflow.propertyNames().forEach(nodeId -> {
             for (String prefix : prefixes) {
                 if (nodeId.startsWith(prefix)) {
                     nodeIds.add(nodeId);
@@ -1696,10 +1691,9 @@ public class ComfyUiImageService {
         if (node.isTextual()) {
             return expected.equals(node.asText());
         }
-        if (node.isContainerNode()) {
-            var elements = node.elements();
-            while (elements.hasNext()) {
-                if (containsText(elements.next(), expected)) {
+        if (node.isContainer()) {
+            for (JsonNode element : node.values()) {
+                if (containsText(element, expected)) {
                     return true;
                 }
             }
@@ -1852,9 +1846,8 @@ public class ComfyUiImageService {
         if (!outputs.isObject()) {
             return null;
         }
-        var fields = outputs.fields();
-        while (fields.hasNext()) {
-            JsonNode output = fields.next().getValue();
+        for (var field : outputs.properties()) {
+            JsonNode output = field.getValue();
             for (String mediaKey : List.of("images", "gifs", "videos")) {
                 JsonNode media = output.path(mediaKey);
                 if (media.isArray() && !media.isEmpty()) {

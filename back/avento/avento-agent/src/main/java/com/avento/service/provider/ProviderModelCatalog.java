@@ -1,7 +1,7 @@
 package com.avento.service.provider;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -302,9 +302,7 @@ public class ProviderModelCatalog {
     /** O Ollama prefixa a chave com a familia do modelo (ex.: {@code qwen35.context_length}). */
     static int ollamaContextLength(JsonNode body) {
         JsonNode info = body.path("model_info");
-        var fields = info.fields();
-        while (fields.hasNext()) {
-            var entry = fields.next();
+        for (var entry : info.properties()) {
             if (entry.getKey().endsWith(".context_length") || "context_length".equals(entry.getKey())) {
                 return entry.getValue().asInt(0);
             }

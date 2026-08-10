@@ -3,7 +3,7 @@ package com.avento.service.execution;
 import com.avento.service.intent.ImageIntentService;
 import com.avento.service.support.HeuristicWordLists;
 import com.avento.service.support.MessageText;
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ArrayNode;
 import java.util.Set;
 import java.util.regex.Pattern;
 

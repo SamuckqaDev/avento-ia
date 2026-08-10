@@ -2,8 +2,8 @@ package com.avento.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;

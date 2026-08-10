@@ -4,7 +4,7 @@ import com.avento.api.ApiCodes;
 import com.avento.api.ApiErrorResponses;
 import com.avento.auth.config.AuthProperties;
 import com.avento.auth.security.JwtCookieAuthenticationFilter;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

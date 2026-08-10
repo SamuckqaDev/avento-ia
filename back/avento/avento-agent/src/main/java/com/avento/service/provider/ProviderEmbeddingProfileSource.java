@@ -65,7 +65,7 @@ public class ProviderEmbeddingProfileSource implements EmbeddingProfileSource {
                 baseUrl + "|" + modelName,
                 ignored -> OllamaEmbeddingModel.builder()
                         .ollamaApi(OllamaApi.builder().baseUrl(baseUrl).build())
-                        .defaultOptions(OllamaEmbeddingOptions.builder()
+                        .options(OllamaEmbeddingOptions.builder()
                                 .model(modelName)
                                 .build())
                         .build());

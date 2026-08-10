@@ -1,9 +1,9 @@
 package com.avento.service.provider;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import java.time.Duration;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -187,7 +187,7 @@ public class GeminiModelTransport implements ModelTransport {
             return schema;
         }
         ObjectNode cleaned = mapper.createObjectNode();
-        schema.fields().forEachRemaining(entry -> {
+        schema.properties().forEach(entry -> {
             String field = entry.getKey();
             if (!GEMINI_SCHEMA_FIELDS.contains(field)) {
                 return;
@@ -196,8 +196,8 @@ public class GeminiModelTransport implements ModelTransport {
             if ("properties".equals(field) && entry.getValue().isObject()) {
                 ObjectNode properties = mapper.createObjectNode();
                 entry.getValue()
-                        .fields()
-                        .forEachRemaining(property ->
+                        .properties()
+                        .forEach(property ->
                                 properties.set(property.getKey(), sanitizeSchema(property.getValue(), mapper)));
                 cleaned.set(field, properties);
                 return;

@@ -1,7 +1,7 @@
 package com.avento.service.image;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -129,7 +129,7 @@ public class ImageModelPresetCatalog {
 
     private static Map<String, Integer> intMap(JsonNode node) {
         Map<String, Integer> values = new HashMap<>();
-        node.fields().forEachRemaining(entry -> {
+        node.properties().forEach(entry -> {
             if (entry.getValue().canConvertToInt()) {
                 values.put(entry.getKey(), entry.getValue().asInt());
             }
@@ -139,7 +139,7 @@ public class ImageModelPresetCatalog {
 
     private static Map<String, Double> doubleMap(JsonNode node) {
         Map<String, Double> values = new HashMap<>();
-        node.fields().forEachRemaining(entry -> {
+        node.properties().forEach(entry -> {
             if (entry.getValue().isNumber()) {
                 values.put(entry.getKey(), entry.getValue().asDouble());
             }

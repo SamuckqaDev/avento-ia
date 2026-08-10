@@ -4,7 +4,7 @@ import com.avento.model.AgentPermissionRule;
 import com.avento.repository.AgentPermissionRuleRepository;
 import com.avento.service.dto.*;
 import com.avento.service.tools.RunToolPolicyRegistry;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;

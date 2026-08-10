@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.avento.controller.McpController;
 import com.avento.service.WorkspaceAccessService;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;

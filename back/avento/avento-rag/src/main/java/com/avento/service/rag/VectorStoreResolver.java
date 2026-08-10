@@ -11,7 +11,7 @@ import org.springframework.ai.vectorstore.redis.RedisVectorStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import redis.clients.jedis.JedisPooled;
+import redis.clients.jedis.RedisClient;
 
 /**
  * Hands out the vector store that matches the embedding model currently chosen in the settings.
@@ -31,7 +31,7 @@ public class VectorStoreResolver {
     private static final Logger logger = LoggerFactory.getLogger(VectorStoreResolver.class);
 
     private final VectorStore autoConfiguredStore;
-    private final ObjectProvider<JedisPooled> jedisProvider;
+    private final ObjectProvider<RedisClient> jedisProvider;
     private final ObjectProvider<EmbeddingProfileSource> profileSourceProvider;
     private final Map<String, VectorStore> storesByProfile = new ConcurrentHashMap<>();
 
@@ -40,7 +40,7 @@ public class VectorStoreResolver {
 
     public VectorStoreResolver(
             VectorStore autoConfiguredStore,
-            ObjectProvider<JedisPooled> jedisProvider,
+            ObjectProvider<RedisClient> jedisProvider,
             ObjectProvider<EmbeddingProfileSource> profileSourceProvider,
             @Value("${spring.ai.vectorstore.redis.index:avento_index}") String baseIndexName,
             @Value("${spring.ai.vectorstore.redis.prefix:avento:}") String prefix) {
@@ -89,7 +89,10 @@ public class VectorStoreResolver {
     }
 
     private VectorStore build(EmbeddingProfile profile) {
-        JedisPooled jedis = jedisProvider.getIfAvailable();
+        // RedisClient, e nao JedisPooled: no Jedis 7 os dois sao IRMAOS sob UnifiedJedis, e o
+        // RedisVectorStore.builder do Spring AI 2.0 exige RedisClient. A autoconfiguracao passou a
+        // expor esse tipo.
+        RedisClient jedis = jedisProvider.getIfAvailable();
         if (jedis == null) {
             logger.warn("No Redis client available; keeping the auto-configured vector store");
             return autoConfiguredStore;

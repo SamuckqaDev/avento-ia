@@ -1,6 +1,6 @@
 package com.avento.service.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;

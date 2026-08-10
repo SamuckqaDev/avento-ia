@@ -68,7 +68,7 @@ class AgentServiceCloudNoticeTest {
         // contentChunk serializa com o mapper; sem ele a instancia montada por reflexao estoura.
         Field mapperField = AgentService.class.getDeclaredField("mapper");
         mapperField.setAccessible(true);
-        mapperField.set(service, new com.fasterxml.jackson.databind.ObjectMapper());
+        mapperField.set(service, new tools.jackson.databind.ObjectMapper());
         return service;
     }
 

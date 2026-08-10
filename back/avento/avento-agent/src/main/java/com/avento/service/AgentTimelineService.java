@@ -3,10 +3,10 @@ package com.avento.service;
 import com.avento.model.AgentTimelineEvent;
 import com.avento.repository.AgentTimelineEventRepository;
 import com.avento.service.dto.*;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.StringNode;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -131,13 +131,11 @@ public class AgentTimelineService {
             return node;
         }
         if (isSensitiveField(fieldName)) {
-            return TextNode.valueOf("[redacted]");
+            return StringNode.valueOf("[redacted]");
         }
         if (node.isObject()) {
             ObjectNode object = (ObjectNode) node;
-            Iterator<Map.Entry<String, JsonNode>> fields = object.fields();
-            while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> field = fields.next();
+            for (Map.Entry<String, JsonNode> field : object.properties()) {
                 object.set(field.getKey(), sanitize(field.getValue(), field.getKey()));
             }
             return object;
@@ -152,10 +150,10 @@ public class AgentTimelineService {
         if (node.isTextual()) {
             String value = node.asText();
             if (isLargeContentField(fieldName) && value.length() > 160) {
-                return TextNode.valueOf("[omitted: " + value.length() + " chars]");
+                return StringNode.valueOf("[omitted: " + value.length() + " chars]");
             }
             if (value.startsWith("data:") || value.length() > MAX_VALUE_CHARS) {
-                return TextNode.valueOf(
+                return StringNode.valueOf(
                         truncate(value.startsWith("data:") ? "[binary data omitted]" : value, MAX_VALUE_CHARS));
             }
         }

@@ -5,7 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.avento.service.tools.ToolCatalogService.CapabilitySummary;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;

@@ -3,8 +3,8 @@ package com.avento.service;
 import com.avento.service.dto.ProjectCommandRequest;
 import com.avento.service.dto.ProjectCommandResult;
 import com.avento.service.dto.VerificationResult;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -90,8 +90,10 @@ public class ProjectVerificationService {
                         return new ProjectCommandRequest(dir.toString(), "npm", preferred);
                     }
                 }
-            } catch (IOException ignored) {
+            } catch (Exception ignored) {
                 // package.json ilegível: cai para os próximos detectores.
+                // Exception e nao IOException: no Jackson 3 o readTree lanca JacksonException, que e
+                // nao-verificada, entao um catch de IOException aqui vira codigo morto que nao compila.
             }
         }
         if (Files.isRegularFile(dir.resolve("pom.xml"))) {

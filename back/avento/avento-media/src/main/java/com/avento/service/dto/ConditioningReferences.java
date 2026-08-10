@@ -1,5 +1,5 @@
 package com.avento.service.dto;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 public record ConditioningReferences(JsonNode positive, JsonNode negative) {}

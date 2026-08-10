@@ -9,7 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.avento.model.ProviderSettings;
 import com.avento.repository.ProviderSettingsRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

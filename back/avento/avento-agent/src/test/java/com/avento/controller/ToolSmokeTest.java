@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.avento.service.FileBackupService;
 import com.avento.service.WorkspaceAccessService;
 import com.avento.service.tools.ToolExecutionContext;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

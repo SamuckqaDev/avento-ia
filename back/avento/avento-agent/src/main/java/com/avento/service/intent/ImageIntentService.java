@@ -7,8 +7,8 @@ import static com.avento.service.support.MessageText.lastUserMessage;
 import static com.avento.service.support.MessageText.normalizeIntentText;
 
 import com.avento.service.support.HeuristicWordLists;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

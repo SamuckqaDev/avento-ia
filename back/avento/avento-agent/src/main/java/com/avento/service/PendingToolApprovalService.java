@@ -4,7 +4,7 @@ import com.avento.model.PendingToolApproval;
 import com.avento.repository.PendingToolApprovalRepository;
 import com.avento.service.dto.PendingToolExecution;
 import com.avento.service.dto.ToolCall;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

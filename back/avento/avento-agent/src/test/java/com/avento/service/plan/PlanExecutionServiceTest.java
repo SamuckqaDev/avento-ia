@@ -26,7 +26,7 @@ import com.avento.service.dto.RevertResult;
 import com.avento.service.dto.VerificationResult;
 import com.avento.service.execution.AgentRunSubmissionService;
 import com.avento.service.execution.RunEventPublisher;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;

@@ -7,9 +7,9 @@ import com.avento.service.dto.*;
 import com.avento.service.image.ImageGenerationJobWorker;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.image.ImageGenerator;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.io.IOException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -189,7 +189,7 @@ public class ImageGenerationJobService {
     private String writePayload(Map<String, Object> payload) {
         try {
             return mapper.writeValueAsString(payload);
-        } catch (IOException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalArgumentException("Não foi possível preparar os parâmetros da imagem.", exception);
         }
     }

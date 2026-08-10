@@ -14,7 +14,7 @@ import com.avento.model.ExecutionOutboxEvent;
 import com.avento.repository.AgentRunJobRepository;
 import com.avento.repository.ExecutionOutboxEventRepository;
 import com.avento.service.dto.AgentRunView;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;

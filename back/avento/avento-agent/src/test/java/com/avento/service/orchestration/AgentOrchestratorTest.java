@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.avento.service.AgentTimelineService;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.orchestration.AgentRunRegistry.AgentRunStatus;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -63,7 +63,7 @@ class AgentOrchestratorTest {
                 new OrphanReplyRescue(
                         (com.avento.repository.MessageRepository) null,
                         (com.avento.repository.ChatRepository) null,
-                        new com.fasterxml.jackson.databind.ObjectMapper(),
+                        new tools.jackson.databind.ObjectMapper(),
                         java.time.Duration.ofSeconds(20)));
         ArrayNode messages = mapper.createArrayNode();
         messages.addObject().put("role", "user").put("content", "pesquisa isso pra mim");

@@ -208,15 +208,23 @@ carrega a mesma orientação:
 | `projectPaths` (list_mcp_servers) | "Workspaces **absolutos** opcionais…" | "Caminho absoluto." |
 | `projectPaths` (connect_mcp_server) | "Workspaces **absolutos** necessarios…" | "Caminho absoluto." |
 | `tools` (activate_tools) | "Nomes **exatos** das ferramentas a ativar." | "Nome exato da ferramenta." |
+| `triggers` (create_skill) | "Frases-gatilho que ativam a skill (ex.: ['cotacao', …])." | **"Caminho absoluto."** ← errado |
 
-A informação que o modelo precisa — que é caminho absoluto, que é nome exato — **sobrevive no pai**.
-A perda é redundância.
+Nas três primeiras a informação que o modelo precisa — caminho absoluto, nome exato — **sobrevive no
+pai**, e a perda é redundância.
 
-**Decisão:** aceite a diferença e **regenere o baseline apenas nessas três entradas**, registrando o
+**A quarta é diferente: perder é CONSERTAR.** O `create_skill.triggers` usa o `arrayProperty`
+genérico, cujo item é fixo em `"Caminho absoluto."` — mas `triggers` são frases-gatilho, não
+caminhos. O schema de hoje diz ao modelo que cada gatilho é um caminho absoluto. É defeito de
+copiar-e-colar do helper, e a migração o remove de graça.
+
+(Encontrada pelo executor, não por mim: minha varredura contou três e eram quatro.)
+
+**Decisão:** aceite a diferença e **regenere o baseline apenas nessas quatro entradas**, registrando o
 motivo no commit.
 
 ⚠️ **Isto NÃO é licença para regenerar o baseline.** A permissão é estreita e literal: apenas a chave
-`items.description` dessas três propriedades de array. **Qualquer outra diferença continua sendo
+`items.description` dessas quatro propriedades de array. **Qualquer outra diferença continua sendo
 motivo para parar e reportar** — inclusive outra chave nas mesmas três.
 
 A distinção que importa: afrouxar teste para esconder defeito é proibido; atualizar um baseline

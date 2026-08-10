@@ -135,6 +135,40 @@ propriedades opcionais fora dela — veja `list_mcp_servers` em `:358`, com `pro
 `List.of()` vazio. No `@Tool`, a obrigatoriedade vem de `@ToolParam(required = false)`. Errar isso
 muda o schema e o modelo passa a mandar campo que não devia, ou a omitir campo obrigatório.
 
+### 3.5. `edit_file` usa snake_case e o `@ToolParam` NÃO renomeia
+
+**Descoberto durante a primeira execução desta spec, e ela estava incompleta sem isto.**
+
+O Spring AI gera o nome da propriedade do schema a partir do **nome do parâmetro Java**. E o
+`@ToolParam` do Spring AI 2.0.0 tem só dois atributos — `required()` e `description()`. **Não existe
+`name()`.** Verificado com `javap`.
+
+Medido no HEAD: **três** parâmetros usam snake_case, todos no `edit_file`:
+
+```
+old_string   new_string   replace_all
+```
+
+Os outros 49 parâmetros distintos já são camelCase e convertem sem atrito.
+
+**Decisão, tomada e não negociável:** nomeie os parâmetros Java como `old_string`, `new_string` e
+`replace_all`. Underscore é identificador válido em Java, e o método existe **só para declarar
+schema** — a feiura fica contida num adaptador de borda.
+
+```java
+@Tool(name = "edit_file", description = "…copiada literalmente…")
+public String editFile(
+        @ToolParam(description = "Caminho absoluto do arquivo existente a editar.") String path,
+        @ToolParam(description = "Trecho exato…") String old_string,
+        @ToolParam(description = "Trecho que deve substituir old_string…") String new_string,
+        @ToolParam(required = false, description = "…") Boolean replace_all) { … }
+```
+
+**Por que não o contrário** — renomear o schema para camelCase seria mais bonito e está **errado**:
+o `edit_file` está no kit fixo do chat com projeto conectado, é das mais usadas, e a própria
+descrição cita `old_string` pelo nome. Mudar o schema mudaria o contrato com o modelo, e a decisão 1
+da seção 4 proíbe tocar em descrição.
+
 ---
 
 ## 4. Decisões de projeto — não renegociar

@@ -24,9 +24,12 @@ nesses números; reconfira apenas se algo não bater.
   com pacotes diferentes. **Não toque neles.**
 - **0 divergências**
 
-**A T2 também já foi feita:** 7 DTOs de mídia movidos, suíte verde, mudanças na árvore de trabalho
-sem commit. **Comece pela T3**, e o bloqueio do `Manifest`/`FileManifest` tem decisão escrita no
-item 3.4.
+**T2 e T3 já foram feitas:** 14 pares movidos mais o `FileManifest`, suíte verde (810 testes),
+tudo na árvore de trabalho sem commit.
+
+**O que falta:** mover as sete do item 3.6 e rodar a T5. As três do item 3.5 ficam de fora com
+motivo — e a T5 deve devolver exatamente essas três, mais os dois `Whisper*` que são falsos
+positivos.
 
 A árvore está limpa e a suíte verde: **810 testes, 0 falhas**. Qualquer falha que aparecer daqui em
 diante é sua, e vale a regra de parar e reportar.
@@ -138,6 +141,37 @@ reporte**, porque aí é decisão de arquitetura e não limpeza.
 
 **Reporte cada arrastada que mover**, com o nome e o motivo. A lista final tem de deixar claro o que
 entrou no core por ser duplicata e o que entrou por ser dependência.
+
+### 3.5. As três que ficam de fora — e é sempre a mesma causa
+
+**Medido no estado atual.** Das dez duplicatas restantes:
+
+| Fica de fora | O que é | Por quê |
+|---|---|---|
+| `AgentTimelineEvent` | `@Entity` | precisa de JPA |
+| `AgentTimelineEventRepository` | Spring Data | precisa de JPA |
+| `ApprovalReplayGuard` | serviço, **7** referências a repositório/JPA | precisa de JPA |
+
+**A causa é uma só, não três:** o `avento-core` é deliberadamente fino e não tem persistência. Levar
+qualquer uma delas exige colocar JPA no módulo-base — decisão de arquitetura de persistência, que é
+outra tarefa com outro risco.
+
+**Deixe as três de fora, com esse motivo escrito no commit.** É o mesmo argumento da 3.1, agora com
+um terceiro caso.
+
+### 3.6. As sete que faltam SÃO movíveis — continue
+
+Medido, todas sem impedimento:
+
+- **Seis records puros**, zero referência a JPA ou Spring:
+  `PreparedImageWorkflow`, `ScannedFile`, `TranscriptionResult`, `VideoJobView`, `VideoStatus`,
+  `VideoSubmission`
+- **`ToolExecutionContext`** — é `class` com `@Service`, e só isso. O `avento-core` já declara
+  `spring-boot-starter-web`, então hospedar um bean Spring ali não acrescenta dependência nenhuma.
+  Verificado.
+
+**Encontrar um bloqueio não é motivo para parar o lote inteiro.** A regra de parar vale para o item
+bloqueado; os que não têm impedimento seguem. Mova estes sete, e depois rode a T5.
 
 ---
 

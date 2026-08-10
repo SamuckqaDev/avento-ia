@@ -67,6 +67,11 @@ echo "---"
   else
     echo "Rode a suite de testes ao fim de cada tarefa da spec. Se um teste que passava antes"
     echo "falhar, PARE e reporte em vez de ajustar o teste."
+    echo
+    echo "NAO COMMITE. O sandbox monta .git como somente leitura, entao 'git add' falha ao criar"
+    echo "index.lock — tentar custa tokens e nao produz nada. Deixe as mudancas na arvore de"
+    echo "trabalho e descreva no relato o que mudou e por que; a revisao e o commit sao de quem"
+    echo "despachou. Isso e proposital: quem projetou revisa antes de virar historico."
   fi
   echo
   echo "--- CONTEUDO DA SPEC ---"

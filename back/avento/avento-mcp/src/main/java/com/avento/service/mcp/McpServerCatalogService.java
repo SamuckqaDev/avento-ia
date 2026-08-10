@@ -26,6 +26,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class McpServerCatalogService {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(McpServerCatalogService.class);
+
     private static final List<String> DEFAULT_AUTO_CONNECT = List.of(
             "filesystem",
             "markitdown",
@@ -167,6 +169,67 @@ public class McpServerCatalogService {
             results.add(result.connected() ? result : ConnectionResult.failedFor(id, result.error()));
         }
         return List.copyOf(results);
+    }
+
+    /** Escopo próprio do aquecimento: nunca compartilha cliente com sessão de usuário. */
+    private static final String WARMUP_SCOPE = "schema-warmup";
+
+    /**
+     * Aprende o {@code tools/list} das imagens que o cache ainda não conhece.
+     *
+     * <p><b>Por que existe:</b> o cache só aprendia na primeira conexão bem-sucedida de cada
+     * servidor. Numa máquina nova isso significa que a tela de criação de agente nasce mostrando
+     * apenas as ferramentas locais, e as de container só aparecem depois que alguém, por acaso,
+     * usar aquele servidor numa conversa. Quem está montando um agente não deveria depender de sorte.
+     *
+     * <p><b>Escopo dedicado.</b> Conectar pelo caminho normal usaria o escopo {@code local}, o mesmo
+     * de sessão anônima — e o {@code disconnect} do fim do aquecimento derrubaria um servidor que
+     * alguém está usando. Aqui o escopo é próprio e é fechado no fim.
+     *
+     * <p><b>Só o que falta.</b> Imagem já conhecida é pulada, então a partir do segundo boot isto não
+     * custa nada. O digest é a chave: imagem atualizada volta a ser desconhecida e reaquece sozinha.
+     *
+     * @return quantas imagens foram aprendidas nesta passagem
+     */
+    public int warmSchemaCache() {
+        if (toolSchemaCache == null || !containersEnabled()) {
+            return 0;
+        }
+        int learned = 0;
+        for (Map.Entry<String, String> entry : CONTAINER_IMAGES.entrySet()) {
+            String serverId = entry.getKey();
+            String image = entry.getValue();
+            if (!toolSchemaCache.tools(image).isEmpty()) {
+                continue;
+            }
+            ServerDefinition definition = definitions().stream()
+                    .filter(candidate -> candidate.id().equals(serverId))
+                    .findFirst()
+                    .orElse(null);
+            if (definition == null) {
+                continue;
+            }
+            ServerLaunch launch = launch(definition, List.of());
+            if (!launch.ready()) {
+                continue;
+            }
+            try {
+                ConnectionResult result = clientManager.connect(
+                        WARMUP_SCOPE, serverId, launch.command(), launch.environment(), LocalToolNames.ALL);
+                if (result.connected() && !result.tools().isEmpty()) {
+                    toolSchemaCache.record(image, result.tools());
+                    learned++;
+                }
+            } catch (Exception exception) {
+                // Aquecimento e otimizacao: uma imagem que nao sobe agora sera aprendida na primeira
+                // conexao real. Derrubar a subida da aplicacao por causa disso seria trocar um
+                // inconveniente de tela por indisponibilidade.
+                logger.debug("Aquecimento falhou para {}: {}", serverId, exception.getMessage());
+            } finally {
+                clientManager.disconnect(WARMUP_SCOPE, serverId);
+            }
+        }
+        return learned;
     }
 
     public void disconnect(List<String> serverIds) {

@@ -30,7 +30,16 @@ import tools.jackson.databind.JsonNode;
  */
 // RANDOM_PORT, nao NONE: VoiceWebSocketConfig exige um ServletContext para registrar o endpoint de
 // voz, e sem container o contexto inteiro falha a subir.
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {
+            // Teste nao escreve no HOME de quem roda. O cache de schemas MCP grava em
+            // ~/.avento/mcp-tool-schemas.json por padrao, e este teste sobe o contexto inteiro —
+            // incluindo o auto-connect, que grava. Rodar a suite nao pode deixar rastro na maquina.
+            "avento.mcp.tool-schema-cache=${java.io.tmpdir}/avento-test-mcp-schemas.json",
+            // E nao gasta container aquecendo: o que este teste verifica nao depende disso.
+            "avento.mcp.schema-warmup.enabled=false"
+        })
 @ActiveProfiles("local")
 @EnabledIf("infrastructureIsUp")
 class ToolIntegrationTest {

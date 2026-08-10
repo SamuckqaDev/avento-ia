@@ -81,3 +81,14 @@ echo "---"
       -s "$SANDBOX" \
       -c model_reasoning_effort="\"$EFFORT\"" \
       -
+
+# A sessao do `codex exec` NAO aparece no app — o app lista as sessoes dele, nao as do exec.
+# Sem esta linha quem despachou fica sem como auditar o que aconteceu, dependendo do relato de
+# quem disparou. Imprime o arquivo para poder reler com `codex resume` ou lendo o jsonl.
+SESSION="$(find "$HOME/.codex/sessions" -type f -name '*.jsonl' -exec ls -t {} + 2>/dev/null | head -1)"
+if [[ -n "$SESSION" ]]; then
+  echo
+  echo "--- sessao gravada em ---"
+  echo "$SESSION"
+  echo "reabra com: $CODEX_BIN resume"
+fi

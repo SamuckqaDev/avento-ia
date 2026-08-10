@@ -966,6 +966,29 @@ public class McpController implements ToolProvider {
                             descriptor.description()
                                     + " (servidor desconectado — conecte com connect_mcp_server serverId="
                                     + descriptor.id() + ")"));
+
+                    // E, quando sabemos QUAIS ferramentas o servidor tem, anuncia cada uma pelo nome.
+                    //
+                    // Anunciar so o servidor obriga o modelo a adivinhar: para achar o download de
+                    // pagina web ele teria de procurar por "fetch", o nome do servidor, e nao por
+                    // "baixar pagina", o que ele quer fazer. Com as ferramentas na busca, a descoberta
+                    // passa a casar pela CAPACIDADE.
+                    //
+                    // Isto nao custa orcamento de schema: sao resultados de busca, nao ferramentas
+                    // expostas na rodada. O schema so entra depois do activate_tools.
+                    //
+                    // A lista vem do cache por digest de imagem, entao responder aqui NAO sobe
+                    // container nenhum — que era a razao de o cache existir.
+                    for (var tool : mcpServerCatalogService.knownTools(descriptor.id())) {
+                        extras.add(new ToolCatalogService.CapabilitySummary(
+                                tool.exposedName(),
+                                tool.exposedName(),
+                                "MCP_TOOL_AVAILABLE",
+                                (tool.description() == null ? "" : tool.description())
+                                        + " (do servidor " + descriptor.id()
+                                        + ", desconectado — ative com activate_tools "
+                                        + tool.exposedName() + ")"));
+                    }
                 }
             }
         }

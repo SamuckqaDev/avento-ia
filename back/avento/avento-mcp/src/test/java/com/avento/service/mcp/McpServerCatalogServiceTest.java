@@ -1,11 +1,13 @@
 package com.avento.service.mcp;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.avento.dto.ConnectionResult;
 import com.avento.dto.ServerDescriptor;
+import com.avento.dto.ToolDefinition;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -225,5 +227,55 @@ class McpServerCatalogServiceTest {
         assertTrue(results.getFirst().error().contains("Docker Desktop"));
         assertTrue(results.getFirst().error().contains("Colima"));
         assertEquals(List.of(), manager.command, "nao deve nem tentar lancar o processo");
+    }
+
+    /**
+     * O cache por digest existe para que a descoberta de capacidades saiba QUAIS ferramentas um
+     * servidor em container oferece sem subir o container.
+     *
+     * <p>Sem isto, o {@code search_capabilities} anuncia apenas o servidor, e o modelo precisa
+     * adivinhar: para achar o download de página web ele teria de procurar por "fetch", o nome do
+     * servidor, e não por "baixar página", que é o que ele quer fazer.
+     */
+    @Test
+    void answersWhichToolsAContainerServerOffersWithoutStartingIt() {
+        McpToolSchemaCache cache = new McpToolSchemaCache(
+                new ObjectMapper(),
+                java.nio.file.Path.of(System.getProperty("java.io.tmpdir"), "avento-catalog-test.json"),
+                image -> java.util.Optional.of("sha256:fixo"));
+        cache.record(
+                "mcp/fetch",
+                java.util.List.of(new ToolDefinition("fetch", "fetch", "fetch", "Baixa uma URL", java.util.Map.of())));
+
+        McpServerCatalogService service = new McpServerCatalogService(
+                manager(),
+                configuredEnvironment(),
+                new ProjectDatabaseDiscoveryService(),
+                new com.avento.service.tools.ToolExecutionContext(),
+                provider(cache));
+
+        assertThat(service.knownTools("fetch"))
+                .extracting(ToolDefinition::exposedName)
+                .containsExactly("fetch");
+    }
+
+    /** Servidor que não roda em container não tem imagem, logo não tem cache — e não mente dizendo que tem. */
+    @Test
+    void answersNothingForAServerThatDoesNotRunInAContainer() {
+        McpServerCatalogService service = new McpServerCatalogService(
+                manager(),
+                configuredEnvironment(),
+                new ProjectDatabaseDiscoveryService(),
+                new com.avento.service.tools.ToolExecutionContext(),
+                provider(null));
+
+        assertThat(service.knownTools("playwright")).isEmpty();
+    }
+
+    @SuppressWarnings("unchecked")
+    private org.springframework.beans.factory.ObjectProvider<McpToolSchemaCache> provider(McpToolSchemaCache cache) {
+        var provider = org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class);
+        org.mockito.Mockito.when(provider.getIfAvailable()).thenReturn(cache);
+        return provider;
     }
 }

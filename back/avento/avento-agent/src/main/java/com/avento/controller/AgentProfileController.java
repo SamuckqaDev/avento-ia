@@ -1,12 +1,14 @@
 package com.avento.controller;
 
 import com.avento.dto.BaseResponse;
+import com.avento.dto.SelectableTool;
 import com.avento.dto.api.ApiResponses;
 import com.avento.dto.profile.AgentProfileCreateRequest;
 import com.avento.dto.profile.AgentProfileResponse;
 import com.avento.dto.profile.AgentProfileUpdateRequest;
 import com.avento.model.AgentProfile;
 import com.avento.service.agent.AgentProfileService;
+import com.avento.service.agent.SelectableToolCatalog;
 import com.avento.service.auth.AuthPrincipal;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -30,9 +32,12 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/agents")
 public class AgentProfileController {
 
+    private final SelectableToolCatalog selectableToolCatalog;
+
     private final AgentProfileService agentService;
 
-    public AgentProfileController(AgentProfileService agentService) {
+    public AgentProfileController(AgentProfileService agentService, SelectableToolCatalog selectableToolCatalog) {
+        this.selectableToolCatalog = selectableToolCatalog;
         this.agentService = agentService;
     }
 
@@ -88,5 +93,18 @@ public class AgentProfileController {
         } catch (IllegalArgumentException notFound) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, notFound.getMessage());
         }
+    }
+
+    /**
+     * O que a pessoa pode escolher ao montar um agente.
+     *
+     * <p>Fica aqui, e não no {@code McpController}, porque é uma pergunta da tela de agentes:
+     * "quais capacidades existem?". O {@code GET /api/mcp/tools} responde outra — "o que está
+     * conectado agora" — e usá-lo para montar a tela esconderia toda ferramenta de container
+     * desligado, que é justamente o que a pessoa mais quer poder escolher.
+     */
+    @GetMapping("/tools")
+    public ResponseEntity<BaseResponse<List<SelectableTool>>> selectableTools() {
+        return ApiResponses.ok(selectableToolCatalog.all());
     }
 }

@@ -24,8 +24,9 @@ nesses números; reconfira apenas se algo não bater.
   com pacotes diferentes. **Não toque neles.**
 - **0 divergências**
 
-**Comece pela T2.** A T1 só precisa ser refeita se você desconfiar do inventário — nesse caso,
-reconfira e reporte a diferença.
+**A T2 também já foi feita:** 7 DTOs de mídia movidos, suíte verde, mudanças na árvore de trabalho
+sem commit. **Comece pela T3**, e o bloqueio do `Manifest`/`FileManifest` tem decisão escrita no
+item 3.4.
 
 A árvore está limpa e a suíte verde: **810 testes, 0 falhas**. Qualquer falha que aparecer daqui em
 diante é sua, e vale a regra de parar e reportar.
@@ -112,6 +113,31 @@ que por acaso têm o mesmo nome de arquivo, e consolidá-las seria erro.
 
 Critério: **mesmo nome + mesmo pacote + conteúdo idêntico** = duplicata. Qualquer outra combinação,
 pare e reporte.
+
+### 3.4. Dependência arrastada: mova junto, mas só se for record puro
+
+**Descoberta na T2.** O `Manifest` é duplicata, mas usa `FileManifest`, que existe **só** em
+`avento-workspace` e não é duplicado. Mover só o `Manifest` deixa o `avento-core` sem compilar.
+
+Os dois são records de uma linha, no mesmo pacote `com.avento.dto`:
+
+```java
+public record Manifest(String projectRoot, Map<String, FileManifest> files) {}
+public record FileManifest(String fileHash, List<String> chunkIds) {}
+```
+
+**Decisão: mova os dois.** O `FileManifest` já é contrato compartilhado de fato — o `avento-rag` o
+alcança hoje através da dependência em `avento-workspace`. Levá-lo para o core não amplia escopo,
+completa o movimento de um contrato coeso: `Manifest` não significa nada sem ele. E de quebra o
+`avento-rag` deixa de precisar do `avento-workspace` por causa de um record de uma linha.
+
+**A regra, e ela é estreita:** quando uma duplicata arrasta uma classe não-duplicada, mova junto
+**apenas se** a arrastada for um `record` de dados puro, no mesmo pacote, sem anotação e sem
+comportamento. Qualquer outra coisa — classe com método, entidade, serviço, algo anotado — **pare e
+reporte**, porque aí é decisão de arquitetura e não limpeza.
+
+**Reporte cada arrastada que mover**, com o nome e o motivo. A lista final tem de deixar claro o que
+entrou no core por ser duplicata e o que entrou por ser dependência.
 
 ---
 

@@ -21,7 +21,11 @@ import org.mockito.Mockito;
 class AgentProfileServiceTest {
 
     private final AgentProfileRepository repository = Mockito.mock(AgentProfileRepository.class);
-    private final AgentProfileService service = new AgentProfileService(repository);
+    private final AgentProfileService service = new AgentProfileService(
+            repository,
+            // Catalogo vazio basta: este teste grava allowedTools em branco, que a validacao deixa
+            // passar sem consultar catalogo nenhum. A validacao em si tem teste proprio.
+            new AllowedToolsValidator(Mockito.mock(SelectableToolCatalog.class)));
     private final UUID userId = UUID.randomUUID();
 
     @Test

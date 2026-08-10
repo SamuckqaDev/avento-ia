@@ -14,12 +14,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class AgentProfileService {
 
+    private final AllowedToolsValidator allowedToolsValidator;
+
     private static final int MAX_NAME_CHARS = 80;
     private static final int MAX_TEXT_CHARS = 4000;
 
     private final AgentProfileRepository repository;
 
-    public AgentProfileService(AgentProfileRepository repository) {
+    public AgentProfileService(AgentProfileRepository repository, AllowedToolsValidator allowedToolsValidator) {
+        this.allowedToolsValidator = allowedToolsValidator;
         this.repository = repository;
     }
 
@@ -50,7 +53,7 @@ public class AgentProfileService {
                 bounded(name, MAX_NAME_CHARS),
                 bounded(specialty, MAX_TEXT_CHARS),
                 bounded(systemInstructions, MAX_TEXT_CHARS),
-                bounded(allowedTools, MAX_TEXT_CHARS),
+                bounded(allowedToolsValidator.validateAndCanonicalise(allowedTools), MAX_TEXT_CHARS),
                 bounded(triggers, MAX_TEXT_CHARS),
                 blankToNull(model),
                 isDefault);
@@ -82,7 +85,7 @@ public class AgentProfileService {
             agent.setSystemInstructions(bounded(systemInstructions, MAX_TEXT_CHARS));
         }
         if (allowedTools != null) {
-            agent.setAllowedTools(bounded(allowedTools, MAX_TEXT_CHARS));
+            agent.setAllowedTools(bounded(allowedToolsValidator.validateAndCanonicalise(allowedTools), MAX_TEXT_CHARS));
         }
         if (triggers != null) {
             agent.setTriggers(bounded(triggers, MAX_TEXT_CHARS));

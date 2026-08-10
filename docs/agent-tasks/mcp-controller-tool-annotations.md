@@ -33,9 +33,11 @@ Já feito e correto (não refaça):
 **Estado após a segunda execução:** a conversão está feita — o `McpController` caiu de 2.240 para
 **1.847 linhas** e `stringProperty(` não ocorre mais nele. O `edit_file` já usa snake_case (item 3.5).
 
-**A falha que resta** é a descrição de item de array, e o conserto está no **item 3.6**: aceitar a
-diferença e regenerar o baseline **apenas** nas três entradas listadas lá. Faça isso, rode a suíte
-completa e conclua.
+**As quatro `items.description` já foram atualizadas no baseline** (item 3.6, autorizado).
+
+**O que resta** é ordem de `required` divergindo em uma ou mais ferramentas — conserto no **item
+3.7**: reordenar os parâmetros do método, sem tocar no baseline. Aplique em todas que divergirem,
+rode a suíte completa e conclua.
 
 A regra de "pare e reporte" vale para falha **nova**, que sua mudança causou. Esta é anterior,
 diagnosticada, e tem conserto escrito.
@@ -230,6 +232,33 @@ motivo para parar e reportar** — inclusive outra chave nas mesmas três.
 A distinção que importa: afrouxar teste para esconder defeito é proibido; atualizar um baseline
 porque o contrato mudou **de propósito, com o motivo escrito e a perda medida**, é decisão de projeto.
 A diferença entre as duas é se alguém verificou o que se perdeu. Aqui foi verificado.
+
+### 3.7. Ordem de `required`: reordene o MÉTODO, nunca o baseline
+
+**Descoberta na terceira execução**, no `write_file`:
+
+```
+baseline:  "required": ["path","content"]
+gerado:    "required": ["content","path"]
+```
+
+O `required` gerado sai na ordem dos parâmetros do método. Em JSON Schema isso é um conjunto e a
+ordem não muda o significado — mas o payload de ferramentas entra no **prefixo do prompt**, e ali
+byte diferente é prefixo diferente.
+
+**Aqui não se cede nada, porque a ordem dos parâmetros Java é arbitrária.** Reordene a assinatura do
+método para casar com o baseline. Custa mover uma palavra e mantém o schema byte a byte idêntico.
+
+```java
+// baseline pede ["path","content"] — entao 'path' vem primeiro na assinatura
+public String writeFile(
+        @ToolParam(description = "…") String path,
+        @ToolParam(description = "…") String content) { … }
+```
+
+**Vale para toda ferramenta em que a ordem divergir**, não só o `write_file`. E o baseline **não é
+tocado** por este item: a permissão da 3.6 continua valendo só para `items.description` das quatro
+entradas listadas lá.
 
 ---
 

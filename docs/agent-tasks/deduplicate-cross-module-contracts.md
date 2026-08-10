@@ -11,6 +11,25 @@ padrão vence e você reporta a divergência.
 **Tudo marcado como "medido" foi verificado rodando comando nesta máquina em 10/08/2026.** Confie
 nesses números; reconfira apenas se algo não bater.
 
+
+---
+
+## ESTADO ATUAL — leia antes de decidir parar
+
+**A T1 já foi feita numa execução anterior.** O inventário está em
+`docs/agent-tasks/_dedup-inventory.md`, não rastreado pelo git. Resultado dele:
+
+- **24 duplicatas reais**, todas byte a byte idênticas
+- **2 falsos positivos** — `WhisperContext` e `WhisperSegment` são código VENDIDO do `whisper.cpp`,
+  com pacotes diferentes. **Não toque neles.**
+- **0 divergências**
+
+**Comece pela T2.** A T1 só precisa ser refeita se você desconfiar do inventário — nesse caso,
+reconfira e reporte a diferença.
+
+A árvore está limpa e a suíte verde: **810 testes, 0 falhas**. Qualquer falha que aparecer daqui em
+diante é sua, e vale a regra de parar e reportar.
+
 ---
 
 ## 1. O problema

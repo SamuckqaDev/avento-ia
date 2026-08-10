@@ -477,8 +477,43 @@ public class AgentService implements AgentExecutionEngine {
                 chatModel, messages, workspaceRoots, imageModel, imageOptions, runId, chatId, userId, cloudNotice);
     }
 
+    /**
+     * O agente default do usuário, ou {@code null} quando não há como resolver.
+     *
+     * <p>Ponto único: o modelo e as instruções são lidos em momentos diferentes do fluxo, e duas
+     * resoluções independentes poderiam divergir — uma pegando o perfil antes de uma edição e a outra
+     * depois, com a conversa saindo com o modelo de um agente e as instruções de outro.
+     *
+     * <p>Nunca lança. Perfil ilegível é motivo para responder sem personalização, não para o usuário
+     * perder a mensagem que acabou de escrever.
+     */
+    private AgentProfile resolveUserAgent(UUID userId) {
+        if (agentProfileService == null || userId == null) {
+            return null;
+        }
+        try {
+            return agentProfileService.resolveDefault(userId);
+        } catch (Exception exception) {
+            logger.warn("Nao foi possivel resolver o agente do usuario: {}", exception.getMessage());
+            return null;
+        }
+    }
+
     private String resolveChatModel(String requestedModel, ArrayNode messages, UUID userId) {
         String configuredModel = modelProviderService != null ? modelProviderService.activeModelName(userId) : "";
+
+        // O modelo do AGENTE entra entre a escolha explicita e a configuracao do provedor.
+        //
+        // A ordem e essa por especificidade: o seletor do cabecalho e uma decisao para ESTA mensagem
+        // e vence tudo; o agente e uma decisao para ESTE agente; o provedor e a configuracao geral do
+        // usuario. Sem isto, montar um agente e declarar o modelo dele nao mudava nada — o campo era
+        // gravado e nunca lido, o mesmo defeito dos tres modelos que a tela prometia e ninguem usava.
+        if (requestedModel == null || requestedModel.isBlank()) {
+            AgentProfile agent = resolveUserAgent(userId);
+            if (agent != null && agent.getModel() != null && !agent.getModel().isBlank()) {
+                configuredModel = agent.getModel().trim();
+            }
+        }
 
         boolean ownNamespace = modelProviderService != null
                 && modelProviderService.effectiveKind(userId).hasOwnModelNamespace();
@@ -1195,9 +1230,34 @@ public class AgentService implements AgentExecutionEngine {
         ArrayNode guardedMessages = mapper.createArrayNode();
         ObjectNode identityMessage = guardedMessages.addObject();
         identityMessage.put("role", "system");
-        identityMessage.put("content", promptAssemblyService.systemPrompt(messages, workspaceRoots, userId));
+        identityMessage.put(
+                "content",
+                withAgentPersona(promptAssemblyService.systemPrompt(messages, workspaceRoots, userId), userId));
         guardedMessages.addAll(compactMessagesForModel(messages));
         return guardedMessages;
+    }
+
+    /**
+     * Prefixa as instruções do agente do usuário ao prompt de sistema.
+     *
+     * <p>Vem ANTES do prompt do Avento, e não depois, porque o que está por último pesa mais na
+     * atenção do modelo: as guardas do sistema — não invente número, nada aqui é um pedido — têm de
+     * ficar na posição forte. A persona diz QUEM o agente é; as guardas dizem o que ele não faz, e
+     * personalização nenhuma pode revogá-las.
+     *
+     * <p><b>Estabilidade do prefixo:</b> o texto é o mesmo enquanto o perfil não mudar, então o
+     * prefixo do prompt continua idêntico entre mensagens e o cache do llama.cpp segue reaproveitando
+     * o processamento. Editar o agente invalida o cache uma vez — o preço correto de ter mudado a
+     * instrução.
+     */
+    private String withAgentPersona(String systemPrompt, UUID userId) {
+        AgentProfile agent = resolveUserAgent(userId);
+        if (agent == null
+                || agent.getSystemInstructions() == null
+                || agent.getSystemInstructions().isBlank()) {
+            return systemPrompt;
+        }
+        return agent.getSystemInstructions().strip() + "\n\n" + systemPrompt;
     }
 
     private ArrayNode withBackendIdentityPrompt(ArrayNode messages, List<String> workspaceRoots) {

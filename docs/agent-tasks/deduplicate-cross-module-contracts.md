@@ -27,9 +27,10 @@ nesses números; reconfira apenas se algo não bater.
 **T2 e T3 já foram feitas:** 14 pares movidos mais o `FileManifest`, suíte verde (810 testes),
 tudo na árvore de trabalho sem commit.
 
-**O que falta:** mover as sete do item 3.6 e rodar a T5. As três do item 3.5 ficam de fora com
-motivo — e a T5 deve devolver exatamente essas três, mais os dois `Whisper*` que são falsos
-positivos.
+**Os seis records da 3.6 também já foram movidos**, suíte verde.
+
+**O que falta:** mover o par `ToolExecutionContext` + `Context` (item 3.7) e rodar a T5. É o último
+movimento.
 
 A árvore está limpa e a suíte verde: **810 testes, 0 falhas**. Qualquer falha que aparecer daqui em
 diante é sua, e vale a regra de parar e reportar.
@@ -172,6 +173,37 @@ Medido, todas sem impedimento:
 
 **Encontrar um bloqueio não é motivo para parar o lote inteiro.** A regra de parar vale para o item
 bloqueado; os que não têm impedimento seguem. Mova estes sete, e depois rode a T5.
+
+### 3.7. `ToolExecutionContext` + `Context`: movem juntos, e não é exceção à 3.4
+
+**Descoberto na última execução.** O `ToolExecutionContext` usa `Context`, que não é duplicata e tem
+métodos — então a regra 3.4, lida ao pé da letra, manda parar. Fui olhar, e o motivo real é mais
+forte que "tem métodos":
+
+```java
+public String scopeKey() {
+    if (userId == null) {
+        return com.avento.service.tools.ToolExecutionContext.ANONYMOUS_SCOPE;  // ← volta
+    }
+    ...
+}
+```
+
+**Eles se referenciam mutuamente.** `ToolExecutionContext` usa `Context`; `Context.scopeKey()` chama
+`ToolExecutionContext.ANONYMOUS_SCOPE`. Não são "uma duplicata e uma dependência" — são **uma
+unidade só**, que hoje está partida entre dois módulos por acidente.
+
+**Decisão: mova os dois para o `avento-core`.** Verificado: nenhum dos dois tem JPA, entidade,
+repositório ou persistência — que é a linha que a 3.5 traçou e a única que importa aqui. O `Context`
+é objeto de valor com acessor derivado; a 3.4 excluía métodos como proxy para "carrega peso
+arquitetural", e este não carrega.
+
+Isto **não afrouxa a 3.4** para o resto: continua valendo record puro para qualquer outra arrastada.
+Esta é uma decisão nominal, sobre este par, pelo motivo acima.
+
+**Depois deste par, a T5 deve devolver exatamente:** `AgentTimelineEvent`,
+`AgentTimelineEventRepository`, `ApprovalReplayGuard` (as três da 3.5) e os dois `Whisper*` (falsos
+positivos). Nada mais.
 
 ---
 

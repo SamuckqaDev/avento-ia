@@ -1,11 +1,19 @@
 # Trocar os 42 schemas artesanais do McpController por anotações `@Tool`
 
-> Spec de execução para agente. Escopo fechado: **só** o que está aqui.
+> Spec de execução. Escopo fechado: **só** o que está aqui.
 > Repo: `avento-ia` (`/Users/sr.tomimatu/projetcs/avento-ia`), branch base: **`spike/spring-boot-4-spring-ai-2`**.
 > Rode tudo a partir de `back/avento`.
 
 ⚠️ **Confira a branch antes de começar.** Esta spec depende de Spring AI 2.0.0 e Jackson 3, que só
 existem nesta branch. Na `master` nada aqui compila.
+
+📖 **O `AGENTS.md` da raiz manda.** Ele aponta para `.agents/skills/avento-java-maintenance/SKILL.md`,
+que é leitura obrigatória antes de editar Java neste repo. Onde esta spec e aquele padrão
+divergirem, o padrão do repo vence e você reporta a divergência.
+
+**As medições abaixo foram feitas nesta máquina em 08–10/08/2026.** Onde eu presumi em vez de medir,
+está escrito. Você não precisa refazer o que está marcado como medido — precisa confiar e verificar
+só se algo não bater.
 
 ---
 

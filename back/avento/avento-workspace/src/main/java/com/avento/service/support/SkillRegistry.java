@@ -1,6 +1,6 @@
 package com.avento.service.support;
 
-import com.avento.service.dto.*;
+import com.avento.dto.*;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

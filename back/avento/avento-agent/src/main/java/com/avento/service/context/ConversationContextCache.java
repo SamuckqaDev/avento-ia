@@ -2,7 +2,7 @@ package com.avento.service.context;
 
 import com.avento.config.RedisExecutionProperties;
 import com.avento.model.Message;
-import com.avento.repository.MessageRepository;
+import com.avento.model.MessageRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

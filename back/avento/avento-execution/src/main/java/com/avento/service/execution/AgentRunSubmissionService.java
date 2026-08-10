@@ -1,11 +1,11 @@
 package com.avento.service.execution;
 
 import com.avento.config.RedisExecutionProperties;
+import com.avento.dto.AgentRunView;
 import com.avento.model.AgentRunJob;
+import com.avento.model.AgentRunJobRepository;
 import com.avento.model.ExecutionOutboxEvent;
-import com.avento.repository.AgentRunJobRepository;
-import com.avento.repository.ExecutionOutboxEventRepository;
-import com.avento.service.dto.AgentRunView;
+import com.avento.model.ExecutionOutboxEventRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;

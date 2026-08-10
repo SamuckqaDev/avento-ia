@@ -1,11 +1,11 @@
 package com.avento.service;
 
+import com.avento.dto.*;
+import com.avento.dto.VideoStatus;
+import com.avento.dto.VideoSubmission;
 import com.avento.model.VideoGenerationJob;
 import com.avento.model.VideoGenerationJob.Status;
-import com.avento.repository.VideoGenerationJobRepository;
-import com.avento.service.dto.*;
-import com.avento.service.dto.VideoStatus;
-import com.avento.service.dto.VideoSubmission;
+import com.avento.model.VideoGenerationJobRepository;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;

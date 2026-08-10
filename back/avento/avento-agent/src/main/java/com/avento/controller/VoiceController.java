@@ -1,9 +1,9 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.BaseResponse;
-import com.avento.api.exception.ApiServiceException;
-import com.avento.api.exception.InvalidRequestException;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.api.ApiResponses;
+import com.avento.model.exception.ApiServiceException;
+import com.avento.model.exception.InvalidRequestException;
 import com.avento.service.SpeechTextNormalizer;
 import com.avento.service.VoiceTranscriptionService;
 import com.avento.service.support.PiperCommand;

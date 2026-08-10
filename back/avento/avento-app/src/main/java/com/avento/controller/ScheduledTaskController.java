@@ -1,9 +1,9 @@
 package com.avento.controller;
 
-import com.avento.auth.security.AuthPrincipal;
 import com.avento.model.ScheduledTask;
 import com.avento.model.ScheduledTaskRun;
-import com.avento.repository.ScheduledTaskRunRepository;
+import com.avento.model.ScheduledTaskRunRepository;
+import com.avento.service.auth.AuthPrincipal;
 import com.avento.service.execution.CronTaskScheduler;
 import com.avento.service.execution.ScheduledTaskService;
 import java.util.List;

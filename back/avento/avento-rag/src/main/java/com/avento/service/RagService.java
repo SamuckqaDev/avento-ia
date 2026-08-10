@@ -1,6 +1,6 @@
 package com.avento.service;
 
-import com.avento.service.dto.*;
+import com.avento.dto.*;
 import com.avento.service.rag.CodeAwareSplitter;
 import com.avento.service.rag.VectorStoreResolver;
 import java.io.IOException;

@@ -5,9 +5,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.avento.service.dto.ProjectCommandRequest;
-import com.avento.service.dto.ProjectCommandResult;
-import com.avento.service.dto.VerificationResult;
+import com.avento.dto.ProjectCommandRequest;
+import com.avento.dto.ProjectCommandResult;
+import com.avento.dto.VerificationResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;

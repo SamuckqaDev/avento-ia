@@ -1,14 +1,14 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.*;
-import com.avento.api.dto.BaseResponse;
-import com.avento.auth.security.AuthPrincipal;
+import com.avento.dto.*;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.ProjectAnalysis;
+import com.avento.dto.ProjectCommandRequest;
+import com.avento.dto.ProjectCommandResult;
+import com.avento.dto.api.ApiResponses;
 import com.avento.service.ProjectAnalysisService;
 import com.avento.service.ProjectCommandService;
-import com.avento.service.dto.ProjectAnalysis;
-import com.avento.service.dto.ProjectCommandRequest;
-import com.avento.service.dto.ProjectCommandResult;
+import com.avento.service.auth.AuthPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

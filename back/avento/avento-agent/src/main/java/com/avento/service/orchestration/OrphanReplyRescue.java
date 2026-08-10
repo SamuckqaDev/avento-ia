@@ -1,8 +1,8 @@
 package com.avento.service.orchestration;
 
+import com.avento.model.ChatRepository;
 import com.avento.model.Message;
-import com.avento.repository.ChatRepository;
-import com.avento.repository.MessageRepository;
+import com.avento.model.MessageRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;

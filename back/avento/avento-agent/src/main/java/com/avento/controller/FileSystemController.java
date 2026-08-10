@@ -1,11 +1,11 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.BaseResponse;
-import com.avento.auth.security.AuthPrincipal;
+import com.avento.dto.BackupEntry;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.api.ApiResponses;
 import com.avento.service.FileBackupService;
 import com.avento.service.WorkspaceAccessService;
-import com.avento.service.dto.BackupEntry;
+import com.avento.service.auth.AuthPrincipal;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;

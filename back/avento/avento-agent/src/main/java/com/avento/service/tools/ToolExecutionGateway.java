@@ -1,6 +1,6 @@
 package com.avento.service.tools;
 
-import com.avento.service.dto.Context;
+import com.avento.dto.Context;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;

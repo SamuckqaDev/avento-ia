@@ -1,10 +1,10 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.*;
-import com.avento.api.dto.BaseResponse;
+import com.avento.dto.*;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.api.ApiResponses;
 import com.avento.model.Notification;
-import com.avento.repository.NotificationRepository;
+import com.avento.model.NotificationRepository;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

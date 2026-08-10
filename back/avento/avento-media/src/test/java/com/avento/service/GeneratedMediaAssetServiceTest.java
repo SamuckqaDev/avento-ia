@@ -6,9 +6,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.avento.dto.AssetDeletionResult;
 import com.avento.model.GeneratedMediaAsset;
-import com.avento.repository.GeneratedMediaAssetRepository;
-import com.avento.service.dto.AssetDeletionResult;
+import com.avento.model.GeneratedMediaAssetRepository;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;

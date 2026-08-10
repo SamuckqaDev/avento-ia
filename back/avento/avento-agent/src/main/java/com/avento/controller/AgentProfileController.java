@@ -1,13 +1,13 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.AgentProfileCreateRequest;
-import com.avento.api.dto.AgentProfileResponse;
-import com.avento.api.dto.AgentProfileUpdateRequest;
-import com.avento.api.dto.BaseResponse;
-import com.avento.auth.security.AuthPrincipal;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.api.ApiResponses;
+import com.avento.dto.profile.AgentProfileCreateRequest;
+import com.avento.dto.profile.AgentProfileResponse;
+import com.avento.dto.profile.AgentProfileUpdateRequest;
 import com.avento.model.AgentProfile;
-import com.avento.service.AgentProfileService;
+import com.avento.service.agent.AgentProfileService;
+import com.avento.service.auth.AuthPrincipal;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;

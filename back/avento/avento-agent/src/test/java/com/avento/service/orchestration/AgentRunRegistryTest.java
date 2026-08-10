@@ -3,7 +3,7 @@ package com.avento.service.orchestration;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.avento.service.dto.AgentRunSnapshot;
+import com.avento.dto.AgentRunSnapshot;
 import com.avento.service.orchestration.AgentRunRegistry.AgentRunStatus;
 import java.time.LocalDateTime;
 import java.util.List;

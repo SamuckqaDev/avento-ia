@@ -1,16 +1,16 @@
 package com.avento.service.execution;
 
 import com.avento.config.RedisExecutionProperties;
+import com.avento.dto.AgentRunSnapshot;
 import com.avento.model.AgentRunJob;
+import com.avento.model.AgentRunJobRepository;
 import com.avento.model.AgentTimelineEvent;
+import com.avento.model.ScheduledTaskRepository;
 import com.avento.model.ScheduledTaskRun;
-import com.avento.repository.AgentRunJobRepository;
-import com.avento.repository.ScheduledTaskRepository;
-import com.avento.repository.ScheduledTaskRunRepository;
-import com.avento.service.AgentTimelineService;
+import com.avento.model.ScheduledTaskRunRepository;
 import com.avento.service.WorkspaceAccessService;
+import com.avento.service.agent.AgentTimelineService;
 import com.avento.service.context.ConversationContextCache;
-import com.avento.service.dto.AgentRunSnapshot;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.orchestration.AgentOrchestrator;
 import com.avento.service.orchestration.AgentRunRegistry;

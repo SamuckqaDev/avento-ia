@@ -1,13 +1,13 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.BaseResponse;
-import com.avento.api.dto.UserMemoryCreateRequest;
-import com.avento.api.dto.UserMemoryResponse;
-import com.avento.api.dto.UserMemoryUpdateRequest;
-import com.avento.auth.security.AuthPrincipal;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.UserMemoryCreateRequest;
+import com.avento.dto.UserMemoryResponse;
+import com.avento.dto.UserMemoryUpdateRequest;
+import com.avento.dto.api.ApiResponses;
 import com.avento.model.UserMemory;
-import com.avento.service.UserMemoryService;
+import com.avento.service.auth.AuthPrincipal;
+import com.avento.service.memory.UserMemoryService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;

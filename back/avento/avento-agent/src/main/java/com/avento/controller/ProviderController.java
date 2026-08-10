@@ -1,12 +1,12 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.BaseResponse;
-import com.avento.api.dto.ProviderSettingsResponse;
-import com.avento.api.dto.ProviderSettingsUpdateRequest;
-import com.avento.api.dto.ProviderTestRequest;
-import com.avento.api.dto.ProviderTestResponse;
-import com.avento.auth.security.AuthPrincipal;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.ProviderSettingsResponse;
+import com.avento.dto.ProviderSettingsUpdateRequest;
+import com.avento.dto.ProviderTestRequest;
+import com.avento.dto.ProviderTestResponse;
+import com.avento.dto.api.ApiResponses;
+import com.avento.service.auth.AuthPrincipal;
 import com.avento.service.provider.ModelProviderService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

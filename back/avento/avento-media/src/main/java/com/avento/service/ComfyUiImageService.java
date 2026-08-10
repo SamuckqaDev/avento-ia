@@ -1,7 +1,7 @@
 package com.avento.service;
 
-import com.avento.service.dto.*;
-import com.avento.service.dto.LocalModelInfo;
+import com.avento.dto.*;
+import com.avento.dto.LocalModelInfo;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.image.ImageModelPreset;
 import com.avento.service.image.ImageModelPresetCatalog;

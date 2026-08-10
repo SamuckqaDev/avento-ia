@@ -1,14 +1,14 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.BaseResponse;
-import com.avento.api.dto.PlanCreateRequest;
-import com.avento.api.dto.PlanResponse;
-import com.avento.api.dto.TaskResponse;
-import com.avento.api.dto.TaskUpdateRequest;
-import com.avento.auth.security.AuthPrincipal;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.api.ApiResponses;
+import com.avento.dto.plan.PlanCreateRequest;
+import com.avento.dto.plan.PlanResponse;
+import com.avento.dto.plan.TaskResponse;
+import com.avento.dto.plan.TaskUpdateRequest;
 import com.avento.model.AgentPlan;
 import com.avento.model.AgentTask;
+import com.avento.service.auth.AuthPrincipal;
 import com.avento.service.execution.RunEventStreamService;
 import com.avento.service.plan.AgentPlanService;
 import com.avento.service.plan.PlanBuilderService;
@@ -42,7 +42,7 @@ public class PlanController {
     private final PlanBuilderService planBuilderService;
     private final PlanExecutionService executionService;
     private final RunEventStreamService runEventStreamService;
-    private final com.avento.repository.AgentProfileRepository agentProfileRepository;
+    private final com.avento.model.AgentProfileRepository agentProfileRepository;
 
     @PostMapping
     public ResponseEntity<BaseResponse<PlanResponse>> createPlan(

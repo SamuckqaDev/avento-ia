@@ -5,9 +5,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.avento.model.AgentRunJob;
+import com.avento.model.AgentRunJobRepository;
 import com.avento.model.AgentTimelineEvent;
-import com.avento.repository.AgentRunJobRepository;
-import com.avento.repository.AgentTimelineEventRepository;
+import com.avento.model.AgentTimelineEventRepository;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

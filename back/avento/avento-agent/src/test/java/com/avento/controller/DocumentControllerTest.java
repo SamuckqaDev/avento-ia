@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.avento.api.dto.DocumentUploadResult;
+import com.avento.dto.DocumentUploadResult;
 import com.avento.service.DocumentReaderService;
 import com.avento.service.WorkspaceAccessService;
 import java.nio.file.Files;

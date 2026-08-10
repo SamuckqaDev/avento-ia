@@ -1,10 +1,10 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.BaseResponse;
-import com.avento.api.dto.UsageSummary;
-import com.avento.auth.security.AuthPrincipal;
-import com.avento.service.TokenUsageService;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.UsageSummary;
+import com.avento.dto.api.ApiResponses;
+import com.avento.service.auth.AuthPrincipal;
+import com.avento.service.settings.TokenUsageService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

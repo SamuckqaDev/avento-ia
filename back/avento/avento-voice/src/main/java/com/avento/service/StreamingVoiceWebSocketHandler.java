@@ -1,6 +1,6 @@
 package com.avento.service;
 
-import com.avento.service.dto.TranscriptionResult;
+import com.avento.dto.TranscriptionResult;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.Map;

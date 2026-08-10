@@ -2,7 +2,7 @@ package com.avento.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.avento.service.dto.SystemActionResult;
+import com.avento.dto.SystemActionResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.MethodOrderer;

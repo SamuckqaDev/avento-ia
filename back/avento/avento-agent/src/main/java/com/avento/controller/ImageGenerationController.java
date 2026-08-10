@@ -1,10 +1,10 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.BaseResponse;
-import com.avento.auth.security.AuthPrincipal;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.ImageJobView;
+import com.avento.dto.api.ApiResponses;
 import com.avento.service.ImageGenerationJobService;
-import com.avento.service.dto.ImageJobView;
+import com.avento.service.auth.AuthPrincipal;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

@@ -5,10 +5,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.avento.dto.ImageJobView;
 import com.avento.model.ImageGenerationJob;
 import com.avento.model.ImageGenerationJob.Status;
-import com.avento.repository.ImageGenerationJobRepository;
-import com.avento.service.dto.ImageJobView;
+import com.avento.model.ImageGenerationJobRepository;
 import com.avento.service.image.ImageGenerationJobWorker;
 import com.avento.service.image.ImageGenerator;
 import java.nio.file.Files;

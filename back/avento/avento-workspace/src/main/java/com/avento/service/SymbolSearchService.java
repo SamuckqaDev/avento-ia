@@ -1,6 +1,6 @@
 package com.avento.service;
 
-import com.avento.service.dto.SymbolMatch;
+import com.avento.dto.SymbolMatch;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;

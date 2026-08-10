@@ -28,7 +28,7 @@ class McpControllerDeleteDirectoryTest {
                 controller,
                 "fileBackupService",
                 new FileBackupService(
-                        org.mockito.Mockito.mock(com.avento.repository.FileChangeBackupRepository.class),
+                        org.mockito.Mockito.mock(com.avento.model.FileChangeBackupRepository.class),
                         new com.avento.service.tools.ToolExecutionContext()));
         return controller;
     }

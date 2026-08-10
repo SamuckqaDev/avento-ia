@@ -1,9 +1,9 @@
 package com.avento.service.execution;
 
 import com.avento.model.ScheduledTask;
+import com.avento.model.ScheduledTaskRepository;
 import com.avento.model.ScheduledTaskRun;
-import com.avento.repository.ScheduledTaskRepository;
-import com.avento.repository.ScheduledTaskRunRepository;
+import com.avento.model.ScheduledTaskRunRepository;
 import com.avento.service.NotificationService;
 import java.time.LocalDateTime;
 import java.time.LocalTime;

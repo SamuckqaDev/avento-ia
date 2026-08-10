@@ -48,10 +48,10 @@ class ToolIntegrationTest {
     private com.avento.service.tools.ToolExecutionContext executionContext;
 
     @Autowired
-    private com.avento.auth.repository.UserAccountRepository users;
+    private com.avento.model.UserAccountRepository users;
 
     @Autowired
-    private com.avento.repository.ChatRepository chats;
+    private com.avento.model.ChatRepository chats;
 
     /**
      * Ferramentas que persistem exigem dono. O agente passa {@code _userId}/{@code _chatId} no

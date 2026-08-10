@@ -45,14 +45,14 @@ class ToolSmokeTest {
         // ferramentas, nao o versionamento das escritas.
         FileBackupService backup = org.mockito.Mockito.mock(FileBackupService.class);
         // recordCreatedDirectory e void; so os que devolvem BackupEntry precisam de stub.
-        com.avento.service.dto.BackupEntry entry =
-                new com.avento.service.dto.BackupEntry("bkp-1", "origem", "copia", false, "2026-07-31T00:00:00Z");
+        com.avento.dto.BackupEntry entry =
+                new com.avento.dto.BackupEntry("bkp-1", "origem", "copia", false, "2026-07-31T00:00:00Z");
         org.mockito.Mockito.when(backup.backupBeforeWrite(
                         org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(entry);
         org.mockito.Mockito.when(backup.backupDirectoryBeforeDelete(
                         org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(new com.avento.service.dto.DirectoryBackupEntry(
+                .thenReturn(new com.avento.dto.DirectoryBackupEntry(
                         "dir-1", "origem", "copia", 0L, true, "2026-07-31T00:00:00Z"));
 
         controller = new McpController();

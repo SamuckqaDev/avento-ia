@@ -1,8 +1,8 @@
 package com.avento.service;
 
-import com.avento.service.dto.ProjectCommandRequest;
-import com.avento.service.dto.ProjectCommandResult;
-import com.avento.service.dto.VerificationResult;
+import com.avento.dto.ProjectCommandRequest;
+import com.avento.dto.ProjectCommandResult;
+import com.avento.dto.VerificationResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;

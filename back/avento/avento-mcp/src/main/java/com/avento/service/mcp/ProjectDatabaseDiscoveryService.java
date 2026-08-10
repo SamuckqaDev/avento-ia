@@ -1,6 +1,6 @@
 package com.avento.service.mcp;
 
-import com.avento.service.dto.*;
+import com.avento.dto.*;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.URI;

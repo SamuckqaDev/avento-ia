@@ -1,16 +1,16 @@
 package com.avento.service.plan;
 
+import com.avento.dto.VerificationResult;
 import com.avento.model.AgentPlan;
+import com.avento.model.AgentPlanRepository;
 import com.avento.model.AgentProfile;
 import com.avento.model.AgentRunJob;
+import com.avento.model.AgentRunJobRepository;
 import com.avento.model.AgentTask;
-import com.avento.repository.AgentPlanRepository;
-import com.avento.repository.AgentRunJobRepository;
-import com.avento.repository.AgentTaskRepository;
+import com.avento.model.AgentTaskRepository;
 import com.avento.service.FileBackupService;
 import com.avento.service.ProjectVerificationService;
 import com.avento.service.WorkspaceAccessService;
-import com.avento.service.dto.VerificationResult;
 import com.avento.service.execution.AgentRunSubmissionService;
 import com.avento.service.execution.RunEventPublisher;
 import java.nio.file.Files;

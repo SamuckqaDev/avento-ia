@@ -1,11 +1,11 @@
 package com.avento.service.provider;
 
-import com.avento.api.dto.ProviderSettingsResponse;
-import com.avento.api.dto.ProviderSettingsUpdateRequest;
-import com.avento.api.dto.ProviderTestRequest;
-import com.avento.api.dto.ProviderTestResponse;
+import com.avento.dto.ProviderSettingsResponse;
+import com.avento.dto.ProviderSettingsUpdateRequest;
+import com.avento.dto.ProviderTestRequest;
+import com.avento.dto.ProviderTestResponse;
 import com.avento.model.ProviderSettings;
-import com.avento.repository.ProviderSettingsRepository;
+import com.avento.model.ProviderSettingsRepository;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;

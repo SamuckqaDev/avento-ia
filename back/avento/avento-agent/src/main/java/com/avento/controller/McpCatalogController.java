@@ -1,13 +1,13 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.*;
-import com.avento.api.dto.BaseResponse;
-import com.avento.auth.security.AuthPrincipal;
+import com.avento.dto.*;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.ConnectionResult;
+import com.avento.dto.Context;
+import com.avento.dto.ServerDescriptor;
+import com.avento.dto.api.ApiResponses;
 import com.avento.service.WorkspaceAccessService;
-import com.avento.service.dto.ConnectionResult;
-import com.avento.service.dto.Context;
-import com.avento.service.dto.ServerDescriptor;
+import com.avento.service.auth.AuthPrincipal;
 import com.avento.service.mcp.McpServerCatalogService;
 import com.avento.service.tools.ToolExecutionContext;
 import java.util.ArrayList;

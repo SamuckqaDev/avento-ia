@@ -3,7 +3,7 @@ package com.avento.service.tools;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.avento.model.PinnedTools;
-import com.avento.repository.PinnedToolsRepository;
+import com.avento.model.PinnedToolsRepository;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;

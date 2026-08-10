@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.avento.service.dto.SymbolMatch;
+import com.avento.dto.SymbolMatch;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;

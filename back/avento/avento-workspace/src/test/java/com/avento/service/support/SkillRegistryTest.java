@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.avento.service.dto.Skill;
+import com.avento.dto.Skill;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;

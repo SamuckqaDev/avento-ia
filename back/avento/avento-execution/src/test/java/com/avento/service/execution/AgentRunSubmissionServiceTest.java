@@ -9,11 +9,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.avento.config.RedisExecutionProperties;
+import com.avento.dto.AgentRunView;
 import com.avento.model.AgentRunJob;
+import com.avento.model.AgentRunJobRepository;
 import com.avento.model.ExecutionOutboxEvent;
-import com.avento.repository.AgentRunJobRepository;
-import com.avento.repository.ExecutionOutboxEventRepository;
-import com.avento.service.dto.AgentRunView;
+import com.avento.model.ExecutionOutboxEventRepository;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;

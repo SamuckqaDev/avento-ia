@@ -1,6 +1,6 @@
 package com.avento.service;
 
-import com.avento.service.dto.*;
+import com.avento.dto.*;
 import com.avento.service.support.ProjectPaths;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

@@ -1,8 +1,8 @@
 package com.avento.service.mcp;
 
-import com.avento.service.dto.*;
-import com.avento.service.dto.ConnectionResult;
-import com.avento.service.dto.DatabaseConfiguration;
+import com.avento.dto.*;
+import com.avento.dto.ConnectionResult;
+import com.avento.dto.DatabaseConfiguration;
 import com.avento.service.support.ProjectPaths;
 import com.avento.service.tools.LocalToolNames;
 import com.avento.service.tools.ToolExecutionContext;

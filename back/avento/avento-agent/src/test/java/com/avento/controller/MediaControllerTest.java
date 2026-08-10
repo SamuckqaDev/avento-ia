@@ -4,11 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.avento.auth.model.UserRole;
-import com.avento.auth.security.AuthPrincipal;
 import com.avento.model.GeneratedMediaAsset;
-import com.avento.repository.GeneratedMediaAssetRepository;
+import com.avento.model.GeneratedMediaAssetRepository;
+import com.avento.model.UserRole;
 import com.avento.service.GeneratedMediaAssetService;
+import com.avento.service.auth.AuthPrincipal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;

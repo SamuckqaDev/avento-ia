@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.avento.service.dto.ProjectAnalysis;
+import com.avento.dto.ProjectAnalysis;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;

@@ -1,11 +1,11 @@
 package com.avento.config;
 
-import com.avento.api.ApiCodes;
-import com.avento.api.ApiErrorResponses;
-import com.avento.api.dto.ApiErrorData;
-import com.avento.api.dto.ApiFieldError;
-import com.avento.api.dto.BaseResponse;
-import com.avento.api.exception.ApiException;
+import com.avento.dto.ApiErrorData;
+import com.avento.dto.ApiFieldError;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.api.ApiCodes;
+import com.avento.dto.api.ApiErrorResponses;
+import com.avento.model.exception.ApiException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;

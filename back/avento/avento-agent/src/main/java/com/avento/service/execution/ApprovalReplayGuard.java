@@ -1,8 +1,8 @@
 package com.avento.service.execution;
 
+import com.avento.model.AgentRunJobRepository;
 import com.avento.model.AgentTimelineEvent;
-import com.avento.repository.AgentRunJobRepository;
-import com.avento.repository.AgentTimelineEventRepository;
+import com.avento.model.AgentTimelineEventRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

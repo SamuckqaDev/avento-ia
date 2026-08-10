@@ -8,8 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.avento.service.dto.ConnectionResult;
-import com.avento.service.dto.ServerDescriptor;
+import com.avento.dto.ConnectionResult;
+import com.avento.dto.ServerDescriptor;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

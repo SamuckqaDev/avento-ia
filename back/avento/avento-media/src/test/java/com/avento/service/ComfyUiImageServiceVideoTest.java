@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.avento.service.dto.LocalModelInfo;
+import com.avento.dto.LocalModelInfo;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.image.ImageModelPreset;
 import com.avento.service.image.ImageModelPresetCatalog;

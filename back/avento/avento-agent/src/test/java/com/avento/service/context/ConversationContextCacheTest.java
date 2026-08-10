@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.avento.config.RedisExecutionProperties;
 import com.avento.model.Message;
-import com.avento.repository.MessageRepository;
+import com.avento.model.MessageRepository;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

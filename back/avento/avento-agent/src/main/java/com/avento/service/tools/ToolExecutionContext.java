@@ -1,6 +1,6 @@
 package com.avento.service.tools;
 
-import com.avento.service.dto.*;
+import com.avento.dto.*;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;

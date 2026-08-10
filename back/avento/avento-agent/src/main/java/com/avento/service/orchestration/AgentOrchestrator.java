@@ -1,6 +1,6 @@
 package com.avento.service.orchestration;
 
-import com.avento.service.AgentTimelineService;
+import com.avento.service.agent.AgentTimelineService;
 import com.avento.service.execution.RunEventPublisher;
 import com.avento.service.image.ImageGenerationOptions;
 import java.time.LocalDateTime;
@@ -40,8 +40,8 @@ public class AgentOrchestrator {
                 // Sem repositorio a rede de seguranca vira no-op: comportamento identico ao de
                 // antes dela existir, que e o que os testes que montam isto a mao esperam.
                 new OrphanReplyRescue(
-                        (com.avento.repository.MessageRepository) null,
-                        (com.avento.repository.ChatRepository) null,
+                        (com.avento.model.MessageRepository) null,
+                        (com.avento.model.ChatRepository) null,
                         mapper,
                         java.time.Duration.ofSeconds(20)));
     }

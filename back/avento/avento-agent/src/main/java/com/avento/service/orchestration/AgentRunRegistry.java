@@ -1,6 +1,6 @@
 package com.avento.service.orchestration;
 
-import com.avento.service.dto.*;
+import com.avento.dto.*;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;

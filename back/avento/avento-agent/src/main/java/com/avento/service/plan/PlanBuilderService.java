@@ -1,15 +1,15 @@
 package com.avento.service.plan;
 
-import com.avento.api.dto.PlanCreateRequest;
+import com.avento.dto.plan.AgentTaskDefinition;
+import com.avento.dto.plan.PlanCreateRequest;
+import com.avento.dto.plan.PlanDefinition;
 import com.avento.model.AgentPlan;
+import com.avento.model.AgentPlanRepository;
 import com.avento.model.AgentTask;
-import com.avento.repository.AgentPlanRepository;
-import com.avento.repository.AgentTaskRepository;
-import com.avento.repository.ChatRepository;
-import com.avento.service.AgentService;
+import com.avento.model.AgentTaskRepository;
+import com.avento.model.ChatRepository;
 import com.avento.service.WorkspaceAccessService;
-import com.avento.service.plan.dto.AgentTaskDefinition;
-import com.avento.service.plan.dto.PlanDefinition;
+import com.avento.service.agent.AgentService;
 import com.avento.service.provider.ModelProviderService;
 import java.util.ArrayList;
 import java.util.List;

@@ -1,8 +1,8 @@
 package com.avento.controller;
 
-import com.avento.auth.security.AuthPrincipal;
 import com.avento.model.GeneratedMediaAsset;
 import com.avento.service.GeneratedMediaAssetService;
+import com.avento.service.auth.AuthPrincipal;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;

@@ -2,6 +2,7 @@ package com.avento.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.avento.service.prompt.PromptAssemblyService;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;

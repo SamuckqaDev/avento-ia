@@ -1,7 +1,7 @@
 package com.avento.service.tools;
 
 import com.avento.model.PinnedTools;
-import com.avento.repository.PinnedToolsRepository;
+import com.avento.model.PinnedToolsRepository;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;

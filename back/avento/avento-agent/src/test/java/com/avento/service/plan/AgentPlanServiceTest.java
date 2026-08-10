@@ -9,9 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.avento.model.AgentPlan;
+import com.avento.model.AgentPlanRepository;
 import com.avento.model.AgentTask;
-import com.avento.repository.AgentPlanRepository;
-import com.avento.repository.AgentTaskRepository;
+import com.avento.model.AgentTaskRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

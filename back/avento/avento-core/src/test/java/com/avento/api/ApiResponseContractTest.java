@@ -2,9 +2,12 @@ package com.avento.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.avento.api.dto.ApiErrorData;
-import com.avento.api.dto.BaseResponse;
 import com.avento.config.ApiExceptionHandler;
+import com.avento.config.RequestTraceFilter;
+import com.avento.dto.ApiErrorData;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.api.ApiCodes;
+import com.avento.dto.api.ApiResponses;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;

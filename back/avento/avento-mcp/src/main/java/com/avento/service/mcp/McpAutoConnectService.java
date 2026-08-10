@@ -1,7 +1,7 @@
 package com.avento.service.mcp;
 
-import com.avento.service.dto.ConnectionResult;
-import com.avento.service.dto.ServerDescriptor;
+import com.avento.dto.ConnectionResult;
+import com.avento.dto.ServerDescriptor;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;

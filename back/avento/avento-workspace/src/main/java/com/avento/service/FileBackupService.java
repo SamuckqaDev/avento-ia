@@ -1,11 +1,11 @@
 package com.avento.service;
 
+import com.avento.dto.BackupEntry;
+import com.avento.dto.Context;
+import com.avento.dto.DirectoryBackupEntry;
+import com.avento.dto.RevertResult;
 import com.avento.model.FileChangeBackup;
-import com.avento.repository.FileChangeBackupRepository;
-import com.avento.service.dto.BackupEntry;
-import com.avento.service.dto.Context;
-import com.avento.service.dto.DirectoryBackupEntry;
-import com.avento.service.dto.RevertResult;
+import com.avento.model.FileChangeBackupRepository;
 import com.avento.service.tools.ToolExecutionContext;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

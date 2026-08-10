@@ -2,7 +2,7 @@ package com.avento.service.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.avento.service.dto.ConnectionResult;
+import com.avento.dto.ConnectionResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;

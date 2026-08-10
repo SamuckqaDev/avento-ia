@@ -8,7 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.avento.model.ProviderSettings;
-import com.avento.repository.ProviderSettingsRepository;
+import com.avento.model.ProviderSettingsRepository;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

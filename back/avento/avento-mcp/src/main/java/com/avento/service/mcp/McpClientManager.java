@@ -1,6 +1,6 @@
 package com.avento.service.mcp;
 
-import com.avento.service.dto.*;
+import com.avento.dto.*;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.ServerParameters;

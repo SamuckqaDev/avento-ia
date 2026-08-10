@@ -2,7 +2,7 @@ package com.avento.service.execution;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.avento.service.dto.AgentRunSnapshot;
+import com.avento.dto.AgentRunSnapshot;
 import com.avento.service.orchestration.AgentRunRegistry;
 import java.nio.file.Path;
 import java.time.LocalDateTime;

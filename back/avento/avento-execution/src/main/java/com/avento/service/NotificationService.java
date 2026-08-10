@@ -1,7 +1,7 @@
 package com.avento.service;
 
 import com.avento.model.Notification;
-import com.avento.repository.NotificationRepository;
+import com.avento.model.NotificationRepository;
 import org.springframework.stereotype.Service;
 
 @Service

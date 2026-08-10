@@ -2,7 +2,7 @@ package com.avento.service.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.avento.service.dto.ToolDefinition;
+import com.avento.dto.ToolDefinition;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;

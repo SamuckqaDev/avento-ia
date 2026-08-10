@@ -7,9 +7,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.avento.model.ChatRepository;
 import com.avento.model.Message;
-import com.avento.repository.ChatRepository;
-import com.avento.repository.MessageRepository;
+import com.avento.model.MessageRepository;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;

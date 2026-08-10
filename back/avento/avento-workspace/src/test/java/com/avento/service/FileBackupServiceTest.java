@@ -6,12 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.avento.dto.BackupEntry;
+import com.avento.dto.Context;
+import com.avento.dto.DirectoryBackupEntry;
+import com.avento.dto.RevertResult;
 import com.avento.model.FileChangeBackup;
-import com.avento.repository.FileChangeBackupRepository;
-import com.avento.service.dto.BackupEntry;
-import com.avento.service.dto.Context;
-import com.avento.service.dto.DirectoryBackupEntry;
-import com.avento.service.dto.RevertResult;
+import com.avento.model.FileChangeBackupRepository;
 import com.avento.service.tools.ToolExecutionContext;
 import java.lang.reflect.Field;
 import java.nio.file.Files;

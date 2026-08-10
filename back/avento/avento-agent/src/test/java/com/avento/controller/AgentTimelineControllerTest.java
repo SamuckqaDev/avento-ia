@@ -2,11 +2,11 @@ package com.avento.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.avento.api.ApiCodes;
-import com.avento.auth.model.UserRole;
-import com.avento.auth.security.AuthPrincipal;
+import com.avento.dto.api.ApiCodes;
 import com.avento.model.AgentTimelineEvent;
-import com.avento.service.AgentTimelineService;
+import com.avento.model.UserRole;
+import com.avento.service.agent.AgentTimelineService;
+import com.avento.service.auth.AuthPrincipal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

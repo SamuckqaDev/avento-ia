@@ -1,8 +1,8 @@
 package com.avento.service;
 
+import com.avento.dto.*;
 import com.avento.model.GeneratedMediaAsset;
-import com.avento.repository.GeneratedMediaAssetRepository;
-import com.avento.service.dto.*;
+import com.avento.model.GeneratedMediaAssetRepository;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

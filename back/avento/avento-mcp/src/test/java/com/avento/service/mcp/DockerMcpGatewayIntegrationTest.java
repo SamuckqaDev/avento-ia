@@ -3,7 +3,7 @@ package com.avento.service.mcp;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.avento.service.dto.ConnectionResult;
+import com.avento.dto.ConnectionResult;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;

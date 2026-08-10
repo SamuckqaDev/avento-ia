@@ -1,9 +1,9 @@
 package com.avento.service.plan;
 
 import com.avento.model.AgentPlan;
+import com.avento.model.AgentPlanRepository;
 import com.avento.model.AgentTask;
-import com.avento.repository.AgentPlanRepository;
-import com.avento.repository.AgentTaskRepository;
+import com.avento.model.AgentTaskRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;

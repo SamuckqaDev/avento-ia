@@ -3,7 +3,7 @@ package com.avento.service.orchestration;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.avento.service.AgentTimelineService;
+import com.avento.service.agent.AgentTimelineService;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.orchestration.AgentRunRegistry.AgentRunStatus;
 import java.util.ArrayList;
@@ -61,8 +61,8 @@ class AgentOrchestratorTest {
                 new AgentTimelineService(java.util.Optional.empty()),
                 (runId, userId, chatId, raw) -> published.add(raw),
                 new OrphanReplyRescue(
-                        (com.avento.repository.MessageRepository) null,
-                        (com.avento.repository.ChatRepository) null,
+                        (com.avento.model.MessageRepository) null,
+                        (com.avento.model.ChatRepository) null,
                         new tools.jackson.databind.ObjectMapper(),
                         java.time.Duration.ofSeconds(20)));
         ArrayNode messages = mapper.createArrayNode();

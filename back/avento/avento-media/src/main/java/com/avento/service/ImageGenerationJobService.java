@@ -1,9 +1,9 @@
 package com.avento.service;
 
+import com.avento.dto.*;
 import com.avento.model.ImageGenerationJob;
 import com.avento.model.ImageGenerationJob.Status;
-import com.avento.repository.ImageGenerationJobRepository;
-import com.avento.service.dto.*;
+import com.avento.model.ImageGenerationJobRepository;
 import com.avento.service.image.ImageGenerationJobWorker;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.image.ImageGenerator;

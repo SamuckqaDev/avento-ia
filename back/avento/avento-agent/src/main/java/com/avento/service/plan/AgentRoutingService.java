@@ -1,9 +1,9 @@
 package com.avento.service.plan;
 
 import com.avento.model.AgentProfile;
+import com.avento.model.AgentProfileRepository;
 import com.avento.model.AgentTask;
-import com.avento.repository.AgentProfileRepository;
-import com.avento.service.AgentProfileService;
+import com.avento.service.agent.AgentProfileService;
 import com.avento.service.intent.IntentEmbeddingClassifier;
 import java.util.List;
 import java.util.Locale;

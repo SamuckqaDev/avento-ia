@@ -2,7 +2,7 @@ package com.avento.service.image;
 
 import com.avento.model.ImageGenerationJob;
 import com.avento.model.ImageGenerationJob.Status;
-import com.avento.repository.ImageGenerationJobRepository;
+import com.avento.model.ImageGenerationJobRepository;
 import com.avento.service.GeneratedMediaAssetService;
 import java.io.IOException;
 import java.nio.file.Files;

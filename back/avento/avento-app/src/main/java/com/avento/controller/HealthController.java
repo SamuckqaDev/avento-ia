@@ -1,7 +1,7 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.BaseResponse;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.api.ApiResponses;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;

@@ -1,9 +1,9 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.BaseResponse;
-import com.avento.api.dto.OperationResponse;
-import com.avento.api.exception.ApiServiceException;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.OperationResponse;
+import com.avento.dto.api.ApiResponses;
+import com.avento.model.exception.ApiServiceException;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;

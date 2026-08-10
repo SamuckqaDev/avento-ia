@@ -1,7 +1,7 @@
 package com.avento.service.execution;
 
 import com.avento.config.RedisExecutionProperties;
-import com.avento.service.dto.RunScope;
+import com.avento.dto.RunScope;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;

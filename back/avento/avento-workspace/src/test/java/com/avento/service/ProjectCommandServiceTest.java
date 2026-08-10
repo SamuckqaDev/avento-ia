@@ -2,7 +2,7 @@ package com.avento.service;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.avento.service.dto.ProjectCommandRequest;
+import com.avento.dto.ProjectCommandRequest;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;

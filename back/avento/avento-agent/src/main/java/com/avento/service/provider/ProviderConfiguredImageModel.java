@@ -1,7 +1,7 @@
 package com.avento.service.provider;
 
 import com.avento.model.ProviderSettings;
-import com.avento.repository.ProviderSettingsRepository;
+import com.avento.model.ProviderSettingsRepository;
 import com.avento.service.image.ConfiguredImageModel;
 import java.util.List;
 import java.util.Optional;

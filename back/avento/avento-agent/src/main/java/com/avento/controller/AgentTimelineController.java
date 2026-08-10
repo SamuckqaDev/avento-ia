@@ -1,10 +1,10 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.*;
-import com.avento.api.dto.BaseResponse;
-import com.avento.auth.security.AuthPrincipal;
-import com.avento.service.AgentTimelineService;
+import com.avento.dto.*;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.api.ApiResponses;
+import com.avento.service.agent.AgentTimelineService;
+import com.avento.service.auth.AuthPrincipal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;

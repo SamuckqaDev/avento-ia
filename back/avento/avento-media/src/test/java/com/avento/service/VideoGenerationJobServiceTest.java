@@ -5,12 +5,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.avento.dto.ImageReference;
+import com.avento.dto.VideoStatus;
+import com.avento.dto.VideoSubmission;
 import com.avento.model.VideoGenerationJob;
 import com.avento.model.VideoGenerationJob.Status;
-import com.avento.repository.VideoGenerationJobRepository;
-import com.avento.service.dto.ImageReference;
-import com.avento.service.dto.VideoStatus;
-import com.avento.service.dto.VideoSubmission;
+import com.avento.model.VideoGenerationJobRepository;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;

@@ -1,10 +1,10 @@
 package com.avento.controller;
 
-import com.avento.api.ApiResponses;
-import com.avento.api.dto.BaseResponse;
-import com.avento.auth.security.AuthPrincipal;
+import com.avento.dto.BaseResponse;
+import com.avento.dto.VideoJobView;
+import com.avento.dto.api.ApiResponses;
 import com.avento.service.VideoGenerationJobService;
-import com.avento.service.dto.VideoJobView;
+import com.avento.service.auth.AuthPrincipal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;

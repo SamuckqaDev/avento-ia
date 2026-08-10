@@ -6,6 +6,7 @@ import com.avento.dto.PendingToolExecution;
 import com.avento.dto.Skill;
 import com.avento.dto.SkillResolution;
 import com.avento.dto.ToolCall;
+import com.avento.model.AgentProfile;
 import com.avento.service.SystemAutomationService;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.intent.ImageIntentService;
@@ -142,6 +143,12 @@ public class AgentService implements AgentExecutionEngine {
     // tests that build AgentService directly stay untouched; null means "no restriction".
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry;
+
+    // Perfil do agente do usuario. Injecao opcional por campo, como acima: o construtor de 38
+    // argumentos e os testes que montam AgentService a mao ficam intocados, e null significa
+    // "sem perfil, comportamento antigo".
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AgentProfileService agentProfileService;
 
     // Injecao opcional: os testes constroem AgentService pelo construtor, sem contexto Spring.
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -563,6 +570,12 @@ public class AgentService implements AgentExecutionEngine {
         state.imageOptions = imageOptions;
         state.chatId = chatId;
         state.userId = userId;
+        // O perfil do usuario passa a valer no CHAT, nao so no modo plano.
+        //
+        // Ate aqui so o PlanExecutionService resolvia um agente e registrava as ferramentas dele; o
+        // chat entrava sem allow-list nenhuma, entao criar um agente com ferramentas escolhidas nao
+        // mudava absolutamente nada na conversa — o cadastro existia e nao surtia efeito.
+        registerAgentToolPolicy(state);
         // O aviso vai ANTES da resposta: se o usuario escolheu nuvem e recebe o modelo local sem
         // saber, ele julga a qualidade da nuvem olhando para a saida de um 9B local.
         // Sem desvio: o provedor remoto entra pelo MESMO laco de rodadas, via ModelTransport. E o que
@@ -950,13 +963,19 @@ public class AgentService implements AgentExecutionEngine {
         }
         // finalSynthesis zera o toolset de propósito: é a rodada em que o modelo precisa RESPONDER
         // com o que já coletou. Com ferramentas na mesa ele pede mais uma leitura e o ciclo recomeça.
+        // A allow-list do agente define o UNIVERSO, antes da selecao — nao um filtro depois dela.
+        //
+        // Como filtro de saida ela so sabia SUBTRAIR: uma ferramenta que o perfil pedisse mas que a
+        // selecao por intencao nao escolhesse simplesmente nao aparecia, e o perfil nao conseguia
+        // ADICIONAR nada. Aplicando antes, o perfil decide o que e elegivel e a selecao, os tetos e a
+        // prioridade continuam valendo DENTRO disso — inclusive o teto, que e o que impede um perfil
+        // com 30 ferramentas de virar rodada de 30 schemas.
+        ArrayNode eligibleTools = applyAgentToolPolicy(availableTools, state);
         ArrayNode tools = modelsWithoutToolSupport.contains(model) || conversationHasImages || state.finalSynthesis
                 ? mapper.createArrayNode()
-                : state.forceFullToolset
-                        ? availableTools
-                        : selectToolsForCurrentRequest(availableTools, messages, state);
-        // Restringe ao escopo do agente da tarefa (modo agente), se houver allow-list para esta run.
-        tools = applyAgentToolPolicy(tools, state);
+                // forceFullToolset tambem respeita o universo: "tudo" significa tudo que o AGENTE
+                // pode, nao tudo que existe. Sem isto o retry com toolset completo escaparia do perfil.
+                : state.forceFullToolset ? eligibleTools : selectToolsForCurrentRequest(eligibleTools, messages, state);
         appendRoundCapabilitiesNote(guardedMessages, tools);
         ollamaRequest.set("messages", guardedMessages);
         logRoundToolset(state, listing.autoConnectedServers(), tools);
@@ -1073,12 +1092,76 @@ public class AgentService implements AgentExecutionEngine {
     // o prefixo em vez de reprocessa-lo.
     // No modo agente, restringe o toolset já selecionado à allow-list do agente da tarefa (se houver).
     // Sem registry ou sem allow-list para esta run, o conjunto passa inalterado.
+
+    /**
+     * Registra as ferramentas do agente do usuário como universo desta run.
+     *
+     * <p>Usa o agente <b>default</b>: o chat não tem tarefa para rotear, então quem manda é o
+     * Generalista do usuário — que o {@code resolveDefault} cria na primeira vez se ainda não houver.
+     *
+     * <p>Lista vazia significa "sem restrição", e o {@code allow} já ignora vazio. Isso mantém o
+     * comportamento antigo para quem nunca escolheu ferramenta nenhuma: o Generalista nasce sem
+     * {@code allowed_tools} e o agente segue vendo o catálogo inteiro.
+     *
+     * <p>Falha aqui não derruba a conversa. Um perfil ilegível é motivo para responder sem restrição
+     * de agente, não para o usuário perder a mensagem que acabou de escrever.
+     */
+    private void registerAgentToolPolicy(AgentRunState state) {
+        if (agentProfileService == null || toolPolicyRegistry == null || state.userId == null) {
+            return;
+        }
+        try {
+            AgentProfile agent = agentProfileService.resolveDefault(state.userId);
+            if (agent == null
+                    || agent.getAllowedTools() == null
+                    || agent.getAllowedTools().isBlank()) {
+                return;
+            }
+            Set<String> allowed = Arrays.stream(agent.getAllowedTools().split(","))
+                    .map(String::trim)
+                    .filter(name -> !name.isEmpty())
+                    .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+            if (!allowed.isEmpty()) {
+                toolPolicyRegistry.allow(state.runId, allowed);
+                logger.debug(
+                        "Run {}: agente '{}' restringe a {} ferramentas", state.runId, agent.getName(), allowed.size());
+            }
+        } catch (Exception exception) {
+            logger.warn(
+                    "Run {}: nao foi possivel resolver o agente do usuario; seguindo sem restricao: {}",
+                    state.runId,
+                    exception.getMessage());
+        }
+    }
+
     private ArrayNode applyAgentToolPolicy(ArrayNode tools, AgentRunState state) {
         if (toolPolicyRegistry == null || tools == null || tools.isEmpty()) {
             return tools;
         }
         Set<String> allowed = toolPolicyRegistry.allowed(state.runId);
-        return allowed.isEmpty() ? tools : filterToolsByName(tools, allowed);
+        if (allowed.isEmpty()) {
+            return tools;
+        }
+        ArrayNode eligible = filterToolsByName(tools, allowed);
+        if (eligible.isEmpty()) {
+            // Nenhuma ferramenta do perfil esta disponivel agora — tipicamente porque o servidor MCP
+            // que as serve nao esta conectado.
+            //
+            // As duas saidas obvias estao erradas. Cair no catalogo inteiro escala privilegio por
+            // configuracao errada, e a regra escrita em docs/agent-corrections-plan.md:157 proibe
+            // ("never falls back to all"). Seguir com o conjunto vazio produz o turno vazio que os
+            // comentarios desta classe documentam tres vezes: o modelo planeja no thinking e nao age.
+            //
+            // Fica vazio, mas DECLARADO: a nota de capacidades da rodada avisa o modelo, entao ele
+            // responde em texto em vez de encerrar em silencio. Silencio explicado ainda e ruim;
+            // silencio inexplicado e o defeito.
+            logger.warn(
+                    "Run {}: nenhuma das {} ferramentas do agente esta disponivel nesta rodada; "
+                            + "seguindo sem ferramentas em vez de expor o catalogo inteiro",
+                    state.runId,
+                    allowed.size());
+        }
+        return eligible;
     }
 
     private ArrayNode filterToolsByName(ArrayNode tools, Set<String> allowedNames) {

@@ -1,6 +1,8 @@
-package com.avento.service;
+package com.avento.service.rag;
 
 import com.avento.dto.*;
+import com.avento.dto.DocumentReadResult;
+import com.avento.service.WorkspaceAccessService;
 import com.avento.service.support.ProjectPaths;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

@@ -294,7 +294,7 @@ class ToolSmokeTest {
         ReflectionTestUtils.setField(
                 controller,
                 "documentReaderService",
-                new com.avento.service.DocumentReaderService(
+                new com.avento.service.rag.DocumentReaderService(
                         (WorkspaceAccessService) ReflectionTestUtils.getField(controller, "workspaceAccessService"),
                         System.getProperty("user.home") + "/.avento/tools/mcp/bin/markitdown",
                         java.time.Duration.ofSeconds(60),

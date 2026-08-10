@@ -4,7 +4,7 @@ import com.avento.dto.*;
 import com.avento.dto.BaseResponse;
 import com.avento.dto.DocumentReadResult;
 import com.avento.dto.api.ApiResponses;
-import com.avento.service.DocumentReaderService;
+import com.avento.service.rag.DocumentReaderService;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

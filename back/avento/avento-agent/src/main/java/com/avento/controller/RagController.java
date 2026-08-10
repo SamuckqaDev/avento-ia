@@ -4,7 +4,7 @@ import com.avento.dto.*;
 import com.avento.dto.BaseResponse;
 import com.avento.dto.OperationResponse;
 import com.avento.dto.api.ApiResponses;
-import com.avento.service.RagService;
+import com.avento.service.rag.RagService;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.ai.document.Document;

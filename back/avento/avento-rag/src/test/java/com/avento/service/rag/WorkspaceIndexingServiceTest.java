@@ -8,7 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
-import com.avento.service.RagService;
 import com.avento.service.event.WorkspaceRootRegisteredEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;

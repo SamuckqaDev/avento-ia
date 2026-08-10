@@ -1,10 +1,9 @@
-package com.avento.service;
+package com.avento.service.rag;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.avento.service.rag.VectorStoreResolver;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -59,7 +58,7 @@ class RagServiceBatchingTest {
         org.mockito.Mockito.when(resolver.activeIndexName()).thenReturn("avento_index");
         // A bare Redis mock is enough: every manifest and cache access in RagService already degrades
         // to "no manifest" when Redis does not answer, which is exactly a first indexing.
-        return new RagService(resolver, mock(StringRedisTemplate.class), new ObjectMapper(), 0.62, 30, 5, batchSize);
+        return new RagService(resolver, mock(StringRedisTemplate.class), new ObjectMapper(), 0.45, 30, 5, batchSize);
     }
 
     private Path projectWithFiles(int count) throws Exception {
@@ -100,7 +99,7 @@ class RagServiceBatchingTest {
         VectorStoreResolver resolver = mock(VectorStoreResolver.class);
         org.mockito.Mockito.when(resolver.active()).thenReturn(vectorStore);
         org.mockito.Mockito.when(resolver.activeIndexName()).thenReturn("avento_index");
-        RagService ragService = new RagService(resolver, redis, new ObjectMapper(), 0.62, 30, 5, 2);
+        RagService ragService = new RagService(resolver, redis, new ObjectMapper(), 0.45, 30, 5, 2);
 
         ragService.clearProjects(
                 List.of(Files.createDirectory(tempDir.resolve("limpar")).toString()));

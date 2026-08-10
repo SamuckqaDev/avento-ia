@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.avento.service.RagService;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -82,7 +81,7 @@ class CodeSearchServiceTest {
     }
 
     /**
-     * An empty vector result is not proof of absence: the 0.62 similarity threshold was calibrated on
+     * An empty vector result is not proof of absence: the similarity threshold was calibrated on
      * prose, and code embeds differently. Literal matching gets a turn before giving up.
      */
     @Test

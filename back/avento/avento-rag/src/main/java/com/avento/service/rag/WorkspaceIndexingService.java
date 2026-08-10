@@ -1,6 +1,5 @@
 package com.avento.service.rag;
 
-import com.avento.service.RagService;
 import com.avento.service.event.WorkspaceRootRegisteredEvent;
 import jakarta.annotation.PreDestroy;
 import java.nio.file.Path;

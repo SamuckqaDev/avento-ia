@@ -1,6 +1,5 @@
 package com.avento.service.rag;
 
-import com.avento.service.RagService;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -63,8 +62,8 @@ public class CodeSearchService {
             return new Result(Strategy.VECTOR, vectorHits);
         }
 
-        // Empty is not the same as "nothing matches": the index may still be building, and the 0.62
-        // similarity threshold was calibrated on prose, not on code. Literal matching answers either way.
+        // Empty is not the same as "nothing matches": the index may still be building, and even at the
+        // measured 0.45 threshold a vector miss is not proof of absence. Literal matching answers either way.
         return new Result(Strategy.LITERAL, literalSearch(path, query, maxResults));
     }
 

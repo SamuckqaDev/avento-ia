@@ -1,8 +1,6 @@
-package com.avento.service;
+package com.avento.service.rag;
 
 import com.avento.dto.*;
-import com.avento.service.rag.CodeAwareSplitter;
-import com.avento.service.rag.VectorStoreResolver;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
@@ -76,7 +74,12 @@ public class RagService {
             VectorStoreResolver vectorStoreResolver,
             StringRedisTemplate redisTemplate,
             ObjectMapper mapper,
-            @Value("${avento.rag.similarity-threshold:0.62}") double similarityThreshold,
+            // 0.45, e nao 0.62: o valor antigo foi herdado de prosa e MEDIDO como errado para codigo —
+            // descartava a resposta certa em metade das buscas, inclusive com o nome exato de um metodo
+            // escrito no arquivo. O application.yml ja dizia 0.45; este default dizia 0.62, entao
+            // qualquer contexto sem aquele yml (teste, outro profile) silenciosamente usava o valor
+            // ruim. O default do codigo tem de carregar a medicao, nao o folclore.
+            @Value("${avento.rag.similarity-threshold:0.45}") double similarityThreshold,
             @Value("${avento.rag.candidate-limit:30}") int searchCandidateLimit,
             @Value("${avento.rag.result-limit:5}") int searchResultLimit,
             @Value("${avento.rag.embedding-batch-size:32}") int embeddingBatchSize) {

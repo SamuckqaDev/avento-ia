@@ -47,22 +47,6 @@ class AgentRunWorkerTest {
         assertThat(registered).containsExactly(projectFolder.toString());
     }
 
-    // Exigir pasta em TODA execução quebrou a conversa comum: um chat sem projeto conectado é caso
-    // normal e não deve falhar. Só a tarefa agendada (payload com taskId) precisa de pasta, porque
-    // existe para agir sobre um projeto.
-    @Test
-    void onlyScheduledTasksRequireAWorkspaceFolder() throws Exception {
-        assertThat(requiresFolder("{\"taskId\":12,\"prompt\":\"roda os testes\"}"))
-                .isTrue();
-        assertThat(requiresFolder("{\"prompt\":\"oi, tudo bem?\"}")).isFalse();
-        assertThat(requiresFolder("{\"taskId\":0,\"prompt\":\"oi\"}")).isFalse();
-    }
-
-    private boolean requiresFolder(String payloadJson) throws Exception {
-        tools.jackson.databind.JsonNode request = new tools.jackson.databind.ObjectMapper().readTree(payloadJson);
-        return request.path("taskId").asLong(0L) > 0L;
-    }
-
     @SuppressWarnings("unchecked")
     private AgentRunWorker workerWith(com.avento.service.WorkspaceAccessService workspaceAccess) {
         org.springframework.beans.factory.ObjectProvider<org.springframework.data.redis.core.StringRedisTemplate>
@@ -82,8 +66,8 @@ class AgentRunWorkerTest {
                 null,
                 null,
                 null,
-                null,
                 workspaceAccess,
+                null,
                 null);
     }
 

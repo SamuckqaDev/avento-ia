@@ -6,8 +6,6 @@ import com.avento.model.AgentRunJob;
 import com.avento.model.AgentRunJobRepository;
 import com.avento.model.AgentTimelineEvent;
 import com.avento.model.ScheduledTaskRepository;
-import com.avento.model.ScheduledTaskRun;
-import com.avento.model.ScheduledTaskRunRepository;
 import com.avento.service.WorkspaceAccessService;
 import com.avento.service.agent.AgentTimelineService;
 import com.avento.service.context.ConversationContextCache;
@@ -15,9 +13,9 @@ import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.orchestration.AgentOrchestrator;
 import com.avento.service.orchestration.AgentRunRegistry;
 import com.avento.service.orchestration.RunReplyPersistenceService;
+import com.avento.service.tools.RunToolPolicyRegistry;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -63,13 +61,13 @@ public class AgentRunWorker {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper mapper;
     private final RedisExecutionProperties properties;
-    private final com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry;
+    private final RunToolPolicyRegistry toolPolicyRegistry;
     private final ScheduledTaskRepository scheduledTaskRepository;
-    private final ScheduledTaskRunRepository runRepository;
     private final AgentTimelineService timelineService;
-    private final com.avento.service.execution.CronTaskScheduler cronTaskScheduler;
+    private final CronTaskScheduler cronTaskScheduler;
     private final WorkspaceAccessService workspaceAccessService;
     private final RunReplyPersistenceService replyPersistenceService;
+    private final ScheduledTaskExecutionReporter scheduledTaskExecutionReporter;
     private final String consumerName = "agent-" + UUID.randomUUID().toString().substring(0, 8);
     private final AtomicBoolean queueFailureLogged = new AtomicBoolean();
 
@@ -83,13 +81,13 @@ public class AgentRunWorker {
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
             ObjectMapper mapper,
             RedisExecutionProperties properties,
-            com.avento.service.tools.RunToolPolicyRegistry toolPolicyRegistry,
+            RunToolPolicyRegistry toolPolicyRegistry,
             ScheduledTaskRepository scheduledTaskRepository,
-            ScheduledTaskRunRepository runRepository,
             AgentTimelineService timelineService,
-            com.avento.service.execution.CronTaskScheduler cronTaskScheduler,
+            CronTaskScheduler cronTaskScheduler,
             WorkspaceAccessService workspaceAccessService,
-            RunReplyPersistenceService replyPersistenceService) {
+            RunReplyPersistenceService replyPersistenceService,
+            ScheduledTaskExecutionReporter scheduledTaskExecutionReporter) {
         this.jobRepository = jobRepository;
         this.submissionService = submissionService;
         this.cancellationRegistry = cancellationRegistry;
@@ -101,11 +99,11 @@ public class AgentRunWorker {
         this.properties = properties;
         this.toolPolicyRegistry = toolPolicyRegistry;
         this.scheduledTaskRepository = scheduledTaskRepository;
-        this.runRepository = runRepository;
         this.timelineService = timelineService;
         this.cronTaskScheduler = cronTaskScheduler;
         this.workspaceAccessService = workspaceAccessService;
         this.replyPersistenceService = replyPersistenceService;
+        this.scheduledTaskExecutionReporter = scheduledTaskExecutionReporter;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -190,8 +188,11 @@ public class AgentRunWorker {
             return;
         }
 
+        Long scheduledTaskId = null;
+        String executionStage = "Preparando execução";
         try {
             JsonNode request = mapper.readTree(job.getRequestPayload());
+            scheduledTaskId = request.path("taskId").asLong(0L);
             ArrayNode requestMessages = request.path("messages").isArray()
                     ? (ArrayNode) request.path("messages")
                     : mapper.createArrayNode();
@@ -214,19 +215,9 @@ public class AgentRunWorker {
             // exatamente o erro de permissão das tarefas do Cowork. O fluxo de chat já fazia isso
             // em LocalAiOrchestratorController.registerWorkspaceRoots; o worker não.
             List<String> workspaceRoots = registerWorkspaceRoots(job.getUserId(), requestedRoots);
-            // Sem pasta válida, só a TAREFA AGENDADA falha: ela existe para agir sobre um projeto,
-            // então rodar sem pasta gastaria uma execução para nada e esconderia a má configuração.
-            // Uma conversa comum sem projeto conectado é caso normal e segue sem raiz nenhuma — as
-            // ferramentas de arquivo nem chegam a ser expostas, e o sandbox continua negando tudo.
-            boolean isScheduledTask = request.path("taskId").asLong(0L) > 0L;
-            if (workspaceRoots.isEmpty() && isScheduledTask) {
-                throw new IllegalStateException(
-                        requestedRoots.isEmpty()
-                                ? "Esta tarefa não tem pasta de projeto definida. Abra o Cowork, edite a tarefa"
-                                        + " e selecione a pasta em que ela deve rodar."
-                                : "Nenhuma das pastas configuradas para esta tarefa existe mais: " + requestedRoots
-                                        + ". Atualize a pasta da tarefa no Cowork.");
-            }
+            // Uma tarefa do Cowork pode automatizar o macOS sem tocar no projeto (por exemplo,
+            // abrir uma aba). Sem raiz, as ferramentas de arquivo continuam fora do escopo e o
+            // sandbox permanece responsável por negar qualquer acesso a disco não autorizado.
             ImageGenerationOptions imageOptions = ImageGenerationOptions.from(request.path("imageOptions"));
             // Restricts this run's toolset to the agent's allow-list, if the plan sent one.
             List<String> allowedTools = stringList(request.path("allowedTools"));
@@ -241,6 +232,7 @@ public class AgentRunWorker {
 
             CountDownLatch completed = new CountDownLatch(1);
             AtomicReference<Throwable> error = new AtomicReference<>();
+            executionStage = "Executando o agente";
             Disposable execution = orchestrator
                     .streamWithRunId(
                             job.getRunId(),
@@ -273,6 +265,11 @@ public class AgentRunWorker {
             AgentRunJob current = jobRepository.findById(jobId).orElse(job);
             if (current.getStatus() == AgentRunJob.Status.CANCEL_REQUESTED) {
                 submissionService.markCancelled(current);
+                recordScheduledTaskFailure(
+                        scheduledTaskId,
+                        job.getRunId(),
+                        "Execução cancelada",
+                        new IllegalStateException("A execução foi cancelada antes de terminar."));
             } else if (error.get() != null) {
                 submissionService.markFailed(current, error.get());
                 replyPersistenceService.persistFailureReply(job.getRunId(), job.getChatId(), errorMessage(error.get()));
@@ -281,12 +278,19 @@ public class AgentRunWorker {
                 // nada", com o motivo real (pasta ausente, modelo inexistente) escondido no banco.
                 publishFailure(current, error.get());
                 sendToDeadLetter(current, error.get());
+                recordScheduledTaskFailure(scheduledTaskId, job.getRunId(), executionStage, error.get());
             } else if (orchestrator
                     .registry()
                     .find(job.getRunId())
                     .map(snapshot -> snapshot.status() == AgentRunRegistry.AgentRunStatus.AWAITING_APPROVAL)
                     .orElse(false)) {
                 submissionService.markWaitingApproval(current);
+                recordScheduledTaskFailure(
+                        scheduledTaskId,
+                        job.getRunId(),
+                        "Aprovação necessária",
+                        new IllegalStateException(
+                                "A tarefa pediu uma aprovação que não pode permanecer pendente no Cowork."));
             } else {
                 submissionService.markCompleted(current);
                 try {
@@ -329,12 +333,22 @@ public class AgentRunWorker {
                             : "Execução autônoma concluída com sucesso pelo motor de IA do Avento.";
                     Long targetTaskId = request.path("taskId").asLong(0L);
 
+                    AgentTimelineEvent failedTool = events == null ? null : events.stream()
+                            .filter(event -> "tool.failed".equals(event.getEventType()))
+                            .findFirst()
+                            .orElse(null);
+
                     if (targetTaskId > 0) {
-                        scheduledTaskRepository.findById(targetTaskId).ifPresent(t -> {
-                            t.setLastRunOutput(outputToSave);
-                            t.setLastRunDiagnosis("Execução autônoma concluída com sucesso às "
-                                    + LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")));
-                            scheduledTaskRepository.save(t);
+                        if (failedTool != null) {
+                            scheduledTaskExecutionReporter.recordFailure(
+                                    targetTaskId,
+                                    job.getRunId(),
+                                    "Ferramenta " + failedTool.getToolName(),
+                                    toolFailureReason(failedTool),
+                                    outputToSave);
+                        } else {
+                            scheduledTaskExecutionReporter.recordSuccess(targetTaskId, job.getRunId(), outputToSave);
+                            scheduledTaskRepository.findById(targetTaskId).ifPresent(t -> {
 
                             // Workflows Encadeados (Disparo de Tarefa Dependente)
                             if (t.getOnSuccessTaskId() != null && t.getOnSuccessTaskId() > 0) {
@@ -356,13 +370,7 @@ public class AgentRunWorker {
                                             }
                                         });
                             }
-                        });
-
-                        List<ScheduledTaskRun> runs = runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(targetTaskId);
-                        if (!runs.isEmpty()) {
-                            ScheduledTaskRun latestRun = runs.get(0);
-                            latestRun.setOutput(outputToSave);
-                            runRepository.save(latestRun);
+                            });
                         }
                     }
                 } catch (Exception e) {
@@ -374,11 +382,13 @@ public class AgentRunWorker {
             submissionService.markFailed(job, exception);
             replyPersistenceService.persistFailureReply(job.getRunId(), job.getChatId(), errorMessage(exception));
             publishFailure(job, exception);
+            recordScheduledTaskFailure(scheduledTaskId, job.getRunId(), executionStage, exception);
         } catch (Exception exception) {
             submissionService.markFailed(job, exception);
             replyPersistenceService.persistFailureReply(job.getRunId(), job.getChatId(), errorMessage(exception));
             publishFailure(job, exception);
             sendToDeadLetter(job, exception);
+            recordScheduledTaskFailure(scheduledTaskId, job.getRunId(), executionStage, exception);
         } finally {
             acknowledge(record);
         }
@@ -462,6 +472,20 @@ public class AgentRunWorker {
 
     private String errorMessage(Throwable error) {
         return error == null || error.getMessage() == null ? "Falha interna na execução." : error.getMessage();
+    }
+
+    private void recordScheduledTaskFailure(Long taskId, String runId, String stage, Throwable error) {
+        if (taskId == null || taskId <= 0 || scheduledTaskExecutionReporter == null) {
+            return;
+        }
+        scheduledTaskExecutionReporter.recordFailure(taskId, runId, stage, errorMessage(error), "");
+    }
+
+    private String toolFailureReason(AgentTimelineEvent failedTool) {
+        if (failedTool == null || failedTool.getDetail() == null || failedTool.getDetail().isBlank()) {
+            return "A ferramenta retornou uma falha sem detalhe adicional.";
+        }
+        return failedTool.getDetail();
     }
 
     private String contentChunk(String content) {

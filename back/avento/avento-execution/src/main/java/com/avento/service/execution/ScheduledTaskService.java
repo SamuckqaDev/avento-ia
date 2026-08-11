@@ -144,6 +144,16 @@ public class ScheduledTaskService {
     }
 
     @Transactional
+    public void markRunDispatched(ScheduledTask task, String output) {
+        task.setLastRunStatus(ScheduledTask.RunStatus.RUNNING);
+        task.setLastRunError(null);
+        task.setLastRunDiagnosis("Execução enviada ao motor de agentes; aguardando resultado terminal.");
+        task.setLastRunOutput(output);
+        task.setNextRunAt(calculateNextRun(task.getCronExpression()));
+        repository.save(task);
+    }
+
+    @Transactional
     public void markRunCompleted(ScheduledTask task, boolean success, String error, String diagnosis, String output) {
         task.setLastRunStatus(success ? ScheduledTask.RunStatus.SUCCESS : ScheduledTask.RunStatus.FAILED);
         task.setLastRunError(error);

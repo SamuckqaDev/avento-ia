@@ -7,6 +7,7 @@ import com.avento.model.ScheduledTaskRunRepository;
 import com.avento.service.NotificationService;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,8 +80,8 @@ public class CronTaskScheduler {
                             + "Instrução: " + task.getPrompt() + "\n"
                             + "Instruções de execução: use as ferramentas nativas para agir — `terminal_run`"
                             + " para comandos curtos (git, mvn, npm), `read_file`/`directory_tree` para ler o"
-                            + " projeto e `fetch` para dados da web. Mostre o resultado bruto retornado pelas"
-                            + " ferramentas.");
+                            + " projeto, `fetch` para dados da web e `open_browser_tab` para abrir uma aba em"
+                            + " um navegador macOS. Mostre o resultado bruto retornado pelas ferramentas.");
             payload.put("agentMode", true);
             ArrayNode roots = objectMapper.createArrayNode();
             // Sem pasta configurada não se inventa uma: o worker falha com uma mensagem que diz ao
@@ -95,22 +96,21 @@ public class CronTaskScheduler {
             Long targetChatId = task.getChatId() != null ? task.getChatId() : 0L;
             submissionService.submit(task.getUserId(), targetChatId, payload);
 
-            // Sucesso na submissão do job
+            // O job apenas entrou na fila. O sucesso só é conhecido quando o worker termina a run.
             String logMessage = "Execução autônoma iniciada às "
-                    + LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))
+                    + LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
                     + ".\nComando/Instrução: " + task.getPrompt();
-            taskService.markRunCompleted(
-                    task, true, null, "Execução iniciada no motor de agentes com sucesso.", logMessage);
+            taskService.markRunDispatched(task, logMessage);
             runRepository.save(new ScheduledTaskRun(
                     task.getId(),
-                    com.avento.model.ScheduledTask.RunStatus.SUCCESS,
+                    com.avento.model.ScheduledTask.RunStatus.RUNNING,
                     task.getPrompt(),
                     logMessage,
                     null));
             notificationService.record(
-                    "COWORK_TASK_EXECUTED",
-                    "Automação Concluída: " + task.getName(),
-                    "A tarefa agendada '" + task.getName() + "' foi executada com sucesso pelo Avento.");
+                    "COWORK_TASK_STARTED",
+                    "Automação iniciada: " + task.getName(),
+                    "A tarefa agendada '" + task.getName() + "' foi enviada ao Avento e aguarda o resultado.");
         } catch (Exception e) {
             logger.error("Erro na execução da tarefa '{}'", task.getName(), e);
             String errorDiag = "Causa Raiz: " + e.getMessage()

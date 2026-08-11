@@ -35,6 +35,14 @@ Na terceira falha consecutiva, a execucao termina de forma segura. O evento e a 
 dizem se foram caminhos inexistentes ou uma falha tecnica da ferramenta, preservando o motivo para
 o chat e evitando continuar por caminhos inventados.
 
+## Relatorio terminal do Cowork
+
+Uma tarefa do Cowork fica como `RUNNING` quando entra na fila; o agendamento nao a marca como
+sucesso antes de o worker concluir a run. Ao terminar, o Cowork grava o status real e atualiza o
+historico com o `runId`, a etapa em que falhou, o motivo retornado e a trilha das ferramentas. Isso
+tambem vale para tarefas de automacao do macOS sem projeto associado: sem workspace, as ferramentas
+de arquivo seguem bloqueadas pelo sandbox, mas abrir uma aba ou aplicativo pode ser executado.
+
 ## Indicador visual de voz
 
 Durante a reproducao de TTS, o chat mostra o mascote flutuante do Avento. Ele combina movimento

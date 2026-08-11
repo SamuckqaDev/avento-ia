@@ -36,7 +36,7 @@ export interface ScheduledTask {
 export interface ScheduledTaskRun {
   id: number;
   taskId: number;
-  status: 'SUCCESS' | 'FAILED';
+  status: 'RUNNING' | 'SUCCESS' | 'FAILED';
   prompt?: string;
   output?: string;
   error?: string;
@@ -680,6 +680,23 @@ export function CoworkView() {
                         </span>
                       )}
 
+                      {task.lastRunStatus === 'RUNNING' && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          background: 'rgba(59, 130, 246, 0.12)',
+                          color: '#60A5FA',
+                          border: '1px solid rgba(59, 130, 246, 0.25)'
+                        }} title="O Avento ainda está executando esta tarefa">
+                          <Timer size={14} /> Última: Em execução
+                        </span>
+                      )}
+
                       {task.lastRunStatus === 'FAILED' && (
                         <span style={{
                           display: 'inline-flex',
@@ -1184,7 +1201,11 @@ export function CoworkView() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg)', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)', fontSize: '0.82rem' }}>
-                <span><strong>Status:</strong> {selectedOutputTask.lastRunStatus === 'SUCCESS' ? '✅ Sucesso' : '❌ Falha'}</span>
+                <span><strong>Status:</strong> {selectedOutputTask.lastRunStatus === 'SUCCESS'
+                  ? '✅ Sucesso'
+                  : selectedOutputTask.lastRunStatus === 'RUNNING'
+                    ? '⏳ Em execução'
+                    : '❌ Falha'}</span>
                 <span><strong>Último Disparo:</strong> {selectedOutputTask.lastRunAt ? new Date(selectedOutputTask.lastRunAt).toLocaleString('pt-BR') : 'Sem dados'}</span>
               </div>
 
@@ -1247,7 +1268,11 @@ export function CoworkView() {
                     <div key={run.id} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: '0.82rem' }}>
                         <span>
-                          <strong>Status:</strong> {run.status === 'SUCCESS' ? '✅ Sucesso (Validado)' : '❌ Falha'}
+                          <strong>Status:</strong> {run.status === 'SUCCESS'
+                            ? '✅ Sucesso (Validado)'
+                            : run.status === 'RUNNING'
+                              ? '⏳ Em execução'
+                              : '❌ Falha'}
                         </span>
                         <span style={{ color: 'var(--text-secondary)' }}>
                           🕒 {new Date(run.createdAt).toLocaleString('pt-BR')}

@@ -17,6 +17,16 @@ const speakingFloat = keyframes`
   50% { transform: translateY(-3px) scale(1.025); }
 `;
 
+const speakingGlow = keyframes`
+  0%, 100% { box-shadow: 0 0 0 0 rgba(23, 177, 200, 0.10), 0 8px 20px rgba(15, 23, 42, 0.08); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.10), 0 10px 26px rgba(23, 177, 200, 0.20); }
+`;
+
+const speakingWave = keyframes`
+  0%, 100% { transform: scaleY(0.42); filter: brightness(0.85); }
+  50% { transform: scaleY(1); filter: brightness(1.25); }
+`;
+
 export const Container = styled.div`
   position: relative;
   padding: 12px 28px 18px;
@@ -376,10 +386,14 @@ export const SpeakingMascot = styled.div`
   gap: 8px;
   border: 1px solid color-mix(in srgb, ${({ theme }) => theme.colors.accent} 26%, ${({ theme }) => theme.colors.border});
   border-radius: 999px;
-  background: color-mix(in srgb, ${({ theme }) => theme.colors.surface} 88%, ${({ theme }) => theme.colors.accent});
+  background: linear-gradient(105deg,
+    color-mix(in srgb, ${({ theme }) => theme.colors.surface} 86%, #14b8a6),
+    color-mix(in srgb, ${({ theme }) => theme.colors.surface} 82%, #f59e0b),
+    color-mix(in srgb, ${({ theme }) => theme.colors.surface} 88%, #8b5cf6));
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: 0.78rem;
   font-weight: 650;
+  animation: ${speakingGlow} 1.35s ease-in-out infinite;
 
   img {
     width: 42px;
@@ -389,7 +403,35 @@ export const SpeakingMascot = styled.div`
   }
 
   @media (prefers-reduced-motion: reduce) {
+    animation: none;
     img { animation: none; }
+  }
+`;
+
+export const MascotSoundWave = styled.div`
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-left: 2px;
+
+  i {
+    display: block;
+    width: 3px;
+    height: 100%;
+    border-radius: 999px;
+    transform-origin: center;
+    background: linear-gradient(#14b8a6, #f59e0b, #8b5cf6);
+    animation: ${speakingWave} 760ms ease-in-out infinite;
+  }
+
+  i:nth-child(2) { animation-delay: 100ms; }
+  i:nth-child(3) { animation-delay: 220ms; }
+  i:nth-child(4) { animation-delay: 340ms; }
+  i:nth-child(5) { animation-delay: 460ms; }
+
+  @media (prefers-reduced-motion: reduce) {
+    i { animation: none; transform: scaleY(0.65); }
   }
 `;
 

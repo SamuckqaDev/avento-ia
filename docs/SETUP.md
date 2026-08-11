@@ -316,6 +316,12 @@ avento:
     whisper-vad-threshold: 0.50
     whisper-vad-min-silence-ms: 550
     whisper-vad-speech-pad-ms: 120
+    # Motor neural local principal, iniciado por dev-up.sh.
+    provider: kokoro
+    neural:
+      url: http://127.0.0.1:8880
+      voice-pt: pf_dora
+      fallback-to-piper: true
     piper-binary: ./piper_tts/.venv/bin/piper
     piper-model: ./piper_tts/pt_BR-faber-medium.onnx
     piper-model-pt: ./piper_tts/pt_BR-dii-high.onnx
@@ -543,7 +549,11 @@ Arquivos esperados pelo setup sugerido:
 
 Esses artefatos sao grandes e devem ficar fora do git.
 
-O TTS escolhe o modelo Piper pelo idioma detectado no texto da resposta. Configure `avento.voice.piper-model-en` com um modelo Piper em ingles para evitar o efeito de uma voz brasileira lendo texto em ingles; `piper-model-pt` fica para portugues e `piper-model-es` para espanhol. Se uma voz especifica nao estiver configurada, o Avento usa `piper-model` como fallback para manter o audio funcionando.
+O TTS usa o Kokoro-82M como motor neural local principal: o `dev-up.sh` prepara o ambiente isolado em `~/.avento/tools/kokoro-tts`, inicia o serviço somente no loopback e o backend pede WAV por HTTP local. Ele não usa `say`, vozes do macOS ou uma API de voz externa. A primeira fala baixa o modelo aberto uma única vez; depois ele fica no cache local do runtime. Em uma máquina com 16 GB, deixe Ollama e geração de mídia dividirem memória com ele — se o serviço neural estiver fora do ar ou em carga, `fallback-to-piper: true` mantém o chat falando com o Piper.
+
+Para instalar ou reparar apenas esse runtime, rode `./scripts/setup-kokoro-tts.sh`. O script instala `espeak-ng` apenas para converter texto PT-BR em fonemas; ele não é a voz final. Para economizar memória, use `AVENTO_VOICE_PROVIDER=piper`; para impedir a contingência, use `AVENTO_VOICE_NEURAL_FALLBACK_TO_PIPER=false`.
+
+O Piper continua escolhendo o modelo pelo idioma detectado. Configure `avento.voice.piper-model-en` com um modelo em inglês para evitar uma voz brasileira lendo texto em inglês; `piper-model-pt` fica para português e `piper-model-es` para espanhol.
 
 Os caminhos relativos de Piper e Whisper sao resolvidos pela raiz do projeto, mesmo quando Maven executa o processo dentro de `back/avento`. O `dev-up.sh` exporta `AVENTO_PROJECT_ROOT` automaticamente; em uma inicializacao manual fora da estrutura padrao, configure essa variavel com o caminho absoluto da raiz do Avento.
 

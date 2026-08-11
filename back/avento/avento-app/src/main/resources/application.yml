@@ -238,6 +238,16 @@ avento:
       # Preencher com uma lista separada por virgula fixa um subconjunto.
       servers: ${AVENTO_MCP_DOCKER_GATEWAY_SERVERS:}
   voice:
+    # Kokoro e o motor neural local do Avento. Piper fica como contingência leve se o processo
+    # neural estiver desligado ou ainda carregando o modelo.
+    provider: ${AVENTO_VOICE_PROVIDER:kokoro}
+    neural:
+      enabled: ${AVENTO_VOICE_NEURAL_ENABLED:true}
+      url: ${AVENTO_VOICE_NEURAL_URL:http://127.0.0.1:8880}
+      voice-pt: ${AVENTO_VOICE_NEURAL_VOICE_PT:pf_dora}
+      voice-en: ${AVENTO_VOICE_NEURAL_VOICE_EN:af_heart}
+      fallback-to-piper: ${AVENTO_VOICE_NEURAL_FALLBACK_TO_PIPER:true}
+      timeout: ${AVENTO_VOICE_NEURAL_TIMEOUT:PT90S}
     ffmpeg-path: /opt/homebrew/bin/ffmpeg
     whisper-binary: ""
     whisper-model: ""

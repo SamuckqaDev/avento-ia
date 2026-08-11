@@ -105,6 +105,14 @@ avento:
     puppeteer:
       enabled: ${AVENTO_MCP_PUPPETEER_ENABLED:true}
   voice:
+    provider: kokoro
+    neural:
+      enabled: true
+      url: http://127.0.0.1:8880
+      voice-pt: pf_dora
+      voice-en: af_heart
+      fallback-to-piper: true
+      timeout: PT90S
     ffmpeg-path: /opt/homebrew/bin/ffmpeg
     whisper-binary: ./back/whisper.cpp/build/bin/whisper-cli
     whisper-model: ./back/whisper.cpp/models/ggml-small.bin

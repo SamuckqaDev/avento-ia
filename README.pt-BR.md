@@ -39,7 +39,7 @@ O Avento foi criado e desenvolvido por **Samuel Tomimatu, engenheiro de software
 | Leitura, busca e edição de arquivos | Permission Engine visual e por voz | RAG incremental com Redis Vector Store |
 | Diff, backup e restauração | Ferramentas locais e servidores MCP | Visão com modelos Ollama compatíveis |
 | Terminal controlado | Automação de macOS e navegador | Geração de imagens e vídeos pelo ComfyUI |
-| Descoberta de bancos do projeto | Skills internas e personalizadas | STT com Whisper.cpp e TTS com Piper |
+| Descoberta de bancos do projeto | Skills internas e personalizadas | STT com Whisper.cpp e TTS neural com Kokoro |
 | Protótipos HTML interativos | Revisão em desktop, tablet e celular | Implementação somente após aprovação |
 
 ### O que é tecnicamente interessante
@@ -322,7 +322,7 @@ Para proteger a janela de contexto do modelo local, cada documento contribui com
 
 ```text
 microfone → WebM → FFmpeg → Whisper.cpp → texto
-texto → Piper → WAV → navegador
+texto → TTS neural local Kokoro → WAV → navegador
 ```
 
 O controle de voz e global para a interface. Ao mutar, o Avento interrompe a fala atual, descarta a
@@ -338,6 +338,7 @@ back/whisper.cpp/models/ggml-silero-v6.2.0.bin
 piper_tts/.venv/bin/piper
 piper_tts/pt_BR-dii-high.onnx
 piper_tts/en_US-lessac-medium.onnx
+~/.avento/tools/kokoro-tts/  # runtime neural isolado, gerenciado pelo Avento
 ```
 
 ## MCP e Permissões

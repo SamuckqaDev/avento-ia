@@ -22,6 +22,7 @@ import {
   SkillSuggestionItem,
   SkillSuggestionsHint,
   SpeakingMascot,
+  MascotSoundWave,
 } from './styles';
 import { FileText, Microphone, Paperclip, SpinnerGap, StopCircle, PaperPlaneRight, ChatCircleDots, ImageSquare, X, Robot } from '@phosphor-icons/react';
 import speakingMascot from '../../../assets/avento-speaking-mascot.png';
@@ -323,6 +324,9 @@ export function InputArea({
         <SpeakingMascot role="status" aria-live="polite">
           <img src={speakingMascot} alt="Mascote do Avento falando" />
           <span>O Avento está falando</span>
+          <MascotSoundWave aria-hidden="true">
+            <i /><i /><i /><i /><i />
+          </MascotSoundWave>
         </SpeakingMascot>
       )}
       {messageQueue.length > 0 && (

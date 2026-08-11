@@ -42,11 +42,16 @@ OLLAMA_AUTOSTART="${AVENTO_OLLAMA_AUTOSTART:-1}"
 # attention. Set AVENTO_OLLAMA_KV_CACHE_TYPE=q4_0 for aggressive 4-bit KV cache compression (TurboQuant style), q8_0 for 8-bit, or f16 to disable.
 OLLAMA_FLASH_ATTENTION="${AVENTO_OLLAMA_FLASH_ATTENTION:-1}"
 OLLAMA_KV_CACHE_TYPE="${AVENTO_OLLAMA_KV_CACHE_TYPE:-q4_0}"
+KOKORO_URL="${AVENTO_VOICE_NEURAL_URL:-http://127.0.0.1:8880}"
+KOKORO_AUTOSTART="${AVENTO_KOKORO_AUTOSTART:-1}"
+KOKORO_AUTO_SETUP="${AVENTO_KOKORO_AUTO_SETUP:-1}"
+KOKORO_RUNTIME_DIR="${AVENTO_KOKORO_RUNTIME_DIR:-$HOME/.avento/tools/kokoro-tts}"
 NPM_CACHE_DIR="${AVENTO_NPM_CACHE_DIR:-$HOME/.avento/tools/npm-cache}"
 SPRING_PROFILE="${AVENTO_SPRING_PROFILE:-local}"
 LOG_DIR="$ROOT/tmp/dev"
 COMFYUI_PID=""
 OLLAMA_PID=""
+KOKORO_PID=""
 APP_LOG_PID=""
 DOCKER_LOG_PID=""
 CLEANUP_DONE=0
@@ -135,6 +140,7 @@ start_terminal_logs() {
   : >"$LOG_DIR/frontend.log"
   touch "$LOG_DIR/comfyui.log"
   touch "$LOG_DIR/ollama.log"
+  touch "$LOG_DIR/kokoro-tts.log"
 
   info "streaming Docker and application logs in this terminal"
   docker compose logs --tail=20 --follow postgres redis-stack &
@@ -144,7 +150,8 @@ start_terminal_logs() {
     "$LOG_DIR/backend.log" \
     "$LOG_DIR/frontend.log" \
     "$LOG_DIR/comfyui.log" \
-    "$LOG_DIR/ollama.log" &
+    "$LOG_DIR/ollama.log" \
+    "$LOG_DIR/kokoro-tts.log" &
   APP_LOG_PID=$!
 }
 
@@ -201,6 +208,38 @@ start_ollama() {
   if ! wait_for_url "$OLLAMA_URL/api/tags" "Ollama" 60; then
     warn "Ollama failed to start; see $LOG_DIR/ollama.log"
     return 1
+  fi
+}
+
+start_kokoro_tts() {
+  if curl -fsS "$KOKORO_URL/health" >/dev/null 2>&1; then
+    info "Kokoro neural TTS is ready at $KOKORO_URL"
+    return 0
+  fi
+  if [ "$KOKORO_AUTOSTART" != "1" ]; then
+    warn "Kokoro neural TTS is not responding at $KOKORO_URL and autostart is disabled"
+    return 0
+  fi
+  case "$KOKORO_URL" in
+    *//127.0.0.1:* | *//localhost:*) ;;
+    *)
+      warn "Kokoro autostart only supports loopback URLs; leaving $KOKORO_URL untouched"
+      return 0
+      ;;
+  esac
+  if [ ! -x "$KOKORO_RUNTIME_DIR/bin/python" ]; then
+    if [ "$KOKORO_AUTO_SETUP" != "1" ]; then
+      warn "Kokoro runtime is missing; run ./scripts/setup-kokoro-tts.sh"
+      return 0
+    fi
+    "$ROOT/scripts/setup-kokoro-tts.sh"
+  fi
+  info "starting local Kokoro neural TTS at $KOKORO_URL"
+  AVENTO_KOKORO_PORT="$(url_port "$KOKORO_URL")" \
+    "$KOKORO_RUNTIME_DIR/bin/python" "$ROOT/scripts/kokoro_tts_server.py" >"$LOG_DIR/kokoro-tts.log" 2>&1 &
+  KOKORO_PID=$!
+  if ! wait_for_url "$KOKORO_URL/health" "Kokoro neural TTS" 90; then
+    warn "Kokoro neural TTS failed to start; Piper will be used as fallback. See $LOG_DIR/kokoro-tts.log"
   fi
 }
 
@@ -264,6 +303,11 @@ stop_stale_dev_processes() {
   pids="$(pgrep -f "$ROOT/front/node_modules/.bin/vite" || true)"
   for pid in $pids; do
     stop_pid_if_running "$pid" "frontend"
+  done
+
+  pids="$(pgrep -f "$ROOT/scripts/kokoro_tts_server.py" || true)"
+  for pid in $pids; do
+    stop_pid_if_running "$pid" "Kokoro neural TTS"
   done
 
   stop_repo_process_on_port "${AVENTO_BACKEND_PORT:-8000}" "backend"
@@ -500,6 +544,7 @@ cleanup() {
   stop_pid_if_running "$DOCKER_LOG_PID" "Docker log stream"
   stop_pid_if_running "$COMFYUI_PID" "ComfyUI"
   stop_pid_if_running "$OLLAMA_PID" "Ollama"
+  stop_pid_if_running "$KOKORO_PID" "Kokoro neural TTS"
   stop_stale_dev_processes
 }
 
@@ -609,6 +654,7 @@ fi
 export AVENTO_DATASOURCE_URL="${AVENTO_DATASOURCE_URL:-jdbc:postgresql://127.0.0.1:${AVENTO_POSTGRES_PORT:-5432}/${AVENTO_POSTGRES_DB:-avento}}"
 export AVENTO_DATASOURCE_USERNAME="${AVENTO_DATASOURCE_USERNAME:-${AVENTO_POSTGRES_USER:-avento}}"
 export AVENTO_DATASOURCE_PASSWORD="${AVENTO_DATASOURCE_PASSWORD:-${AVENTO_POSTGRES_PASSWORD:-avento_dev_password}}"
+export AVENTO_VOICE_NEURAL_URL="$KOKORO_URL"
 
 AVENTO_AUTH_ROOT_EMAIL="${AVENTO_AUTH_ROOT_EMAIL:-admin@avento.local}"
 if [ -z "${AVENTO_AUTH_ROOT_PASSWORD:-}" ]; then
@@ -624,6 +670,7 @@ export AVENTO_SMOKE_PASSWORD="$AVENTO_AUTH_ROOT_PASSWORD"
 info "local root login: $AVENTO_AUTH_ROOT_EMAIL / $AVENTO_AUTH_ROOT_PASSWORD"
 
 start_ollama
+start_kokoro_tts
 
 ensure_comfyui_image_models
 ensure_comfyui_sdxl_models

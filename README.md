@@ -39,7 +39,7 @@ Avento was created and developed by **Samuel Tomimatu, software engineer and sol
 | File read, search, and edit | Visual and voice Permission Engine | Incremental RAG with Redis Vector Store |
 | Diff, backup, and restore | Local tools and MCP servers | Vision with compatible Ollama models |
 | Controlled terminal | macOS and browser automation | Image and video generation via ComfyUI |
-| Project database discovery | Built-in and custom skills | STT with Whisper.cpp and TTS with Piper |
+| Project database discovery | Built-in and custom skills | STT with Whisper.cpp and neural TTS with Kokoro |
 | Interactive HTML prototypes | Review on desktop, tablet, and phone | Implementation only after approval |
 
 ### What is technically interesting
@@ -315,7 +315,7 @@ To protect the local model's context window, each document contributes up to `AV
 
 ```text
 microphone → WebM → FFmpeg → Whisper.cpp → text
-text → Piper → WAV → browser
+text → local Kokoro neural TTS → WAV → browser
 ```
 
 The voice control is global for the interface. When muting, Avento interrupts the current speech, drops the queue, and invalidates syntheses still in progress; new chunks cannot turn the audio back on. The choice is saved in the browser. When unmuting, only new phrases from the currently open chat can play.
@@ -329,6 +329,7 @@ back/whisper.cpp/models/ggml-silero-v6.2.0.bin
 piper_tts/.venv/bin/piper
 piper_tts/pt_BR-dii-high.onnx
 piper_tts/en_US-lessac-medium.onnx
+~/.avento/tools/kokoro-tts/  # isolated neural TTS runtime, managed by Avento
 ```
 
 ## MCP and Permissions

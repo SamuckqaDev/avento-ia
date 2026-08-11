@@ -31,7 +31,7 @@ flowchart TB
         MCP_MOD["avento-mcp - McpClientManager, Server Catalog<br/>& TerminalCommandPolicy"]
         RAG_MOD["avento-rag - Ingestão, Embeddings & VectorStore"]
         MEDIA_MOD["avento-media - Jobs de imagem e vídeo ComfyUI"]
-        VOICE_MOD["avento-voice - Whisper.cpp & Piper TTS"]
+        VOICE_MOD["avento-voice - Whisper.cpp, Kokoro e Piper"]
         WORKSPACE_MOD["avento-workspace - FileSystem & Backups"]
         APP_MOD["avento-app - Executável Spring Boot Principal"]
     end
@@ -740,14 +740,18 @@ flowchart LR
     WHISPER --> TEXT["Texto no chat"]
 
     ANSWER["Texto da resposta"] --> NORMALIZE["Remove Markdown, codigo e emojis"]
-    NORMALIZE --> PIPER["Piper"]
-    PIPER --> WAV["WAV"]
+    NORMALIZE --> KOKORO["Kokoro-82M local"]
+    KOKORO --> WAV["WAV"]
+    KOKORO -. indisponível .-> PIPER["Piper (contingência)"]
+    PIPER --> WAV
     WAV --> BROWSER["Fila de audio no navegador"]
 ```
 
-O Whisper.cpp executa STT, isto e, transforma fala em texto. O Piper executa TTS, transformando
-texto em fala. O modo de voz em tempo quase real usa WebSocket para enviar as falas capturadas; o
-audio sintetizado volta por uma rota HTTP e e reproduzido em fila pelo frontend.
+O Whisper.cpp executa STT, isto é, transforma fala em texto. O Kokoro-82M executa o TTS neural
+inteiramente local em um serviço HTTP de loopback iniciado pelo Avento; ele não usa a voz do macOS
+nem envia áudio a um provedor. O Piper é a contingência leve se o runtime neural estiver
+indisponível. O modo de voz em tempo quase real usa WebSocket para enviar as falas capturadas; o
+áudio sintetizado volta por uma rota HTTP e é reproduzido em fila pelo frontend.
 
 ## Persistencia
 
@@ -799,7 +803,7 @@ workflows necessarios para encontra-los ou prepara-los na maquina local.
 | `back/avento/avento-execution` | Outbox transacional, Redis Streams Worker e SSE |
 | `back/avento/avento-agent` | Orquestração do agente, modelos Ollama, heurísticas e prompts |
 | `back/avento/avento-media` | Integração ComfyUI (SDXL, vídeo WAN) e gerador de PDF |
-| `back/avento/avento-voice` | Integrador Whisper.cpp, Piper TTS e WebSockets de voz |
+| `back/avento/avento-voice` | Integrador Whisper.cpp, TTS neural Kokoro, contingência Piper e WebSockets de voz |
 | `back/avento/avento-rag` | MarkItDown, Embeddings Nomic e Redis VectorStore |
 | `back/avento/avento-app` | Módulo executável Spring Boot (AventoApplication) |
 | `scripts` | Setup, inicializacao, verificacao e smoke test |
@@ -812,7 +816,7 @@ workflows necessarios para encontra-los ou prepara-los na maquina local.
   ainda nao publica porcentagem fina por no para esses workflows.
 - Aprovacoes preservam o mesmo `runId`, mas a continuacao pendente ainda vive em memoria e expira
   quando o backend reinicia.
-- O TTS atual usa Piper, que prioriza execucao local e leveza, mas tem naturalidade limitada.
+- O TTS usa Kokoro-82M local como voz neural; Piper permanece como contingência leve quando o serviço neural não está disponível.
 - Os servidores MCP aumentam as capacidades, mas muitos schemas conectados ao mesmo tempo podem
   ocupar contexto e piorar a escolha de ferramentas pelo modelo.
 - O orcamento de contexto (`avento.agent.num-ctx`) e compartilhado entre o prompt de sistema, os

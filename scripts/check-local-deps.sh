@@ -204,6 +204,14 @@ else
   missing_optional=$((missing_optional + 1))
 fi
 optional_file "piper_tts/pt_BR-faber-medium.onnx" "Piper pt_BR default model"
+KOKORO_RUNTIME_DIR="${AVENTO_KOKORO_RUNTIME_DIR:-$HOME/.avento/tools/kokoro-tts}"
+if [ -x "$KOKORO_RUNTIME_DIR/bin/python" ] \
+  && "$KOKORO_RUNTIME_DIR/bin/python" -c 'from kokoro import KPipeline' >/dev/null 2>&1; then
+  ok "Kokoro neural TTS runtime: $KOKORO_RUNTIME_DIR"
+else
+  warn "Kokoro neural TTS runtime missing (run ./scripts/setup-kokoro-tts.sh; optional)"
+  missing_optional=$((missing_optional + 1))
+fi
 
 printf '\nSummary:\n'
 printf 'Required missing: %s\n' "$missing_required"

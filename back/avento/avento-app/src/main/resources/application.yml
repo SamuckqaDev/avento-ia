@@ -258,10 +258,12 @@ avento:
     piper-model-pt: ${AVENTO_VOICE_PIPER_MODEL_PT:./piper_tts/pt_BR-dii-high.onnx}
     piper-model-en: ${AVENTO_VOICE_PIPER_MODEL_EN:./piper_tts/en_US-lessac-medium.onnx}
     piper-model-es: ""
-    piper-length-scale: ${AVENTO_VOICE_PIPER_LENGTH_SCALE:0.95}
-    piper-noise-scale: ${AVENTO_VOICE_PIPER_NOISE_SCALE:0.60}
-    piper-noise-width-scale: ${AVENTO_VOICE_PIPER_NOISE_WIDTH_SCALE:0.80}
-    piper-sentence-silence: ${AVENTO_VOICE_PIPER_SENTENCE_SILENCE:0.18}
+    # Perfil de fala PT-BR: ritmo conversacional e pausas perceptíveis. A naturalidade vem da voz
+    # e da prosódia; não tente compensar uma voz ruim acelerando-a aleatoriamente.
+    piper-length-scale: ${AVENTO_VOICE_PIPER_LENGTH_SCALE:1.00}
+    piper-noise-scale: ${AVENTO_VOICE_PIPER_NOISE_SCALE:0.45}
+    piper-noise-width-scale: ${AVENTO_VOICE_PIPER_NOISE_WIDTH_SCALE:0.65}
+    piper-sentence-silence: ${AVENTO_VOICE_PIPER_SENTENCE_SILENCE:0.24}
     tts-cache-enabled: true
     tts-cache-ttl: PT6H
 

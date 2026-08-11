@@ -34,4 +34,15 @@ class SpeechTextNormalizerTest {
 
         assertThat(spoken).isEqualTo("Veja a documentação. Tudo pronto.");
     }
+
+    @Test
+    void removesBareUrlsAndKeepsAComfortablePauseBetweenIdeas() {
+        String spoken = normalizer.normalize("""
+                Primeiro passo
+                https://example.com/private-path
+                Segundo passo.
+                """);
+
+        assertThat(spoken).isEqualTo("Primeiro passo. Segundo passo.");
+    }
 }

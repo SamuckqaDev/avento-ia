@@ -321,10 +321,11 @@ avento:
     piper-model-pt: ./piper_tts/pt_BR-dii-high.onnx
     piper-model-en: ./piper_tts/en_US-lessac-medium.onnx
     piper-model-es: ""
-    piper-length-scale: 0.95
-    piper-noise-scale: 0.60
-    piper-noise-width-scale: 0.80
-    piper-sentence-silence: 0.18
+    # Perfil conversacional para PT-BR; a voz high e mais natural que a medium.
+    piper-length-scale: 1.00
+    piper-noise-scale: 0.45
+    piper-noise-width-scale: 0.65
+    piper-sentence-silence: 0.24
     tts-cache-enabled: true
     tts-cache-ttl: PT6H
 ```
@@ -332,8 +333,9 @@ avento:
 O frontend encerra uma fala apos cerca de 1,8 s de silencio e envia o audio ao Whisper com VAD
 local. Essa janela aceita pausas naturais no meio de uma pergunta sem envia-la pela metade. Na
 resposta, o backend remove Markdown, codigo, URLs, metricas e emojis antes do Piper; textos
-longos sao sintetizados em trechos menores e a reproducao comeca assim que o primeiro trecho fica
-pronto. O idioma detectado na conversa escolhe a voz portuguesa ou inglesa configurada.
+longos sao sintetizados em trechos menores, usando pontuacao e pausas de clausula antes de qualquer
+corte por tamanho, e a reproducao comeca assim que o primeiro trecho fica pronto. O idioma detectado
+na conversa escolhe a voz portuguesa ou inglesa configurada.
 
 Configuracoes de banco e auth usadas pelo profile local:
 

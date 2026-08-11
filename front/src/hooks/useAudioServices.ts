@@ -61,28 +61,59 @@ function detectSpeechLanguage(text: string, fallback = 'pt'): string {
   return scores[0].score > 0 ? scores[0].language : fallback;
 }
 
-function splitSpeechChunks(text: string, maxChars = 280): string[] {
+export function splitSpeechChunks(text: string, maxChars = 220): string[] {
   const sentences = text
     .replace(/\r/g, '')
-    .split(/(?<=[.!?])\s+|\n+/)
+    .split(/(?<=[.!?;:])\s+|\n+/)
     .map(sentence => sentence.trim())
     .filter(Boolean);
   const chunks: string[] = [];
   let current = '';
   for (const sentence of sentences) {
-    if (!current) {
-      current = sentence;
-      continue;
-    }
-    if (`${current} ${sentence}`.length <= maxChars) {
-      current = `${current} ${sentence}`;
-    } else {
-      chunks.push(current);
-      current = sentence;
+    // Uma frase longa demais faz o Piper soar sem fôlego. Preferimos vírgulas e conectivos como
+    // pontos de descanso antes de recorrer a um corte mecânico por caracteres.
+    const parts = sentence.length > maxChars
+      ? sentence.split(/(?<=[,;:])\s+|\s+(?=(?:e|mas|porque|então|porém|quando|while|but|because)\s)/i)
+      : [sentence];
+    for (const part of parts) {
+      if (!part) continue;
+      if (part.length > maxChars) {
+        if (current) {
+          chunks.push(current);
+          current = '';
+        }
+        chunks.push(...splitOversizedSpeechPart(part, maxChars));
+        continue;
+      }
+      if (!current) {
+        current = part;
+      } else if (`${current} ${part}`.length <= maxChars) {
+        current = `${current} ${part}`;
+      } else {
+        chunks.push(current);
+        current = part;
+      }
     }
   }
   if (current) chunks.push(current);
   return chunks.length > 0 ? chunks : [text.trim()];
+}
+
+function splitOversizedSpeechPart(text: string, maxChars: number): string[] {
+  const chunks: string[] = [];
+  let current = '';
+  for (const word of text.trim().split(/\s+/)) {
+    if (!current) {
+      current = word;
+    } else if (`${current} ${word}`.length <= maxChars) {
+      current = `${current} ${word}`;
+    } else {
+      chunks.push(current);
+      current = word;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
 }
 
 export function useAudioServices() {

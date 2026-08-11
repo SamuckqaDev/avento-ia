@@ -117,9 +117,14 @@ avento:
     whisper-best-of: 5
     piper-binary: ./piper_tts/.venv/bin/piper
     piper-model: ./piper_tts/pt_BR-faber-medium.onnx
-    piper-model-pt: ./piper_tts/pt_BR-faber-medium.onnx
+    # A voz high melhora a inteligibilidade e a prosódia; mantenha a medium apenas como fallback.
+    piper-model-pt: ./piper_tts/pt_BR-dii-high.onnx
     piper-model-en: ""
     piper-model-es: ""
+    piper-length-scale: 1.00
+    piper-noise-scale: 0.45
+    piper-noise-width-scale: 0.65
+    piper-sentence-silence: 0.24
     tts-cache-enabled: true
     tts-cache-ttl: PT6H
 

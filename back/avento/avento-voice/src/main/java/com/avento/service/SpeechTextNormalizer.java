@@ -24,13 +24,16 @@ public class SpeechTextNormalizer {
         }
         String normalized = CODE_BLOCK.matcher(text).replaceAll(" ");
         normalized = MARKDOWN_LINK.matcher(normalized).replaceAll("$1");
-        normalized = RAW_URL.matcher(normalized).replaceAll(" link ");
+        // A URL sem rótulo não é conteúdo que uma pessoa consiga acompanhar de ouvido. Removê-la
+        // evita a pausa estranha causada por falar "link" no meio de uma frase.
+        normalized = RAW_URL.matcher(normalized).replaceAll(" ");
         normalized = INLINE_CODE.matcher(normalized).replaceAll("$1");
         normalized = METRICS_LINE.matcher(normalized).replaceAll(" ");
         normalized = MARKDOWN_PREFIX.matcher(normalized).replaceAll("");
         normalized = MARKDOWN_MARKER.matcher(normalized).replaceAll("");
         normalized = EMOJI.matcher(normalized).replaceAll(" ");
         normalized = normalized.replace("&", " e ");
+        normalized = normalized.replaceAll("(?<![.!?])\\s*\\n+\\s*", ". ");
         normalized = WHITESPACE.matcher(normalized).replaceAll(" ");
         normalized = normalized.replaceAll("\\s+([,.;:!?])", "$1");
         normalized = normalized.replaceAll("([.!?]){2,}", "$1");

@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -31,6 +32,7 @@ public class RunReplyPersistenceService {
     private final ObjectMapper mapper;
     private final Map<String, StringBuilder> textByRun = new ConcurrentHashMap<>();
 
+    @Autowired
     public RunReplyPersistenceService(
             ObjectProvider<MessageRepository> messageRepositoryProvider,
             ObjectProvider<ChatRepository> chatRepositoryProvider,

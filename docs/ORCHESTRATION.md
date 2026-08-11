@@ -44,7 +44,7 @@ tambem vale para tarefas de automacao do macOS sem projeto associado: sem worksp
 de arquivo seguem bloqueadas pelo sandbox, mas abrir uma aba ou aplicativo pode ser executado.
 
 Uma tarefa criada como **Data Específica** é pontual (`runOnce`). Depois de receber sucesso ou
-falha, ela sai da agenda ativa e fica como concluída, sem perder o último retorno nem o histórico.
+falha, ela sai da agenda ativa e fica arquivada, sem perder o último retorno nem o histórico.
 Se o Avento estiver desligado e o horário pontual vencer por mais de um minuto, ela também é
 arquivada sem ser executada, com o motivo registrado no histórico. Agendamentos diários, por
 intervalo e Cron manual continuam recorrentes. Para automações diretas do navegador, o Cowork marca

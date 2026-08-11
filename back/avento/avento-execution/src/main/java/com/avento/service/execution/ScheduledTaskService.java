@@ -127,10 +127,6 @@ public class ScheduledTaskService {
                 .findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Tarefa agendada não encontrada"));
 
-        if (task.getStatus() == ScheduledTask.TaskStatus.COMPLETED) {
-            throw new IllegalStateException("Tarefa pontual concluída. Edite-a para agendá-la novamente.");
-        }
-
         if (task.getStatus() == ScheduledTask.TaskStatus.ACTIVE) {
             task.setStatus(ScheduledTask.TaskStatus.PAUSED);
         } else {

@@ -26,8 +26,7 @@ public class ScheduledTask {
 
     public enum TaskStatus {
         ACTIVE,
-        PAUSED,
-        COMPLETED
+        PAUSED
     }
 
     public enum RunStatus {

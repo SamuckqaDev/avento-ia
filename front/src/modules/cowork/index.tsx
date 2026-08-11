@@ -23,7 +23,7 @@ export interface ScheduledTask {
   chatId?: number;
   projectPath?: string;
   onSuccessTaskId?: number | null;
-  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+  status: 'ACTIVE' | 'PAUSED';
   runOnce: boolean;
   lastRunStatus: 'IDLE' | 'RUNNING' | 'SUCCESS' | 'FAILED';
   lastRunAt?: string;
@@ -202,7 +202,7 @@ export function CoworkView() {
     try {
       if (isInitialLoad) setIsLoading(true);
       const { data } = await api.get<ScheduledTask[]>('/api/scheduled-tasks');
-      setTasks(data.filter(task => task.status !== 'COMPLETED'));
+      setTasks(data.filter(task => !(task.runOnce && !task.nextRunAt && task.lastRunStatus !== 'RUNNING')));
     } catch (e) {
       console.error('Erro ao carregar tarefas agendadas', e);
     } finally {

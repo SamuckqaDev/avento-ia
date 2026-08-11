@@ -57,7 +57,9 @@ public class ScheduledTaskLifecycleService {
     }
 
     private void archive(ScheduledTask task) {
-        task.setStatus(ScheduledTask.TaskStatus.COMPLETED);
+        // PAUSED já é aceito pelo banco existente. A combinação runOnce + nextRunAt nulo é o
+        // marcador de arquivamento e evita uma migração destrutiva da constraint legada.
+        task.setStatus(ScheduledTask.TaskStatus.PAUSED);
         task.setNextRunAt(null);
         taskRepository.save(task);
     }

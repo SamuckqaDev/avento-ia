@@ -32,7 +32,7 @@ class ScheduledTaskLifecycleServiceTest {
 
         service.archiveAfterTerminalResult(41L);
 
-        assertThat(task.getStatus()).isEqualTo(ScheduledTask.TaskStatus.COMPLETED);
+        assertThat(task.getStatus()).isEqualTo(ScheduledTask.TaskStatus.PAUSED);
         assertThat(task.getNextRunAt()).isNull();
         verify(taskRepository).save(task);
     }
@@ -48,7 +48,7 @@ class ScheduledTaskLifecycleServiceTest {
         int archived = service.archiveExpiredOneShotTasks(LocalDateTime.of(2026, 8, 11, 10, 0));
 
         assertThat(archived).isOne();
-        assertThat(task.getStatus()).isEqualTo(ScheduledTask.TaskStatus.COMPLETED);
+        assertThat(task.getStatus()).isEqualTo(ScheduledTask.TaskStatus.PAUSED);
         assertThat(task.getLastRunStatus()).isEqualTo(ScheduledTask.RunStatus.FAILED);
         assertThat(task.getLastRunOutput()).contains("horário agendado expirou");
         verify(taskRepository).save(task);

@@ -21,8 +21,10 @@ import {
   SkillSuggestions,
   SkillSuggestionItem,
   SkillSuggestionsHint,
+  SpeakingMascot,
 } from './styles';
 import { FileText, Microphone, Paperclip, SpinnerGap, StopCircle, PaperPlaneRight, ChatCircleDots, ImageSquare, X, Robot } from '@phosphor-icons/react';
+import speakingMascot from '../../../assets/avento-speaking-mascot.png';
 import type { DocumentAttachment, ImageAttachment } from '../MessageBubble';
 import type { QueuedMessage } from '../../../pages/Home';
 import type { Skill } from '../../../hooks/useSkills';
@@ -41,6 +43,7 @@ interface InputAreaProps {
   isRealtimeListening: boolean;
   realtimeTranscript: string;
   audioLevel: number;
+  isAudioPlaying: boolean;
   speechRecognitionSupported: boolean;
   imageAttachments: ImageAttachment[];
   documentAttachments: DocumentAttachment[];
@@ -69,6 +72,7 @@ export function InputArea({
   isRealtimeListening,
   realtimeTranscript,
   audioLevel,
+  isAudioPlaying,
   speechRecognitionSupported,
   imageAttachments,
   documentAttachments,
@@ -314,6 +318,12 @@ export function InputArea({
           <strong>{isRealtimeListening ? 'Ouvindo' : 'Reconectando microfone'}</strong>
           <span>{realtimeTranscript || 'Fale naturalmente. O Avento envia sua fala quando detectar o fim da frase.'}</span>
         </VoiceStatus>
+      )}
+      {isAudioPlaying && (
+        <SpeakingMascot role="status" aria-live="polite">
+          <img src={speakingMascot} alt="Mascote do Avento falando" />
+          <span>O Avento está falando</span>
+        </SpeakingMascot>
       )}
       {messageQueue.length > 0 && (
         <QueueBar>

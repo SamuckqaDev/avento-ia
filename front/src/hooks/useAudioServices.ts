@@ -126,6 +126,7 @@ export function useAudioServices() {
   // da confirmacao visual real de que o som esta chegando, nao so um estado
   // "gravando" estatico.
   const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const audioLevelContextRef = useRef<AudioContext | null>(null);
   const audioLevelFrameRef = useRef<number | null>(null);
   const lastAudioLevelUpdateRef = useRef<number>(0);
@@ -161,18 +162,21 @@ export function useAudioServices() {
       audioQueueRef.current = [];
       isPlayingRef.current = false;
       isAudioPlaybackActiveRef.current = false;
+      setIsAudioPlaying(false);
       currentAudioRef.current = null;
       return;
     }
     if (audioQueueRef.current.length === 0) {
       isPlayingRef.current = false;
       isAudioPlaybackActiveRef.current = false;
+      setIsAudioPlaying(false);
       currentAudioRef.current = null;
       return;
     }
 
     isPlayingRef.current = true;
     isAudioPlaybackActiveRef.current = true;
+    setIsAudioPlaying(true);
     const audioUrl = audioQueueRef.current.shift()!;
     const audio = new Audio(audioUrl);
     currentAudioRef.current = audio;
@@ -213,6 +217,7 @@ export function useAudioServices() {
     }
     isPlayingRef.current = false;
     isAudioPlaybackActiveRef.current = false;
+    setIsAudioPlaying(false);
   }, []);
 
   const setAudioPlaybackEnabled = useCallback((enabled: boolean) => {
@@ -618,6 +623,7 @@ export function useAudioServices() {
     isRealtimeListening,
     realtimeTranscript,
     audioLevel,
+    isAudioPlaying,
     speechRecognitionSupported,
     startRecording,
     stopRecording,

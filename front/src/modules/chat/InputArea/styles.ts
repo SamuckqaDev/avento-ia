@@ -12,6 +12,11 @@ const pulseStop = keyframes`
   100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 `;
 
+const speakingFloat = keyframes`
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.025); }
+`;
+
 export const Container = styled.div`
   position: relative;
   padding: 12px 28px 18px;
@@ -358,6 +363,33 @@ export const VoiceStatus = styled.div`
     span {
       white-space: normal;
     }
+  }
+`;
+
+export const SpeakingMascot = styled.div`
+  width: fit-content;
+  max-width: min(980px, 100%);
+  margin: 8px auto 0;
+  padding: 5px 10px 5px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, ${({ theme }) => theme.colors.accent} 26%, ${({ theme }) => theme.colors.border});
+  border-radius: 999px;
+  background: color-mix(in srgb, ${({ theme }) => theme.colors.surface} 88%, ${({ theme }) => theme.colors.accent});
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 0.78rem;
+  font-weight: 650;
+
+  img {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    animation: ${speakingFloat} 1.2s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    img { animation: none; }
   }
 `;
 

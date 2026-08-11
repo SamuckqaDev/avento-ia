@@ -10,6 +10,7 @@ The full inventory of what works in Avento today.
 - Persisted conversations, isolated per user.
 - Asynchronous agent execution with PostgreSQL, Outbox, Redis Streams, a worker, and authenticated SSE.
 - Idempotent execution and approval: duplicate Redis entries never repeat tools or re-present decisions that were already resolved.
+- An Avento mascot appears while an audio answer is playing, with a subtle animation that respects reduced-motion preferences.
 - An activity watchdog ends silent runs without leaving the chat or the single local worker stuck indefinitely.
 - Recent context is cached in Redis and rebuildable; PostgreSQL remains the durable source of truth.
 - Per-conversation isolated, recoverable streaming: switching chats or reloading the page restores processing from the run's durable state, without moving Thinking, response, media, or voice into another conversation.

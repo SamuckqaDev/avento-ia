@@ -973,6 +973,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     isRealtimeListening,
     realtimeTranscript,
     audioLevel,
+    isAudioPlaying,
     speechRecognitionSupported,
     startRecording,
     stopRecording,
@@ -3010,6 +3011,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
               isRealtimeListening={isRealtimeListening}
               realtimeTranscript={realtimeTranscript}
               audioLevel={audioLevel}
+              isAudioPlaying={isAudioPlaying}
               speechRecognitionSupported={speechRecognitionSupported}
               imageAttachments={imageAttachments}
               documentAttachments={documentAttachments}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avento — A green suite proved less than it looked</title>
+<style>
+  :root { --bg:#F4F7F3; --surface:#FFF; --ink:#14231F; --muted:#566661; --accent:#147E6A; --soft:#E3F2ED; --pop:#D6497A; --popsoft:#FBE7EE; --border:#DCE6E0; --code:#EDF3EF; --shadow:0 1px 2px rgba(20,35,31,.05),0 8px 24px rgba(20,35,31,.05); }
+  @media (prefers-color-scheme:dark) { :root { --bg:#0B1512; --surface:#12201C; --ink:#E9F1ED; --muted:#9CB0A8; --accent:#4FD1B4; --soft:#15302A; --pop:#F384AB; --popsoft:#2A1721; --border:#21322C; --code:#16241F; --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35); } }
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.65}.wrap{max-width:760px;margin:0 auto;padding:0 22px 96px}.eyebrow{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 14px;padding-top:64px}h1{font-size:clamp(2rem,5.5vw,3rem);line-height:1.08;margin:0 0 18px;letter-spacing:-.02em}.lede{font-size:1.12rem;color:var(--muted);margin:0;max-width:62ch}h2{font-size:1.55rem;letter-spacing:-.01em;margin:52px 0 10px}p{margin:12px 0}code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.88em;background:var(--code);padding:1px 6px;border:1px solid var(--border);border-radius:5px}.divider{height:1px;background:var(--border);margin:40px 0 0}.key{color:var(--pop);font-weight:700}.plain{border-left:3px solid var(--accent);background:var(--soft);padding:14px 18px;border-radius:0 10px 10px 0;margin:18px 0}.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:22px 0}.step{flex:1 1 150px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}.st{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:700}.sd{font-size:.92rem;margin-top:4px}.arrow{align-self:center;color:var(--muted);font-weight:700}.tbl{overflow-x:auto;border:1px solid var(--border);border-radius:12px;margin:20px 0}table{width:100%;border-collapse:collapse;min-width:500px;font-size:.94rem}th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:top}th{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--code)}tr:last-child td{border-bottom:0}.lesson{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;box-shadow:var(--shadow)}.lesson strong{color:var(--pop)}footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body><main class="wrap">
+<p class="eyebrow">Learning 13</p>
+<h1>A green suite proved less than it looked</h1>
+<p class="lede">A delegated agent reported <code>mvn clean test</code> green twice. The result was true, but it did not exercise what its report implied: the sandbox could not reach the real containers.</p>
+<div class="divider"></div>
+
+<h2>Symptom: known leaks did not appear</h2>
+<p>The suite is known to leave scheduled Cowork tasks in Postgres and <code>@TempDir</code> RAG keys in Redis when it runs against the owner's infrastructure. After the delegated run, <code>scheduled_tasks</code> was empty and the RAG-key count was exactly 954. That was not evidence that the suite had become clean.</p>
+<div class="tbl"><table><thead><tr><th>What was checked after the run</th><th>Observed</th></tr></thead><tbody>
+<tr><td>Postgres <code>scheduled_tasks</code></td><td>Empty</td></tr>
+<tr><td>Redis RAG keys</td><td>Exactly 954</td></tr>
+</tbody></table></div>
+
+<h2>Cause: the same command had a different environment</h2>
+<p>The agent sandbox had no path to Postgres or Redis. Tests whose real-infrastructure paths would normally write there degraded instead of writing. Maven still reported a green suite because the tests completed under the conditions available to it.</p>
+<div class="flow">
+  <div class="step"><div class="st">Owner's machine</div><div class="sd">Tests reach Postgres and Redis; leak paths can execute.</div></div><div class="arrow">→</div>
+  <div class="step"><div class="st">Agent sandbox</div><div class="sd">Containers are unreachable; those paths degrade.</div></div><div class="arrow">→</div>
+  <div class="step"><div class="st">Same Maven command</div><div class="sd">Both can be green, but they prove different things.</div></div>
+</div>
+<div class="plain"><strong>Green is a result, not a coverage map.</strong> It says the checks that actually ran passed; it does not prove that unavailable infrastructure paths were exercised.</div>
+
+<h2>Fix: report the environment with the result</h2>
+<p>The operational fix is reporting where a suite ran: local machine with its containers, or sandbox without them. The larger open task is to isolate tests from real infrastructure so neither environment can silently substitute for the other.</p>
+<p class="key">A test report without its execution environment is incomplete evidence.</p>
+
+<h2>The lesson</h2>
+<div class="lesson"><strong>The same suite means different things in different environments.</strong> A green sandbox run does not prove paths that require real infrastructure. State the environment whenever you report the suite green.</div>
+<footer>10/08/2026 · Avento learning notes</footer>
+</main></body></html>

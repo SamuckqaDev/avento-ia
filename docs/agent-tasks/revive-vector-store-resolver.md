@@ -1,3 +1,7 @@
+> ⚠️ **SUPERADA em 10/08/2026 por [`single-embedding-model.md`](single-embedding-model.md).**
+> A decisão do dono mudou: um modelo de embedding só (`nomic-embed-text`), e a máquina de troca
+> é apagada em vez de consertada. Este documento fica pelo histórico do diagnóstico.
+
 # Fazer o índice por perfil de embedding realmente existir
 
 > Spec de execução. Escopo fechado: **só** o que está aqui.
@@ -7,6 +11,66 @@
 📖 **O `AGENTS.md` da raiz manda.** Onde ele e esta spec divergirem, ele vence e você reporta.
 
 **Medido nesta máquina em 10/08/2026, com o Redis de pé.** O que é suposição está marcado.
+
+---
+
+## 0. ⚠️ Atualização de 10/08, à noite — a v1 desta spec foi executada e NÃO consertou
+
+O commit `037ebbd` fez o **T1** (publicou `RedisVectorStoreClientConfiguration`) e o **T2**
+(`RedisVectorStoreClientConfigurationTest`, com `ApplicationContextRunner`). Os dois passam.
+**O defeito continua**, e agora está medido com a aplicação de pé, o que a v1 nunca teve.
+
+### O que foi medido com a app rodando (10/08 ~21:50)
+
+Reindex completo disparou no boot e terminou: **5.240 documentos**, ~31 docs/s, ~3 min.
+
+```
+FT._LIST  → avento_index          (só ele)
+FT.INFO   → dim 768, num_docs 5240, prefixes avento:
+```
+
+E o banco diz que o modelo escolhido é outro:
+
+```sql
+select embedding_model, base_url from provider_settings;
+--  bge-m3:latest | http://<tailnet-host>:11434
+```
+
+`bge-m3` tem **1024** dimensões. O índice nasceu com **768** — ou seja, o `nomic-embed-text` do YAML.
+O nome que o próprio `VectorStoreResolverTest:26` espera, `avento_index_bge_m3_latest`, **não existe**.
+O caminho de escrita passa pelo resolver (`RagService:230`), e o `EmbeddingProfile.isUsable()` só
+checa nome e modelo não-nulos — **não testa alcançabilidade**, então o host offline não filtra o
+perfil. Conclusão: `build()` caiu no fallback de novo.
+
+### A causa real: `@ConditionalOnBean` fora de auto-configuração
+
+**Medido, por leitura comparada do código de produção e do teste:**
+
+`RedisVectorStoreClientConfiguration` é um `@Configuration` **component-scanned** com
+`@ConditionalOnBean(JedisConnectionFactory.class)`. O `JedisConnectionFactory` vem do
+`RedisAutoConfiguration`, e o Spring Boot processa auto-configuração **depois** de toda configuração
+de usuário. Quando a condição é avaliada, o factory ainda não foi registrado → condição **false** →
+**o bean nunca entra no contexto**. É a restrição documentada: `@ConditionalOnBean` só é confiável em
+classe de auto-configuração.
+
+**Por que o teste não pega:** o `ApplicationContextRunner` faz
+`.withBean(JedisConnectionFactory.class, …)` **antes** do `@Import` da config. Nessa ordem a condição
+vê o bean e passa. O teste prova a lógica sob uma ordem de registro que **produção não tem** — é a
+seção 3.3 outra vez, uma camada mais fundo: não é mock, é ordenação.
+
+### O que isso muda na spec
+
+- **T1 e T2 estão feitos.** Não refaça. O trabalho agora é a **ordenação** e o **silêncio**.
+- O fallback silencioso é o que escondeu tudo isso por dois dias. Ver a nova seção 3.5.
+- O `activeIndexName()` promete no javadoc ser "for diagnostics and for the docs to be checkable",
+  mas **nada em produção o expõe** — o único uso fora de teste é pedaço de chave de cache
+  (`RagService:404`). Sem observabilidade, a próxima regressão também passa batida.
+
+**Premissas minhas nesta atualização — o dono não confirmou, confira e reporte se divergir:**
+
+1. O alvo real é o `bge-m3` na `dr` (`<tailnet-host>`, **offline há 1 dia** no Tailscale); o
+   `nomic-embed-text` local é o fallback, não o padrão desejado.
+2. Reindexar tudo a cada troca de modelo é aceitável, porque **medi hoje** que custa ~3 min.
 
 ---
 
@@ -112,6 +176,26 @@ documentos estão em `avento_index`. A primeira busca depois do conserto volta v
 
 Isso é esperado e **não é regressão**, mas precisa estar no relato para ninguém interpretar como
 quebra. **Não migre dados** nesta tarefa: reindexar é operação do usuário, não do refactor.
+
+### 3.5. O fallback silencioso é metade do defeito
+
+Hoje, quando existe perfil configurado e o store dele não pode ser construído, o código escolhe
+**servir o índice errado** e registrar um `warn`:
+
+```java
+logger.warn("No Redis client available; keeping the auto-configured vector store");
+return autoConfiguredStore;
+```
+
+O resultado medido: **5.240 documentos embedados com o modelo errado**, sem nenhum sinal visível.
+A busca respondia — respondia do índice que não corresponde ao modelo escolhido. Um defeito que
+responde é mais caro que um que falha, porque ninguém vai olhar.
+
+O mesmo vale para o `catch` em `activeProfile()`: ele degrada para o YAML sem dizer a quem escolheu o
+modelo que a escolha foi ignorada.
+
+**Não confunda com "estourar exceção em tudo".** Sem perfil configurado, o fallback está certo — é o
+caminho normal. O que não pode é **perfil configurado + falha em construir** virar silêncio.
 
 ---
 

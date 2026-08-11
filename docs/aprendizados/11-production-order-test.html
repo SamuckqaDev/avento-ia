@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avento — A test passed in an order production never has</title>
+<style>
+  :root { --bg:#F4F7F3; --surface:#FFF; --ink:#14231F; --muted:#566661; --accent:#147E6A; --soft:#E3F2ED; --pop:#D6497A; --popsoft:#FBE7EE; --border:#DCE6E0; --code:#EDF3EF; --shadow:0 1px 2px rgba(20,35,31,.05),0 8px 24px rgba(20,35,31,.05); }
+  @media (prefers-color-scheme:dark) { :root { --bg:#0B1512; --surface:#12201C; --ink:#E9F1ED; --muted:#9CB0A8; --accent:#4FD1B4; --soft:#15302A; --pop:#F384AB; --popsoft:#2A1721; --border:#21322C; --code:#16241F; --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35); } }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}.wrap{max-width:760px;margin:0 auto;padding:0 22px 96px}.eyebrow{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 14px;padding-top:64px}h1{font-size:clamp(2rem,5.5vw,3rem);line-height:1.08;margin:0 0 18px;letter-spacing:-.02em}.lede{font-size:1.12rem;color:var(--muted);margin:0;max-width:62ch}h2{font-size:1.55rem;letter-spacing:-.01em;margin:52px 0 10px}p{margin:12px 0}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;background:var(--code);padding:1px 6px;border:1px solid var(--border);border-radius:5px}.divider{height:1px;background:var(--border);margin:40px 0 0}.key{color:var(--pop);font-weight:700}.plain{border-left:3px solid var(--accent);background:var(--soft);padding:14px 18px;border-radius:0 10px 10px 0;margin:18px 0}.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:22px 0}.step{flex:1 1 150px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}.st{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:700}.sd{font-size:.92rem;margin-top:4px}.arrow{align-self:center;color:var(--muted);font-weight:700}.tbl{overflow-x:auto;border:1px solid var(--border);border-radius:12px;margin:20px 0}table{width:100%;border-collapse:collapse;min-width:500px;font-size:.94rem}th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:top}th{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--code)}tr:last-child td{border-bottom:0}.lesson{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;box-shadow:var(--shadow)}.lesson strong{color:var(--pop)}footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body><main class="wrap">
+<p class="eyebrow">Learning 11</p>
+<h1>A test passed in an order production never has</h1>
+<p class="lede">The suite was green, including the test written for the bean in question. Yet Redis reported one index through <code>FT._LIST</code> while settings asked for another model. The test had proved an order that production never uses.</p>
+<div class="divider"></div>
+
+<h2>Symptom: one configuration, another reality</h2>
+<p><code>FT._LIST</code> named an index that did not match the configured embedding model. This was especially deceptive because a focused context test was already green. It looked like a Redis configuration defect, but the configuration bean was not present in the production context at all.</p>
+<div class="plain"><strong>What made it expensive:</strong> the test asserted the intended wiring. The live application exposed the wiring that Spring had actually evaluated.</div>
+
+<h2>Cause: conditional configuration ran too early</h2>
+<p>A component-scanned <code>@Configuration</code> carried <code>@ConditionalOnBean(JedisConnectionFactory.class)</code>. The factory is supplied by <code>DataRedisAutoConfiguration</code> in Boot 4.1, not <code>RedisAutoConfiguration</code>. Boot processes that auto-configuration after user configuration, so the condition was false when it mattered and the bean never entered the context.</p>
+<div class="flow">
+  <div class="step"><div class="st">Production</div><div class="sd">User configuration is evaluated.</div></div><div class="arrow">→</div>
+  <div class="step"><div class="st">Condition</div><div class="sd"><code>JedisConnectionFactory</code> is absent, so the bean is skipped.</div></div><div class="arrow">→</div>
+  <div class="step"><div class="st">Later</div><div class="sd"><code>DataRedisAutoConfiguration</code> creates the factory, too late for the skipped bean.</div></div>
+</div>
+<div class="tbl"><table><thead><tr><th>Context</th><th>How the factory arrives</th><th>Result</th></tr></thead><tbody>
+<tr><td>Production</td><td>Boot auto-configuration, after user configuration</td><td>The condition is false.</td></tr>
+<tr><td>Original test</td><td><code>ApplicationContextRunner.withBean(...)</code>, before importing the configuration</td><td>The condition is true.</td></tr>
+</tbody></table></div>
+
+<h2>Fix: let the test use Boot's order</h2>
+<p><code>@ConditionalOnBean</code> is reliable in auto-configuration classes, where Boot can order conditions against their prerequisites. A context test must likewise bring the real auto-configuration in with <code>AutoConfigurations.of(...)</code>, instead of planting the dependency by hand before the configuration under test.</p>
+<p class="key">A test dependency is not neutral. Its registration order can become the behavior the test accidentally validates.</p>
+
+<h2>The lesson</h2>
+<div class="lesson"><strong>The first version of this defect hid behind a mock; the second hid behind bean ordering.</strong> In both cases, the suite asserted intention rather than reality. For conditional Spring wiring, test the auto-configuration path production takes, including its order.</div>
+<footer>10/08/2026 · Avento learning notes</footer>
+</main></body></html>

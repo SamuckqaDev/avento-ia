@@ -842,7 +842,7 @@
         <div class="container">
             <div class="badge">
                 <span class="badge-dot"></span>
-                Avento IA · Local-First Agentic AI Harness
+                Avento IA v2.0.0 · Local-First Agentic AI Harness
             </div>
             <h1 class="hero-title">
                 Inteligência Agêntica <span>100% Local</span> no Seu Computador
@@ -916,7 +916,13 @@
                 <div class="feature-card">
                     <div class="feature-icon">⚡</div>
                     <h3 class="feature-title">Papéis de Modelo Configuráveis</h3>
-                    <p class="feature-desc">Cinco papéis independentes — conversa, planejamento, visão, geração de imagem e vetores — cada um com seu próprio modelo, escolhido na interface e não em arquivo YAML. Trocar o planejador para um modelo que raciocina melhor não obriga a pagar essa lentidão em toda rodada de execução.</p>
+                    <p class="feature-desc">Four independent roles — chat, planning, vision, and image generation — each have their own model, chosen in the interface rather than in YAML. Embeddings are fixed to <code>nomic-embed-text</code>, using the Redis index <code>avento_index_nomic_embed_text</code>; switching embedding models is not a feature.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">👤</div>
+                    <h3 class="feature-title">Profile Data, Not Browser Storage</h3>
+                    <p class="feature-desc">Validated profile avatars are stored on the logged-in account; the profile response exposes only <code>hasAvatar</code>. Model, voice, and image choices use browser-readable cookies, while only the theme remains in localStorage.</p>
                 </div>
 
                 <div class="feature-card" id="cowork">
@@ -969,6 +975,27 @@
             </div>
             <div class="features-grid">
 
+                <a class="learning-card" href="aprendizados/11-production-order-test.html">
+                    <span class="learning-skill">Spring configuration order</span>
+                    <h3 class="learning-title">A test passed in an order production never has</h3>
+                    <p class="learning-desc">A focused test inserted Redis before importing configuration. Production gets the factory later from Boot auto-configuration, so the conditional bean was never created.</p>
+                    <p class="learning-proof">A context test must reproduce <strong>the same auto-configuration order</strong> as production.</p>
+                </a>
+
+                <a class="learning-card" href="aprendizados/12-index-name-in-key.html">
+                    <span class="learning-skill">Redis data lifecycle</span>
+                    <h3 class="learning-title">An index name in the key stranded chunks</h3>
+                    <p class="learning-desc">Renaming an index changed the manifest address, leaving old chunks behind while two RediSearch indexes watched the same key prefix.</p>
+                    <p class="learning-proof">One root, one manifest: keep the index name <strong>inside</strong> its data.</p>
+                </a>
+
+                <a class="learning-card" href="aprendizados/13-green-suite-environment.html">
+                    <span class="learning-skill">Test evidence</span>
+                    <h3 class="learning-title">A green suite proved less than it looked</h3>
+                    <p class="learning-desc">The sandbox could not reach Postgres or Redis, so the suite did not exercise the infrastructure paths that leak on the owner's machine.</p>
+                    <p class="learning-proof">A green result is meaningful only with <strong>the environment in which it ran</strong>.</p>
+                </a>
+
                 <a class="learning-card" href="aprendizados/10-o-numero-morria-na-traducao.html">
                     <span class="learning-skill">Medição sobre palpite</span>
                     <h3 class="learning-title">O número existia e morria na tradução</h3>
@@ -1013,7 +1040,7 @@
 
             </div>
             <p class="learnings-entry">
-                Estes são cinco de <strong>onze</strong> casos documentados.
+                Eight selected cases from a collection of <strong>fourteen</strong> documented cases.
                 <a href="aprendizados/README.md">Ver a coleção completa →</a>
             </p>
         </div>
@@ -1052,7 +1079,7 @@
                     <h3>Samuel Tomimatu</h3>
                     <div class="author-role">Engenheiro de Software & Criador do Avento IA</div>
                     <p class="author-bio">
-                        Desenvolvi o Avento IA como uma demonstração de arquitetura de alto nível para agentes autônomos e assistentes de desenvolvimento local-first. O projeto combina Java 21, Spring Boot 3, React, TypeScript, Redis Stack VectorStore e Ollama em um ecossistema completo de engenharia.
+                        Desenvolvi o Avento IA como uma demonstração de arquitetura de alto nível para agentes autônomos e assistentes de desenvolvimento local-first. O projeto combina Java 21, Spring Boot 4.1, React, TypeScript, Redis Stack VectorStore e Ollama em um ecossistema completo de engenharia.
                     </p>
                     <div class="hero-cta" style="justify-content: flex-start;">
                         <a href="https://linkedin.com/in/samuel-tomimatu" target="_blank" class="btn btn-linkedin">

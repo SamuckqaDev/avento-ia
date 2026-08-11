@@ -1,17 +1,44 @@
-# Handoff — sessões de 02 e 03/08/2026
+# Handoff — updated 10/08/2026
 
-Contexto para retomar em outra conversa. **Tudo aqui foi verificado rodando comando**, e onde não
-foi está marcado como não verificado. O handoff anterior (31/07–01/08) foi absorvido: o que ficou de
-pendência dele está na seção "Pendências", o resto virou doc.
+Current handoff for the v2 documentation pass. The historical notes below are retained as their
+original record; this section supersedes their repository-state and open-item claims.
 
 ---
 
 ## Estado do repositório
 
-- Branch `feat/rag-index-on-workspace-registration` (último commit `ace00a6`)
-- **713 testes no backend, 0 falhas, 8 pulados** (`cd back/avento && mvn clean test`) — eram 653
-- **32 testes no frontend**, `npm run validate` limpo — eram 27
-- Nada commitado ainda: quatro blocos de conserto na árvore de trabalho
+- Branch `spike/spring-boot-4-spring-ai-2`.
+- Avento is at version `2.0.0`.
+- The working tree contains five uncommitted tasks from tonight.
+
+## v2 state recorded here
+
+- RAG has one fixed embedding model, `nomic-embed-text`, and the Redis index is
+  `avento_index_nomic_embed_text` from `spring.ai.vectorstore.redis.index-name`. The per-profile
+  switching machinery was removed. A manifest is keyed by project root and stores its `indexName`,
+  so an index change deletes the previous manifest's chunks before rebuilding.
+- Profile avatars are database data on `UserAccount`, not localStorage. They are validated
+  PNG/JPEG/WebP/GIF data capped at 512 KiB; the profile response reports only `hasAvatar` and the
+  authenticated avatar routes upload and serve the bytes.
+- Only the theme remains local. Selected model, voice, and image preferences are one-year,
+  browser-readable cookies with `SameSite=Lax` and `Path=/`; `Secure` follows the protocol.
+  `autoApproveAll` has no browser mirror and remains server-owned through `/api/settings`.
+
+## Current open items
+
+1. **Nothing from tonight is committed** — five tasks remain in the working tree.
+2. **The full suite has never run locally.** Only 23 tests across 4 classes ran on the real machine;
+   the full green result came from the sandbox. See learning 13.
+3. **`isolate-tests-from-real-infra.md`** remains open, with a sharper edge: the leak appears only
+   when the suite runs on the owner's machine.
+4. **`backend-owns-rag-cleanup.md`** remains open. Tonight's symptom was a `matsutech-sti` manifest
+   declaring 1,887 chunks that no longer exist in Redis.
+5. **Unbounded Redis streams** — `avento:jobs:agent` and `avento:dead-letter` are never trimmed, and
+   the `avento-agent-workers` group has accumulated 83 consumers, one per boot. This is not
+   dangerous today: the worker acknowledges and drops a job whose row is gone. It is growth without
+   a ceiling; no spec exists yet.
+6. **pt-BR remains in older code and docs** — log messages and comments predating tonight, plus 11
+   learning pages. Sweeping them is an owner decision that has not been made.
 
 ---
 
@@ -104,8 +131,9 @@ sempre"):
 - **Spinner sem estado terminal.** `MessageBubble.hasVisibleContent` remove o bloco `plan`, e a
   condição do indicador olhava "tem conteúdo?" em vez de "o run acabou?". Run `COMPLETED` com resposta
   salva no banco e a bolha girando para sempre. Agora mostra os passos e avisa que o agente parou ali.
-- **Três campos de modelo gravados e nunca lidos** — planejador, imagem e embedding. Ver a tabela dos
-  cinco papéis em ARCHITECTURE.
+- **Three model fields were stored and never read at the time** — planning, image, and embedding.
+  This historical finding is superseded by the v2 state above: embedding is no longer a configurable
+  role.
 - **Formulário de provedor recolhe depois de salvo**, com o papel de cada modelo descrito ao lado do
   campo.
 

@@ -71,6 +71,19 @@ Segue o OS no claro/escuro.
   se realimentava no primeiro conserto, o seletor de modelos que estava morto, e o alarme falso que o
   próprio conserto criou em outra parte do código.
 
+- **[11 — A test passed in an order production never has](11-production-order-test.html)** — a
+  context test planted Redis before importing configuration, concealing the fact that production
+  evaluates the conditional before Boot's Redis auto-configuration. It explains why tests must
+  reproduce auto-configuration order.
+
+- **[12 — An index name in the key stranded chunks](12-index-name-in-key.html)** — a manifest key
+  that changed with the index made the old manifest unreachable, while two RediSearch indexes shared
+  one key prefix. One root needs one manifest, with the index name inside it.
+
+- **[13 — A green suite proved less than it looked](13-green-suite-environment.html)** — the full
+  suite was green in a sandbox that could not reach Postgres or Redis, so its real-infrastructure
+  paths did not exercise the leaks known on the owner's machine.
+
 ### O que os cinco tinham em comum
 
 Todos sobreviveram a uma suíte de 589 testes verdes. Três causas de raiz se repetem:

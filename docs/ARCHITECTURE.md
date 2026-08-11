@@ -209,7 +209,7 @@ cookie validado pelo Spring Security. Controllers e ferramentas propagam esse do
 |---|---|---|
 | Chats, mensagens e midias | `userId + chatId` | PostgreSQL |
 | Memoria de longo prazo | `userId + status` | PostgreSQL |
-| Preferencias de voz/thinking | `avento:user:{userId}:settings` | Redis |
+| Selected model, voice, and image preferences | Browser cookies | One year, `SameSite=Lax`, `Path=/` |
 | Jobs e planos idempotentes | `userId + chatId + idempotencyKey` | PostgreSQL |
 | Aprovacoes pendentes | `approvalId + userId + chatId + runId` | PostgreSQL |
 | Rollback de arquivos | `userId + chatId + runId` | PostgreSQL + disco local |
@@ -219,6 +219,18 @@ mas nunca sao consultadas nem injetadas no prompt. Uma aprovacao pendente serial
 ferramenta; depois de reiniciar o backend, o mesmo card pode ser aprovado uma unica vez e retomar a
 run original. Estados em `ConcurrentHashMap` permanecem somente como aceleracao de processo, nao
 como fonte de verdade.
+
+### Profile data and browser preferences
+
+Profile data belongs to the logged-in user's database record, not to browser storage. An avatar is
+stored on `UserAccount` as bytes and media type, accepts validated PNG, JPEG, WebP, or GIF, and is
+limited to 512 KiB. `POST /api/auth/me/avatar` updates it and `GET /api/auth/me/avatar` serves it;
+`GET /api/auth/me` returns only `hasAvatar`, never base64 avatar data.
+
+Only the theme remains in localStorage. The selected model, voice choice, and image preferences live
+in browser-readable cookies with `SameSite=Lax`, `Path=/`, and a one-year lifetime. Their `Secure`
+attribute follows the protocol, and they are deliberately not `HttpOnly` because the UI reads them.
+`autoApproveAll` has no browser mirror: the server owns it through `/api/settings`.
 
 ### Estruturas de dados escolhidas
 
@@ -488,7 +500,7 @@ Ollama local, Ollama noutra maquina, servidor compativel com OpenAI (vLLM, LM St
 Anthropic entram pela mesma configuracao: um TIPO, um endereco e, as vezes, uma chave. O tipo dirige
 o comportamento — nao um par de flags espalhado por condicionais.
 
-**Cinco papeis de modelo**, cada um gravado em `provider_settings` e lido por quem precisa dele:
+**Four configurable model roles**, each stored in `provider_settings` and read by its consumer:
 
 | Papel | Quem consome |
 |---|---|
@@ -496,12 +508,18 @@ o comportamento — nao um par de flags espalhado por condicionais.
 | Planejador | `PlanBuilderService.plannerModelFor` |
 | Visao | `AgentService.visionModelFor` |
 | Geracao de imagem | `ImageGenerationService.resolveModel` (via `ConfiguredImageModel`) |
-| Embedding / vetores | `VectorStoreResolver` (via `EmbeddingProfileSource`) |
 
-Os tres ultimos eram gravados e ninguem lia — `activePlannerModel`, `activeImageModel` e
-`activeEmbeddingModel` existiam sem um unico chamador. Imagem e embedding chegam por interface
-invertida (`ConfiguredImageModel` em avento-media, `EmbeddingProfileSource` em avento-rag), porque
-esses modulos nao podem depender do avento-agent, que ja depende deles.
+Planning and image models are stored in provider preferences. Image generation arrives through an
+inverted interface (`ConfiguredImageModel` in avento-media), because that module cannot depend on
+avento-agent. Embeddings are deliberately not a configurable role: Avento uses only the Spring AI
+`nomic-embed-text` model, with no selector or runtime profile.
+
+This is a deliberate local commitment, not an incomplete switcher. `nomic-embed-text` is the only
+installed and reachable local embedding model, has 768 dimensions and a 0.3 GB model size, and keeps
+the 5,240 already indexed documents valid. The alternative `bge-m3` host was offline; its 1,024
+dimensions and roughly 2 GB size would require re-embedding everything and recalibrating the tuned
+0.45 / 0.72 thresholds. Measured chat models are `granite4.1:8b` and `qwen3.5:9b`, both `Q4_K_M`:
+that quantization is what lets an 8.8B model fit in 5.3 GB on a 16 GB machine.
 
 **Tres eixos independentes** no `ProviderKind`, que antes eram a pergunta unica "e remoto?":
 
@@ -596,15 +614,17 @@ seria HyDE, ao custo de uma chamada de modelo por busca.
 **Trocar o chunking invalida o indice**: os chunks mudam, os IDs mudam, e a primeira indexacao
 seguinte reprocessa o projeto inteiro.
 
-- **Vetorial** (`RagService`) quando o indice do projeto esta pronto. Redis VectorStore, o modelo de
-  embedding escolhido em Provedores (padrao `nomic-embed-text`), chunks de 500 tokens,
-  `topK 30 -> 5`, cache por query. O `VectorStoreResolver` da um indice POR MODELO
-  (`avento_index_<modelo>`; o nome base vem de `spring.ai.vectorstore.redis.index-name` — a chave e
-  `index-name`, e escrever `index` faz o Spring AI ignorar em silencio e usar o `default-index` dele), porque vetores de modelos diferentes nao sao comparaveis e nem tem a
-  mesma largura — `nomic-embed-text` emite 768 numeros e `bge-m3` emite 1024. Trocar o modelo aponta
-  para um indice novo e vazio que o indexador enche; os vetores antigos ficam onde estao. O indice e por RAIZ de
-  projeto: quando o modelo busca numa subpasta, a consulta vai na raiz e os resultados sao
-  recortados de volta para a subpasta pedida.
+- **Vector** (`RagService`) when the project index is ready. Redis VectorStore uses the single,
+  fixed `nomic-embed-text` embedding model (768-dimensional F16 vectors), 500-token chunks,
+  `topK 30 -> 5`, and a per-query cache. Its index is explicitly named
+  `avento_index_nomic_embed_text` through `spring.ai.vectorstore.redis.index-name`; `index` is not
+  a valid replacement for that property. There is no embedding-model switcher.
+
+  The manifest is keyed only by the project root and records its `indexName` as data. If that index
+  name changes, the next indexing pass reads the previous manifest and deletes the chunks it lists
+  before rebuilding. This prevents a renamed index from stranding chunks under the shared Redis key
+  prefix. The index is per project root: a search from a subdirectory queries the root and filters
+  results back to the requested subtree.
 - **Literal** (`CodebaseRagService`) enquanto o indice nao esta pronto, quando o vetorial nao
   devolve nada, ou quando ele falha (Redis fora, modelo de embedding fora). Pontua por token
   presente no trecho.
@@ -625,6 +645,13 @@ lote sequencial, nao paralelo: numa maquina de 16 GB o modelo de embedding dispu
 O limiar de similaridade e `0.45`, nao o `0.62` herdado de RAG sobre prosa: medindo 15 chunks reais
 do repo contra 4 perguntas, o chunk CERTO pontuou entre 0,489 e 0,734, entao 0.62 descartava a
 resposta certa em metade das buscas.
+
+A full measured rebuild indexed 730 files into 5,280 chunks at about 31 documents per second, taking
+about three minutes. In the live index, chunk length has a 535-character median, a 1,752-character
+p90, and a 6,000-character maximum (the splitter ceiling); only 1.5% exceed 5,000 characters. The
+embedding model does not truncate at that ceiling: replacing the final 1,200 / 2,400 / 3,600
+characters moved cosine similarity to 0.986 / 0.963 / 0.923, whereas truncation would have kept it
+at 1.000000.
 
 ## Modo Plano de Implementacao (planejar antes de codar)
 

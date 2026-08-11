@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avento — An index name in the key stranded chunks</title>
+<style>
+  :root { --bg:#F4F7F3; --surface:#FFF; --ink:#14231F; --muted:#566661; --accent:#147E6A; --soft:#E3F2ED; --pop:#D6497A; --popsoft:#FBE7EE; --border:#DCE6E0; --code:#EDF3EF; --shadow:0 1px 2px rgba(20,35,31,.05),0 8px 24px rgba(20,35,31,.05); }
+  @media (prefers-color-scheme:dark) { :root { --bg:#0B1512; --surface:#12201C; --ink:#E9F1ED; --muted:#9CB0A8; --accent:#4FD1B4; --soft:#15302A; --pop:#F384AB; --popsoft:#2A1721; --border:#21322C; --code:#16241F; --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35); } }
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.65}.wrap{max-width:760px;margin:0 auto;padding:0 22px 96px}.eyebrow{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 14px;padding-top:64px}h1{font-size:clamp(2rem,5.5vw,3rem);line-height:1.08;margin:0 0 18px;letter-spacing:-.02em}.lede{font-size:1.12rem;color:var(--muted);margin:0;max-width:62ch}h2{font-size:1.55rem;letter-spacing:-.01em;margin:52px 0 10px}p{margin:12px 0}code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.88em;background:var(--code);padding:1px 6px;border:1px solid var(--border);border-radius:5px}.divider{height:1px;background:var(--border);margin:40px 0 0}.key{color:var(--pop);font-weight:700}.plain{border-left:3px solid var(--accent);background:var(--soft);padding:14px 18px;border-radius:0 10px 10px 0;margin:18px 0}.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:22px 0}.step{flex:1 1 150px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}.st{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:700}.sd{font-size:.92rem;margin-top:4px}.arrow{align-self:center;color:var(--muted);font-weight:700}.tbl{overflow-x:auto;border:1px solid var(--border);border-radius:12px;margin:20px 0}table{width:100%;border-collapse:collapse;min-width:500px;font-size:.94rem}th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:top}th{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--code)}tr:last-child td{border-bottom:0}.lesson{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;box-shadow:var(--shadow)}.lesson strong{color:var(--pop)}footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body><main class="wrap">
+<p class="eyebrow">Learning 12</p>
+<h1>Putting the index name in the key stranded 5,240 chunks</h1>
+<p class="lede">Naming an index after its model sounded like isolation. Instead, Redis held 10,517 vector keys while 5,280 were live, and two indexes reported the same count as they climbed together.</p>
+<div class="divider"></div>
+
+<h2>Symptom: the same content was retrievable twice</h2>
+<p>After the index was renamed, the live count was 5,280 but the vector-key count was 10,517. Two RediSearch indexes each reported the same growing total. Nothing crashed; the duplicate content quietly consumed places in top-k results and cut their diversity in half.</p>
+<div class="tbl"><table><thead><tr><th>Observed</th><th>Expected</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>10,517 vector keys</td><td>5,280 live chunks</td><td>Old chunks had been abandoned.</td></tr>
+<tr><td>Two indexes, matching counts</td><td>One active index</td><td>Both indexes watched the same keys.</td></tr>
+</tbody></table></div>
+
+<h2>Cause: two mistakes compounded</h2>
+<p>The manifest key included the index name. Renaming the index therefore changed the address at which the old manifest could be found; its listed chunks became unreachable. Chunk IDs also derive from the project key, so the next pass wrote new keys instead of overwriting the old ones.</p>
+<div class="flow">
+  <div class="step"><div class="st">Index name changes</div><div class="sd">The manifest key changes too.</div></div><div class="arrow">→</div>
+  <div class="step"><div class="st">Old manifest is lost</div><div class="sd">The cleanup list cannot be read.</div></div><div class="arrow">→</div>
+  <div class="step"><div class="st">New chunks are written</div><div class="sd">The old vectors remain in Redis.</div></div>
+</div>
+<p>Meanwhile, both RediSearch indexes were defined over the same <code>avento:</code> key prefix. An index name is only the name of the index definition; it does not isolate the data keys. The retired index kept indexing everything the new pass wrote.</p>
+<div class="plain"><strong>RediSearch rule:</strong> an index is defined over a key prefix. Rename an index while sharing the prefix and both definitions still see the same documents.</div>
+
+<h2>Fix: one root, one manifest</h2>
+<p>The manifest key went back to being only the project root. Its <code>indexName</code> now lives inside the manifest. On an index change, the indexing pass can still find the old manifest, delete each chunk it lists, and then rebuild the project into the new index.</p>
+<p class="key">Identity belongs in the stable key; mutable placement belongs in the record stored at that key.</p>
+
+<h2>The lesson</h2>
+<div class="lesson"><strong>Renaming an index isolates nothing while its data keys are shared.</strong> Keep one manifest per root, carry the index name as manifest data, and make cleanup read the previous state before writing the next one.</div>
+<footer>10/08/2026 · Avento learning notes</footer>
+</main></body></html>

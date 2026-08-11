@@ -19,6 +19,8 @@ O inventário completo do que funciona no Avento hoje.
 - O painel de tarefas abre uma vez quando um plano surge e respeita o fechamento manual durante o restante da execucao.
 - Planos autonomos persistem tarefas ordenadas por chat, executam uma por vez no backbone duravel com Redis, verificam cada workspace e retomam de forma idempotente apos reiniciar o backend.
 - Seleção de modelo de chat e de geração visual no header.
+- Avatares de perfil ficam armazenados como PNG, JPEG, WebP ou GIF validados na conta do usuário autenticado (máximo de 512 KiB); `/api/auth/me` expõe apenas `hasAvatar`, enquanto rotas autenticadas próprias enviam e servem a imagem.
+- Modelo selecionado, voz e preferências de imagem usam cookies legíveis pelo navegador, de um ano, com `SameSite=Lax` e `Path=/`; só o tema continua no localStorage, e `autoApproveAll` continua pertencendo ao servidor por `/api/settings`.
 - Rastreamento do consumo de tokens por modelo, dia e chat, com dashboard visual de métricas.
 - Análise de stack, scripts, entrypoints e estrutura do workspace.
 - Leitura, criação, edição, busca e exclusão de arquivos autorizados.
@@ -37,7 +39,7 @@ O inventário completo do que funciona no Avento hoje.
 - TerminalCommandPolicy isolada aplicando execução direta por ProcessBuilder, allowlists estritas de comandos e aprovações de permissão com controle humano em tempo real sem invocação de shell.
 - Arquitetura de 2 modelos (Planejador Qwen 3.5 9B + Executor Granite 4.1 8B) configurável via perfil local para alta velocidade de execução de ferramentas.
 - Exclusão permanente de chats, mensagens e artefatos gerados relacionados.
-- Cinco papéis de modelo independentes — conversa, planejamento, visão, geração de imagem e embeddings — cada um com seu próprio modelo escolhido na interface, não em arquivo YAML.
+- Quatro papéis de modelo independentes — conversa, planejamento, visão e geração de imagem — cada um com seu próprio modelo escolhido na interface, não em arquivo YAML. Embeddings usam o modelo fixo `nomic-embed-text` e o índice Redis `avento_index_nomic_embed_text`; trocar o modelo de embedding não é uma funcionalidade.
 - Camada de provedor que pergunta ao endereço o que ele é: um Ollama atrás de um endpoint compatível com OpenAI é detectado e atendido pelo caminho nativo, onde a janela de contexto pode ser negociada na própria requisição.
 - A janela de contexto distingue o que o modelo DECLARA do que a instância realmente CARREGOU, então o prompt é dimensionado pelo orçamento real em vez de ser truncado em silêncio.
 - Resposta que sobrevive ao cliente: se o navegador cair no meio do stream, o que o servidor produziu é gravado mesmo assim, em vez de ser jogado fora.

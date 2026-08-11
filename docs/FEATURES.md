@@ -19,6 +19,8 @@ The full inventory of what works in Avento today.
 - The task panel opens once when a plan appears and respects a manual close for the rest of the execution.
 - Autonomous plans persist ordered tasks per chat, run them one at a time through the durable Redis backbone, verify each workspace, and resume idempotently after a backend restart.
 - Chat model and visual-generation model selection in the header.
+- Profile avatars are stored as validated PNG, JPEG, WebP, or GIF data on the logged-in user's account (512 KiB maximum); `/api/auth/me` exposes only `hasAvatar`, while dedicated authenticated routes upload and serve the image.
+- The selected model, voice, and image preferences use one-year browser-readable cookies with `SameSite=Lax` and `Path=/`; only the theme stays in localStorage, and `autoApproveAll` remains server-owned through `/api/settings`.
 - Token usage tracking per model, day, and chat, with a visual metrics dashboard.
 - Analysis of stack, scripts, entrypoints, and workspace structure.
 - Read, create, edit, search, and delete of authorized files.
@@ -37,7 +39,7 @@ The full inventory of what works in Avento today.
 - Isolated TerminalCommandPolicy enforcing direct ProcessBuilder execution, strict command allowlists, and human-in-the-loop permission approvals without shell invocation.
 - Dual-model architecture (Qwen 3.5 9B Planner + Granite 4.1 8B Executor) configurable via local profiles for fast tool execution.
 - Permanent deletion of chats, messages, and related generated artifacts.
-- Five independent model roles — chat, planning, vision, image generation and embeddings — each with its own model chosen in the interface rather than in a YAML file.
+- Four independent model roles — chat, planning, vision, and image generation — are chosen in the interface rather than in a YAML file. Embeddings use the fixed `nomic-embed-text` model and Redis index `avento_index_nomic_embed_text`; embedding-model switching is not a feature.
 - Provider layer that asks the address what it is: an Ollama behind an OpenAI-compatible endpoint is detected and served through the native path, where the context window can be negotiated per request.
 - The context window distinguishes what a model DECLARES from what the running instance actually LOADED, so the prompt is sized against the real budget instead of being silently truncated.
 - A reply that outlives the client: if the browser disconnects mid-stream, the answer the server produced is still persisted instead of being thrown away.

@@ -62,10 +62,6 @@ public class ProviderSettings {
     @Column(name = "planner_model")
     private String plannerModel;
 
-    /** Modelo de embedding, usado na classificacao de intencao. */
-    @Column(name = "embedding_model")
-    private String embeddingModel;
-
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -155,14 +151,6 @@ public class ProviderSettings {
 
     public void setPlannerModel(String plannerModel) {
         this.plannerModel = plannerModel;
-    }
-
-    public String getEmbeddingModel() {
-        return embeddingModel;
-    }
-
-    public void setEmbeddingModel(String embeddingModel) {
-        this.embeddingModel = embeddingModel;
     }
 
     public LocalDateTime getUpdatedAt() {

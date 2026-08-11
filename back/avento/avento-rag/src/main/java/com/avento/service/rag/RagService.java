@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -58,9 +59,8 @@ public class RagService {
             "piper_tts",
             "whisper.cpp");
 
-    // Resolvido a cada uso, não guardado: trocar o modelo de embedding nas configurações troca o
-    // índice, e um store fixado no construtor continuaria gravando no índice do modelo antigo.
-    private final VectorStoreResolver vectorStoreResolver;
+    private final VectorStore vectorStore;
+    private final String indexName;
     private final TokenTextSplitter textSplitter;
     private final CodeAwareSplitter codeSplitter;
     private final StringRedisTemplate redisTemplate;
@@ -71,9 +71,10 @@ public class RagService {
     private final int embeddingBatchSize;
 
     public RagService(
-            VectorStoreResolver vectorStoreResolver,
+            VectorStore vectorStore,
             StringRedisTemplate redisTemplate,
             ObjectMapper mapper,
+            @Value("${spring.ai.vectorstore.redis.index-name}") String indexName,
             // 0.45, e nao 0.62: o valor antigo foi herdado de prosa e MEDIDO como errado para codigo —
             // descartava a resposta certa em metade das buscas, inclusive com o nome exato de um metodo
             // escrito no arquivo. O application.yml ja dizia 0.45; este default dizia 0.62, entao
@@ -83,9 +84,10 @@ public class RagService {
             @Value("${avento.rag.candidate-limit:30}") int searchCandidateLimit,
             @Value("${avento.rag.result-limit:5}") int searchResultLimit,
             @Value("${avento.rag.embedding-batch-size:32}") int embeddingBatchSize) {
-        this.vectorStoreResolver = vectorStoreResolver;
+        this.vectorStore = vectorStore;
         this.redisTemplate = redisTemplate;
         this.mapper = mapper;
+        this.indexName = indexName;
         this.similarityThreshold = Math.max(0.0, Math.min(1.0, similarityThreshold));
         this.searchCandidateLimit = Math.max(1, searchCandidateLimit);
         this.searchResultLimit = Math.max(1, Math.min(this.searchCandidateLimit, searchResultLimit));
@@ -156,7 +158,7 @@ public class RagService {
                 .topK(searchCandidateLimit)
                 .similarityThreshold(similarityThreshold)
                 .build();
-        List<Document> results = vectorStoreResolver.active().similaritySearch(searchRequest).stream()
+        List<Document> results = vectorStore.similaritySearch(searchRequest).stream()
                 .filter(document -> belongsToProjects(document, roots))
                 .limit(searchResultLimit)
                 .toList();
@@ -175,6 +177,30 @@ public class RagService {
         Map<String, ScannedFile> current = scan(root);
         Map<String, FileManifest> next = new LinkedHashMap<>();
         List<Document> documentsToAdd = new ArrayList<>();
+
+        // The configured index changed, so every chunk the manifest lists belongs to the OLD index and
+        // will never be read again. Delete it here, while the manifest still names it, and start from
+        // an empty manifest so every file is embedded into the new index.
+        //
+        // Skipping this is what doubles the keyspace: chunk ids derive from the project key, so the new
+        // pass writes new keys instead of overwriting, and the old set stays behind indexed by whatever
+        // index still covers the "avento:" prefix. Measured on 10/08/2026: 5.240 stale chunks alongside
+        // 5.277 live ones, and both indexes reporting all 10.517.
+        boolean indexChanged = !indexName.equals(previous.indexName());
+        if (indexChanged && !previous.files().isEmpty()) {
+            List<String> staleChunkIds = previous.files().values().stream()
+                    .map(FileManifest::chunkIds)
+                    .flatMap(List::stream)
+                    .toList();
+            logger.info(
+                    "RAG for project {}: index changed from {} to {}; deleting {} chunks of the old index",
+                    root,
+                    previous.indexName(),
+                    indexName,
+                    staleChunkIds.size());
+            deleteChunks(staleChunkIds);
+            previous = new Manifest(previous.projectRoot(), previous.indexName(), Map.of());
+        }
 
         for (Map.Entry<String, ScannedFile> entry : current.entrySet()) {
             String relativePath = entry.getKey();
@@ -202,7 +228,7 @@ public class RagService {
         }
 
         addInBatches(documentsToAdd);
-        writeManifest(projectKey, new Manifest(root.toString(), next));
+        writeManifest(projectKey, new Manifest(root.toString(), indexName, next));
         incrementVersion(projectKey);
         logger.info(
                 "RAG do projeto {}: {} arquivos lidos, {} chunks atualizados, {} removidos",
@@ -227,7 +253,7 @@ public class RagService {
     private void addInBatches(List<Document> documents) {
         for (int start = 0; start < documents.size(); start += embeddingBatchSize) {
             int end = Math.min(start + embeddingBatchSize, documents.size());
-            vectorStoreResolver.active().add(documents.subList(start, end));
+            vectorStore.add(documents.subList(start, end));
         }
     }
 
@@ -320,10 +346,10 @@ public class RagService {
     private Manifest readManifest(String projectKey) {
         try {
             String raw = redisTemplate.opsForValue().get(manifestKey(projectKey));
-            return raw == null ? new Manifest("", Map.of()) : mapper.readValue(raw, Manifest.class);
+            return raw == null ? new Manifest("", null, Map.of()) : mapper.readValue(raw, Manifest.class);
         } catch (Exception exception) {
             logger.warn("Não foi possível ler o manifesto RAG {}", projectKey, exception);
-            return new Manifest("", Map.of());
+            return new Manifest("", null, Map.of());
         }
     }
 
@@ -374,7 +400,7 @@ public class RagService {
             // a causa.
             for (int start = 0; start < ids.size(); start += embeddingBatchSize) {
                 int end = Math.min(start + embeddingBatchSize, ids.size());
-                vectorStoreResolver.active().delete(ids.subList(start, end));
+                vectorStore.delete(ids.subList(start, end));
             }
         } catch (Exception exception) {
             logger.warn("Não foi possível remover chunks antigos do RAG", exception);
@@ -399,9 +425,7 @@ public class RagService {
 
     private String cacheKey(String namespace, String query) {
         String version = redisTemplate.opsForValue().get(versionKey(namespace));
-        // O índice ativo entra na chave: trocar o modelo de embedding muda o que uma mesma pergunta
-        // deve devolver, e sem isso a resposta calculada pelo modelo anterior sobreviveria à troca.
-        String searchProfile = vectorStoreResolver.activeIndexName() + ":" + similarityThreshold + ":"
+        String searchProfile = indexName + ":" + similarityThreshold + ":"
                 + searchCandidateLimit + ":" + searchResultLimit;
         return "avento:rag:cache:"
                 + namespace
@@ -419,6 +443,19 @@ public class RagService {
         return "avento:rag:version:" + projectKey;
     }
 
+    /**
+     * Identity of a project's manifest: the root, and ONLY the root.
+     *
+     * <p>The index name deliberately does NOT belong here. It lives inside the manifest instead — see
+     * {@link Manifest}. Both placements make a changed index reindex, but keying by index name leaves
+     * the previous manifest at an address nobody computes anymore, and every chunk it listed becomes
+     * unreachable garbage. Measured on 10/08/2026, right after that change shipped: 10.517 vector keys
+     * where 5.277 were live, the other 5.240 stranded under a manifest key no longer derivable.
+     *
+     * <p>One manifest per root means the indexing pass always finds what the previous index held, and
+     * can delete it. The content hash stays limited to content and chunking strategy, as documented in
+     * {@link #contentHash(String, String)}.
+     */
     private String projectKey(Path root) {
         return sha256(root.toAbsolutePath().normalize().toString());
     }

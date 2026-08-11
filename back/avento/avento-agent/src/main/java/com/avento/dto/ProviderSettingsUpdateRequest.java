@@ -13,7 +13,6 @@ public record ProviderSettingsUpdateRequest(
         String visionModel,
         String imageModel,
         String plannerModel,
-        String embeddingModel,
         String systemServerUrl,
         String systemServerType,
         String systemDefaultModel,

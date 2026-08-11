@@ -11,9 +11,9 @@ import org.springframework.stereotype.Component;
 /**
  * Serves the image model stored in the provider settings to the media module.
  *
- * <p>Not per user, for the same reason as {@link ProviderEmbeddingProfileSource}: generation runs on
- * background workers that carry no account, and Avento runs as a local single-user product. With
- * more than one row it yields, leaving the YAML default in charge rather than guessing an owner.
+ * <p>Not per user: generation runs on background workers that carry no account, and Avento runs as
+ * a local single-user product. With more than one row it yields, leaving the YAML default in charge
+ * rather than guessing an owner.
  */
 @Component
 public class ProviderConfiguredImageModel implements ConfiguredImageModel {

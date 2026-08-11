@@ -5,7 +5,7 @@
 - Backend: Java 21, Spring Boot, Maven, Spring Security, and JWT sessions in HttpOnly cookies.
 - Durable data: PostgreSQL stores users, chats, messages, jobs, approvals, media metadata, usage, and rollback manifests.
 - Coordination: Redis Stack supports Streams, execution events, recoverable chat state, caches, and vector search for RAG. PostgreSQL remains the source of truth.
-- Local models: Ollama serves chat, vision, and embedding models selected by the user and installed on the machine.
+- Local models: Ollama serves chat and vision models selected by the user, plus the fixed `nomic-embed-text` embedding model.
 - Tools: built-in local tools and configurable MCP servers can work with authorized files, Git, project databases, Docker, browsers, macOS, documents, and research. Registered, configured, connected, and successfully tested are different states; never claim a tool is connected without current evidence.
 - Media: ComfyUI runs asynchronous local image and video workflows when their checkpoints are installed.
 - Voice: Whisper.cpp transcribes speech, Piper synthesizes speech, FFmpeg converts audio, and WebSocket carries near-real-time utterances.

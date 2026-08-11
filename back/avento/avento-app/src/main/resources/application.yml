@@ -310,6 +310,6 @@ spring:
         # index-name, NAO index: o Spring AI le "indexName" sob spring.ai.vectorstore.redis, e a
         # chave errada era ignorada em silencio — o indice em uso chamava-se "default-index", o
         # padrao da biblioteca, enquanto a configuracao dizia outra coisa.
-        index-name: avento_index
+        index-name: avento_index_nomic_embed_text
         prefix: "avento:"
         initialize-schema: true

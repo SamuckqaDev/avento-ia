@@ -227,12 +227,6 @@ public class ModelProviderService {
         return stored == null ? "" : blankToEmpty(stored.getPlannerModel());
     }
 
-    /** Modelo de embedding configurado, ou vazio. */
-    public String activeEmbeddingModel(UUID userId) {
-        ProviderSettings stored = findStored(userId);
-        return stored == null ? "" : blankToEmpty(stored.getEmbeddingModel());
-    }
-
     private static String blankToEmpty(String value) {
         return value == null || value.isBlank() ? "" : value;
     }
@@ -285,7 +279,6 @@ public class ModelProviderService {
                 activeVisionModel(userId),
                 activeImageModel(userId),
                 activePlannerModel(userId),
-                activeEmbeddingModel(userId),
                 // Campos herdados, mantidos enquanto a tela migra: descrevem a MESMA configuracao,
                 // nao dois provedores paralelos como antes.
                 baseUrl,
@@ -327,9 +320,6 @@ public class ModelProviderService {
             }
             if (request.plannerModel() != null) {
                 stored.setPlannerModel(request.plannerModel().trim());
-            }
-            if (request.embeddingModel() != null) {
-                stored.setEmbeddingModel(request.embeddingModel().trim());
             }
             String apiKey = firstPresent(request.apiKey(), request.personalCloudApiKey());
             if (isRealApiKey(apiKey) && cipher != null) {

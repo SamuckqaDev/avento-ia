@@ -131,6 +131,6 @@ spring:
           temperature: 0.0
     vectorstore:
       redis:
-        index: avento_index
+        index-name: avento_index_nomic_embed_text
         prefix: "avento:"
         initialize-schema: true

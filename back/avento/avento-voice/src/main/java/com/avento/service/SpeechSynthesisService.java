@@ -36,7 +36,7 @@ public class SpeechSynthesisService {
         this.voiceProperties = voiceProperties;
     }
 
-    public byte[] synthesize(String text, String language) throws Exception {
+    public byte[] synthesize(String text, String language, String requestedVoice) throws Exception {
         String normalizedText = normalizer.normalize(text);
         if (normalizedText.isBlank()) {
             throw new IllegalArgumentException("The text does not contain speakable content");
@@ -47,10 +47,10 @@ public class SpeechSynthesisService {
         }
         try {
             return synthesizeCached(
-                    neuralSpeech.cacheIdentity(normalizedLanguage),
+                    neuralSpeech.cacheIdentity(normalizedLanguage, requestedVoice),
                     normalizedLanguage,
                     normalizedText,
-                    () -> neuralSpeech.synthesize(normalizedText, normalizedLanguage));
+                    () -> neuralSpeech.synthesize(normalizedText, normalizedLanguage, requestedVoice));
         } catch (NeuralSpeechUnavailableException exception) {
             if (!voiceProperties.getNeural().isFallbackToPiper()) {
                 throw exception;

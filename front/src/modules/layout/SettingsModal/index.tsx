@@ -8,7 +8,7 @@ import {
   RangeSelector, RangeButton, StatGrid, StatBox,
   MemoryIntro, MemoryAddRow, MemorySectionTitle, MemoryList,
   MemoryCard, MemoryActionButton, MemoryEmpty,
-  AgentForm, AgentField, AgentDefaultToggleRow, AgentDefaultBadge,
+  AgentForm, AgentField, AgentDefaultToggleRow, AgentDefaultBadge, VoiceSelect,
   BadgeShared, BadgePrivate, ProviderCard, ProviderGrid, ProviderSectionTitle, TestButton, TestStatusPill
 } from './styles';
 import { api, apiErrorMessage } from '../../../services/apiClient';
@@ -22,6 +22,8 @@ interface SettingsModalProps {
   toggleTheme: () => void;
   isVoiceEnabled: boolean;
   handleToggleVoice: (enabled: boolean) => void;
+  speechVoice?: string;
+  onSelectSpeechVoice?: (voice: string) => void;
 }
 
 interface DayTotal {
@@ -88,7 +90,9 @@ export function SettingsModal({
   isDarkMode,
   toggleTheme,
   isVoiceEnabled,
-  handleToggleVoice
+  handleToggleVoice,
+  speechVoice = 'pf_dora',
+  onSelectSpeechVoice
 }: SettingsModalProps) {
   const { user, logout, reloadCurrentUser } = useAuth();
   const appVersion = useAppVersion();
@@ -762,6 +766,22 @@ export function SettingsModal({
                 onClick={() => setTtsEnabled(!ttsEnabled)}
                 title={ttsEnabled ? "Desativar TTS" : "Ativar TTS"}
               />
+            </SettingRow>
+            <SettingRow>
+              <label htmlFor="speech-voice">
+                <strong>Voz do Avento</strong>
+                <span>Escolha a personalidade usada nas próximas respostas faladas.</span>
+              </label>
+              <VoiceSelect
+                id="speech-voice"
+                value={speechVoice}
+                onChange={(event) => onSelectSpeechVoice?.(event.target.value)}
+                disabled={!onSelectSpeechVoice}
+              >
+                <option value="pf_dora">Dora — feminina</option>
+                <option value="pm_alex">Alex — masculina</option>
+                <option value="pm_santa">Santa — masculina suave</option>
+              </VoiceSelect>
             </SettingRow>
             <SettingRow>
               <label>

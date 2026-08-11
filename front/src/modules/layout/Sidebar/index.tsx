@@ -58,6 +58,8 @@ interface SidebarProps {
   toggleTheme: () => void;
   isVoiceEnabled: boolean;
   handleToggleVoice: (enabled: boolean) => void;
+  speechVoice?: string;
+  onSelectSpeechVoice?: (voice: string) => void;
   activeTab?: 'chat' | 'cowork';
   onSelectTab?: (tab: 'chat' | 'cowork') => void;
 }
@@ -127,7 +129,7 @@ export function SidebarComponent({
   projectPaths, removeProjectPath, homeWorkspaceRoot, clearHomeWorkspaceRoot,
   browseFolder, authorizeHomeFolder, loadProjectTree,
   fileTree, selectedFiles, toggleFileSelection, media, onOpenMedia
-  ,onDeleteChat, onRenameChat, isDarkMode, toggleTheme, isVoiceEnabled, handleToggleVoice, activeTab, onSelectTab
+  ,onDeleteChat, onRenameChat, isDarkMode, toggleTheme, isVoiceEnabled, handleToggleVoice, speechVoice, onSelectSpeechVoice, activeTab, onSelectTab
 }: SidebarProps) {
   const { user } = useAuth();
   const [isMinimized, setIsMinimized] = useState(false);
@@ -539,6 +541,8 @@ export function SidebarComponent({
           toggleTheme={toggleTheme}
           isVoiceEnabled={isVoiceEnabled}
           handleToggleVoice={handleToggleVoice}
+          speechVoice={speechVoice}
+          onSelectSpeechVoice={onSelectSpeechVoice}
         />
       )}
 

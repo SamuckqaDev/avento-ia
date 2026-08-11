@@ -981,6 +981,8 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     stopRealtimeVoice,
     stopAudioPlayback,
     setAudioPlaybackEnabled,
+    speechVoice,
+    setSpeechVoice,
     queueTextToSpeech
   } = useAudioServices();
 
@@ -2599,6 +2601,8 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
         toggleTheme={toggleTheme}
         isVoiceEnabled={isVoiceEnabled}
         handleToggleVoice={handleToggleVoice}
+        speechVoice={speechVoice}
+        onSelectSpeechVoice={setSpeechVoice}
         activeTab={activeTab}
         onSelectTab={setActiveTab}
       />

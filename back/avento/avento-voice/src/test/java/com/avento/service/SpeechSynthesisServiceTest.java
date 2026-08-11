@@ -18,12 +18,13 @@ class SpeechSynthesisServiceTest {
         properties.setTtsCacheEnabled(false);
         NeuralSpeechSynthesisService neural = Mockito.mock(NeuralSpeechSynthesisService.class);
         PiperSpeechSynthesisService piper = Mockito.mock(PiperSpeechSynthesisService.class);
-        when(neural.cacheIdentity("pt")).thenReturn("kokoro:pf_dora");
-        when(neural.synthesize("Olá Avento.", "pt")).thenThrow(new NeuralSpeechUnavailableException("offline"));
+        when(neural.cacheIdentity("pt", "pm_alex")).thenReturn("kokoro:pm_alex");
+        when(neural.synthesize("Olá Avento.", "pt", "pm_alex"))
+                .thenThrow(new NeuralSpeechUnavailableException("offline"));
         when(piper.cacheIdentity("pt")).thenReturn("piper:pt");
         when(piper.synthesize("Olá Avento.", "pt")).thenReturn(new byte[] {1, 2, 3});
 
-        byte[] audio = service(properties, neural, piper).synthesize("Olá **Avento**.", "pt-BR");
+        byte[] audio = service(properties, neural, piper).synthesize("Olá **Avento**.", "pt-BR", "pm_alex");
 
         assertThat(audio).containsExactly(1, 2, 3);
         verify(piper).synthesize("Olá Avento.", "pt");

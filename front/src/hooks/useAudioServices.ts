@@ -10,6 +10,15 @@ type RealtimeTranscriptPayload = {
   language?: string;
 };
 
+const SPEECH_VOICE_KEY = 'avento-speech-voice';
+const DEFAULT_SPEECH_VOICE = 'pf_dora';
+
+function loadSpeechVoice(): string {
+  if (typeof window === 'undefined') return DEFAULT_SPEECH_VOICE;
+  const saved = window.localStorage.getItem(SPEECH_VOICE_KEY);
+  return saved === 'pm_alex' || saved === 'pm_santa' || saved === 'pf_dora' ? saved : DEFAULT_SPEECH_VOICE;
+}
+
 const PORTUGUESE_MARKERS = new Set([
   'bom', 'dia', 'boa', 'noite', 'voce', 'você', 'preciso', 'quero', 'cara', 'mano',
   'pra', 'para', 'isso', 'aqui', 'meu', 'minha', 'como', 'que', 'nao', 'não',
@@ -117,6 +126,7 @@ function splitOversizedSpeechPart(text: string, maxChars: number): string[] {
 }
 
 export function useAudioServices() {
+  const [speechVoice, setSpeechVoiceState] = useState(loadSpeechVoice);
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isRealtimeVoiceActive, setIsRealtimeVoiceActive] = useState<boolean>(false);
   const [isRealtimeListening, setIsRealtimeListening] = useState<boolean>(false);
@@ -230,6 +240,11 @@ export function useAudioServices() {
     }
   }, [stopAudioPlayback]);
 
+  const setSpeechVoice = useCallback((voice: string) => {
+    setSpeechVoiceState(voice);
+    window.localStorage.setItem(SPEECH_VOICE_KEY, voice);
+  }, []);
+
   const queueTextToSpeech = useCallback(async (text: string) => {
     if (!audioPlaybackEnabledRef.current || !text || text.trim() === '') return;
     const generation = ttsGenerationRef.current;
@@ -239,7 +254,7 @@ export function useAudioServices() {
         if (!audioPlaybackEnabledRef.current || generation !== ttsGenerationRef.current) return;
         const controller = new AbortController();
         ttsRequestControllersRef.current.add(controller);
-        const response = await api.post<Blob>('/api/voice/tts', { text: chunk, language }, {
+        const response = await api.post<Blob>('/api/voice/tts', { text: chunk, language, voice: speechVoice }, {
           responseType: 'blob',
           signal: controller.signal,
         }).finally(() => ttsRequestControllersRef.current.delete(controller));
@@ -256,7 +271,7 @@ export function useAudioServices() {
         console.error("TTS Queue Error", error);
       }
     }
-  }, [playNextAudio]);
+  }, [playNextAudio, speechVoice]);
 
   // Atualiza audioLevel no maximo a cada ~80ms (throttle) para nao forcar um
   // re-render do Home inteiro a 60fps enquanto o microfone esta aberto.
@@ -631,6 +646,8 @@ export function useAudioServices() {
     stopRealtimeVoice,
     stopAudioPlayback,
     setAudioPlaybackEnabled,
+    speechVoice,
+    setSpeechVoice,
     queueTextToSpeech
   };
 }

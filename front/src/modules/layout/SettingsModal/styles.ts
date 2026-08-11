@@ -246,6 +246,34 @@ export const ToggleSwitch = styled.button<{ $active: boolean }>`
   }
 `;
 
+export const VoiceSelect = styled.select`
+  flex: 0 1 180px;
+  min-width: 150px;
+  border: 1px solid rgba(102, 230, 200, 0.3);
+  border-radius: 8px;
+  background: rgba(16, 42, 38, 0.82);
+  color: #f2fffb;
+  padding: 9px 30px 9px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid #66e6c8;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  @media (max-width: 520px) {
+    width: 100%;
+    flex-basis: 100%;
+  }
+`;
+
 export const Footer = styled.div`
   display: flex;
   justify-content: flex-end;

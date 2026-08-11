@@ -553,6 +553,8 @@ O TTS usa o Kokoro-82M como motor neural local principal: o `dev-up.sh` prepara 
 
 Para instalar ou reparar apenas esse runtime, rode `./scripts/setup-kokoro-tts.sh`. O script instala `espeak-ng` apenas para converter texto PT-BR em fonemas; ele não é a voz final. Para economizar memória, use `AVENTO_VOICE_PROVIDER=piper`; para impedir a contingência, use `AVENTO_VOICE_NEURAL_FALLBACK_TO_PIPER=false`.
 
+No Avento, abra **Preferências → Voz do Avento** e escolha **Dora** (feminina), **Alex** (masculina) ou **Santa** (masculina suave). A escolha é salva somente no navegador e entra em vigor na próxima frase; o backend aceita apenas essas vozes locais conhecidas.
+
 O Piper continua escolhendo o modelo pelo idioma detectado. Configure `avento.voice.piper-model-en` com um modelo em inglês para evitar uma voz brasileira lendo texto em inglês; `piper-model-pt` fica para português e `piper-model-es` para espanhol.
 
 Os caminhos relativos de Piper e Whisper sao resolvidos pela raiz do projeto, mesmo quando Maven executa o processo dentro de `back/avento`. O `dev-up.sh` exporta `AVENTO_PROJECT_ROOT` automaticamente; em uma inicializacao manual fora da estrutura padrao, configure essa variavel com o caminho absoluto da raiz do Avento.

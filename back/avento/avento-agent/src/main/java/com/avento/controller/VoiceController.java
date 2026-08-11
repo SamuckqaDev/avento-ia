@@ -57,7 +57,7 @@ public class VoiceController {
             throw new InvalidRequestException("Texto para síntese de voz é obrigatório.");
         }
         try {
-            return wavResponse(speechSynthesisService.synthesize(text, payload.get("language")));
+            return wavResponse(speechSynthesisService.synthesize(text, payload.get("language"), payload.get("voice")));
         } catch (IllegalArgumentException exception) {
             throw new InvalidRequestException("O texto não contém conteúdo pronunciável.");
         } catch (Exception exception) {

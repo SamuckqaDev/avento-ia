@@ -155,7 +155,7 @@ peça que falta.
 
 ### 3. `VectorStoreResolver` — conserto feito, prova pendente
 
-O bean de `RedisClient` foi publicado (commit `037ebbd`) e há teste de contexto. Mas o `FT._LIST`
+O bean de `RedisClient` foi publicado (commit `67da45e`) e há teste de contexto. Mas o `FT._LIST`
 continua mostrando só `avento_index`, porque **a aplicação nunca subiu com esta árvore**.
 
 **Não verificado:** que um `avento_index_<perfil>` nasça de verdade. Exige subir a app com um perfil

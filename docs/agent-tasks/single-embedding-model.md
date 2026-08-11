@@ -37,7 +37,7 @@ Por que, medido hoje:
 A máquina tem 16 GB e roda outros projetos.
 
 **Por que apagar em vez de consertar:** a máquina de troca nunca funcionou um dia. Nasceu inerte em
-`827b7b7`, e o `037ebbd` tentou consertar e não pegou. Cada defeito abaixo existe **porque** o sistema
+`827b7b7`, e o `67da45e` tentou consertar e não pegou. Cada defeito abaixo existe **porque** o sistema
 tenta suportar troca. Sem troca, todos evaporam de uma vez:
 
 - `@ConditionalOnBean` avaliado antes da auto-configuração registrar o `JedisConnectionFactory`

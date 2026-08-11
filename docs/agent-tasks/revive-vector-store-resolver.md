@@ -16,7 +16,7 @@
 
 ## 0. ⚠️ Atualização de 10/08, à noite — a v1 desta spec foi executada e NÃO consertou
 
-O commit `037ebbd` fez o **T1** (publicou `RedisVectorStoreClientConfiguration`) e o **T2**
+O commit `67da45e` fez o **T1** (publicou `RedisVectorStoreClientConfiguration`) e o **T2**
 (`RedisVectorStoreClientConfigurationTest`, com `ApplicationContextRunner`). Os dois passam.
 **O defeito continua**, e agora está medido com a aplicação de pé, o que a v1 nunca teve.
 

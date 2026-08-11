@@ -1,6 +1,7 @@
 package com.avento.model;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -8,6 +9,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findByChatIdOrderByTimestampAsc(Long chatId);
+
+    Optional<Message> findByRunId(String runId);
 
     @Query(
             "SELECT DISTINCT m FROM Message m JOIN Chat c ON m.chatId = c.id WHERE (:userId IS NULL OR c.userId = :userId OR c.userId IS NULL) AND LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%')) ORDER BY m.timestamp DESC")

@@ -19,6 +19,7 @@ import com.avento.service.execution.RunEventStreamService;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.orchestration.AgentOrchestrator;
 import com.avento.service.orchestration.AgentRunRegistry.AgentRunStatus;
+import com.avento.service.orchestration.RunReplyPersistenceService;
 import com.avento.service.provider.ModelCatalogService;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +58,7 @@ public class LocalAiOrchestratorController {
     private final ConversationContextCache conversationContextCache;
     private final RunEventStreamService runEventStreamService;
     private final AgentRunSubmissionService runSubmissionService;
+    private final RunReplyPersistenceService replyPersistenceService;
 
     public LocalAiOrchestratorController(
             AgentService agentService,
@@ -68,7 +70,8 @@ public class LocalAiOrchestratorController {
             ChatRepository chatRepository,
             ConversationContextCache conversationContextCache,
             RunEventStreamService runEventStreamService,
-            AgentRunSubmissionService runSubmissionService) {
+            AgentRunSubmissionService runSubmissionService,
+            RunReplyPersistenceService replyPersistenceService) {
         this.agentService = agentService;
         this.modelCatalogService = modelCatalogService;
         this.agentOrchestrator = agentOrchestrator;
@@ -79,6 +82,7 @@ public class LocalAiOrchestratorController {
         this.conversationContextCache = conversationContextCache;
         this.runEventStreamService = runEventStreamService;
         this.runSubmissionService = runSubmissionService;
+        this.replyPersistenceService = replyPersistenceService;
     }
 
     @GetMapping(value = "/models", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -258,6 +262,21 @@ public class LocalAiOrchestratorController {
                 .findOwned(runId, userId(principal))
                 .map(ApiResponses::ok)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found"));
+    }
+
+    /** Returns the durable reply after a stream reconnect fails or the browser is reopened. */
+    @GetMapping(value = "/runs/{runId}/result", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<BaseResponse<AgentRunResult>> getRunResult(
+            @PathVariable String runId, @AuthenticationPrincipal AuthPrincipal principal) {
+        AgentRunJob job = runSubmissionService
+                .findOwned(runId, userId(principal))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found"));
+        return replyPersistenceService
+                .findReply(runId)
+                .map(message -> ApiResponses.ok(new AgentRunResult(
+                        runId, job.getChatId(), job.getStatus().name(), message.getId(), message.getContent())))
+                .orElseGet(() -> ApiResponses.ok(new AgentRunResult(
+                        runId, job.getChatId(), job.getStatus().name(), null, null)));
     }
 
     private String approvalComment(JsonNode requestBody) {

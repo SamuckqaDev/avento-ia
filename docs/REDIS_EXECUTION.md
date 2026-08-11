@@ -17,7 +17,7 @@ Agora o envio e a observacao sao operacoes diferentes:
 4. o worker le o payload duravel no PostgreSQL e executa o agente;
 5. cada chunk e evento e publicado em `avento:events:{runId}`;
 6. `GET /api/ai/runs/{runId}/events` entrega esses eventos ao navegador por SSE;
-7. o resultado final continua sendo salvo como mensagem pelo fluxo normal do chat.
+7. antes do evento terminal, o backend salva a resposta visível como mensagem durável pelo `runId`.
 
 ```mermaid
 sequenceDiagram
@@ -147,9 +147,17 @@ Cada run possui seu proprio Stream. Assim uma conversa nova nao precisa reler mi
 runs antigos para encontrar os seus eventos. O TTL padrao e 24 horas e e renovado no evento
 terminal; PostgreSQL continua sendo a fonte duravel da conversa e do estado do job.
 
-O Redis gera o `id` de cada entrada. O navegador pode enviar `Last-Event-ID` ao reconectar para
-continuar depois do ultimo evento recebido. O stream encerra em conclusao, falha, cancelamento ou
-pedido de aprovacao. A aprovacao usa a rota existente e continua o mesmo `runId`.
+O Redis gera o `id` de cada entrada. O navegador envia `Last-Event-ID` ao reconectar para continuar
+depois do ultimo evento recebido. Antes de publicar `agent.run.completed`, o
+`RunReplyPersistenceService` grava a resposta visível no PostgreSQL com `messages.run_id` único.
+Assim uma queda transitória do SSE não perde a resposta nem cria cópia na reprodução dos eventos.
+O stream encerra em conclusao, falha, cancelamento ou pedido de aprovacao. A aprovacao usa a rota
+existente e continua o mesmo `runId`.
+
+Se a reconexão não funcionar, o frontend consulta `GET /api/ai/runs/{runId}/result`. A rota valida
+o proprietário em `agent_run_jobs` e devolve a mensagem durável quando ela existir. Uma falha de
+ferramenta que ainda gerou um relatório útil termina como concluída para o usuário; a timeline
+mantém o evento `tool.failed`. Uma run só fica `FAILED` quando não foi possível gerar resposta segura.
 
 Durante um replay, `tool.approval.required` e comparado com a timeline persistida e o estado do job.
 Pedidos pertencentes a runs terminais ou que ja tenham evento `accepted`, `rejected` ou
@@ -160,8 +168,9 @@ duplicados criados por uma versao anterior.
 Ao abrir uma conversa, o frontend consulta `GET /api/ai/runs/active/{chatId}`. O endpoint le
 `agent_run_jobs`, e nao o registro em memoria do processo Java. Se houver um run ativo, a tela
 restaura imediatamente o indicador de processamento e reconecta ao Stream daquele `runId`; eventos
-anteriores reconstroem o texto parcial. Se a pagina foi recarregada, a resposta recuperada tambem e
-persistida quando o evento terminal chegar.
+anteriores reconstroem o texto parcial. Se a pagina foi recarregada e a reconexao falhar, ela busca
+a resposta durável pelo `runId`; a persistência de respostas assíncronas pertence ao backend, não ao
+navegador.
 
 Jobs de imagem sao restaurados separadamente por `GET /api/images/chat/{chatId}`. Isso permite
 mostrar novamente o cartao, progresso e resultado mesmo quando o marcador textual da ferramenta

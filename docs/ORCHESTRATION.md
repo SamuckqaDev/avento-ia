@@ -10,6 +10,7 @@ O Avento usa um unico caminho assincrono para executar solicitacoes com ferramen
 6. `ToolExecutionGateway` chama o provider local/MCP e valida o resultado.
 7. `RedisRunEventPublisher` publica chunks e eventos no Stream isolado `avento:events:{runId}`.
 8. `RunEventStreamService` entrega o run por SSE somente ao proprietario.
+9. `RunReplyPersistenceService` salva uma resposta visível por `runId` antes do evento terminal.
 
 Cada execucao carrega `userId`, `chatId` e `runId` em `ToolExecutionContext`. Clientes MCP,
 workspaces, permissoes lembradas, aprovacoes, processos, runs e timeline usam esse escopo; dados de
@@ -66,6 +67,7 @@ versionados em `application.yml` e podem ser substituidos por variaveis `AVENTO_
 
 - `GET /api/ai/runs`: lista ate 50 execucoes recentes do usuario autenticado.
 - `GET /api/ai/runs/{runId}`: retorna uma execucao pertencente ao usuario ou `404`.
+- `GET /api/ai/runs/{runId}/result`: recupera a resposta durável se a conexão SSE caiu.
 - `POST /api/ai/runs`: cria um job assincrono e retorna `202` com o `runId`.
 - `GET /api/ai/runs/{runId}/events`: acompanha o job por SSE autenticado.
 - `POST /api/ai/runs/{runId}/cancel`: solicita cancelamento e interrompe o worker ativo.

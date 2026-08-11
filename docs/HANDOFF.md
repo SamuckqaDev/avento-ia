@@ -202,7 +202,7 @@ O stack trace que apareceu era o *tratador de exceção falhando*, não a falha:
 `BaseResponse` JSON num canal já marcado como `text/event-stream`, não achou conversor, e estourou —
 soterrando o erro original.
 
-Três consertos:
+Três consertos históricos (posteriormente substituídos pela persistência imediata por `runId`):
 
 - **`OrphanReplyRescue`** (novo): acumula o texto que vai para a tela e, ao fim do run, agenda uma
   checagem. Passado o prazo (`avento.agent.orphan-reply-grace`, 20s), se a última mensagem do chat

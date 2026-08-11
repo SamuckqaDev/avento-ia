@@ -1531,13 +1531,12 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
 
   const handleResumedRunCompleted = useCallback(async (response: string, context: ChatStreamContext) => {
     if (context.chatId === null || !response.trim()) return;
-    await saveMessageToDB('assistant', response, undefined, undefined, context.chatId);
     streamDraftsRef.current.delete(context.chatId);
     if (response.includes('[[avento-image-job:') || response.includes('/api/media/')
         || response.includes('```ui-preview')) {
       await loadMedia(context.chatId);
     }
-  }, [loadMedia, saveMessageToDB]);
+  }, [loadMedia]);
 
   const { sendMessage, sendApproval, generatingChatIds, abortGeneration, resumeChat } = useChatStream(
     handleChunkReceived,
@@ -2202,7 +2201,8 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
         }
       }
 
-      await saveMessageToDB('assistant', responseToPersist, undefined, undefined, activeChatId);
+      // A execução assíncrona já persistiu a resposta pelo runId antes de fechar o SSE. O frontend
+      // apenas exibe o stream; gravar de novo aqui criaria duas mensagens quando a conexão está saudável.
       streamDraftsRef.current.delete(activeChatId);
       if (finalResponse.includes('/api/media/') || finalResponse.includes('```ui-preview')) {
         await loadMedia(activeChatId);

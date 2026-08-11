@@ -28,7 +28,7 @@ public class AgentOrchestrator {
     private final ObjectMapper mapper;
     private final AgentTimelineService timelineService;
     private final RunEventPublisher eventPublisher;
-    private final OrphanReplyRescue orphanReplyRescue;
+    private final RunReplyPersistenceService replyPersistenceService;
 
     public AgentOrchestrator(AgentExecutionEngine agentService, AgentRunRegistry runRegistry, ObjectMapper mapper) {
         this(
@@ -37,13 +37,11 @@ public class AgentOrchestrator {
                 mapper,
                 new AgentTimelineService(Optional.empty()),
                 (runId, userId, chatId, raw) -> {},
-                // Sem repositorio a rede de seguranca vira no-op: comportamento identico ao de
-                // antes dela existir, que e o que os testes que montam isto a mao esperam.
-                new OrphanReplyRescue(
+                // Sem repositório o adaptador de testes continua sem efeitos de persistência.
+                new RunReplyPersistenceService(
                         (com.avento.model.MessageRepository) null,
                         (com.avento.model.ChatRepository) null,
-                        mapper,
-                        java.time.Duration.ofSeconds(20)));
+                        mapper));
     }
 
     @Autowired
@@ -53,13 +51,13 @@ public class AgentOrchestrator {
             ObjectMapper mapper,
             AgentTimelineService timelineService,
             RunEventPublisher eventPublisher,
-            OrphanReplyRescue orphanReplyRescue) {
+            RunReplyPersistenceService replyPersistenceService) {
         this.agentService = agentService;
         this.runRegistry = runRegistry;
         this.mapper = mapper;
         this.timelineService = timelineService;
         this.eventPublisher = eventPublisher;
-        this.orphanReplyRescue = orphanReplyRescue;
+        this.replyPersistenceService = replyPersistenceService;
     }
 
     public Flux<String> stream(
@@ -85,7 +83,6 @@ public class AgentOrchestrator {
             UUID userId) {
         logger.info("Agent run {} starting for chat {} with model {}", runId, chatId, model);
         runRegistry.start(runId, latestUserMessage(messages), workspaceRoots, userId);
-        orphanReplyRescue.onRunStarted(runId);
         timelineService.registerRun(runId, userId, chatId);
         String startedEvent = runStartedEvent(runId);
         eventPublisher.publish(runId, userId, chatId, startedEvent);
@@ -93,30 +90,30 @@ public class AgentOrchestrator {
                 .streamChat(model, messages, workspaceRoots, imageModel, imageOptions, runId, chatId, userId)
                 .doOnNext(chunk -> {
                     runRegistry.observe(runId, chunk);
-                    orphanReplyRescue.observe(runId, chunk);
+                    replyPersistenceService.observe(runId, chunk);
                     eventPublisher.publish(runId, userId, chatId, chunk);
                 })
                 .doOnComplete(() -> {
                     logger.info("Agent run {} completed", runId);
+                    boolean replyPersisted = replyPersistenceService.persistCompletedReply(runId, chatId);
                     runRegistry.finish(runId);
-                    // A resposta pode ter ficado sem dono se o cliente caiu no meio; ver a classe.
-                    orphanReplyRescue.onRunFinished(runId, chatId);
-                    // O evento terminal precisa sair SEMPRE que o fluxo acaba. Antes so saia com
-                    // status exatamente COMPLETED, e finish() preserva FAILED/CANCELLED — entao uma
-                    // run que terminou por falha repetida de ferramenta completava sem erro, sem
-                    // status COMPLETED e sem publicar nada. Como o SSE so fecha em
-                    // agent.run.completed|failed|cancelled (ver RunEventStreamService), o navegador
-                    // ficava girando para sempre enquanto o servidor ja tinha terminado. O log dizia
-                    // "completed" porque a linha acima e incondicional, o que escondia o problema.
+                    // Uma falha de ferramenta ainda pode resultar em um relatório útil. Nesse caso
+                    // a resposta já está durável antes do evento terminal e a run termina como
+                    // concluída para o usuário, preservando a falha na timeline.
                     runRegistry.find(runId).ifPresent(snapshot -> {
                         switch (snapshot.status()) {
-                            case FAILED ->
+                            case FAILED -> {
+                                if (replyPersisted) {
+                                    eventPublisher.publish(runId, userId, chatId, runCompletedEvent(runId));
+                                    return;
+                                }
                                 eventPublisher.publish(
                                         runId,
                                         userId,
                                         chatId,
                                         lifecycleEvent(
                                                 "agent.run.failed", "Execução encerrada após falha", runId, runId));
+                            }
                             case CANCELLED ->
                                 eventPublisher.publish(
                                         runId,
@@ -133,6 +130,7 @@ public class AgentOrchestrator {
                 .doOnError(error -> {
                     logger.warn("Agent run {} failed: {}", runId, error.getMessage());
                     runRegistry.fail(runId);
+                    replyPersistenceService.persistFailureReply(runId, chatId, error.getMessage());
                     eventPublisher.publish(runId, userId, chatId, runFailedEvent(runId, error));
                 });
         return Flux.concat(Flux.just(startedEvent), execution);

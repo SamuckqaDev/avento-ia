@@ -560,19 +560,16 @@ dispara alarme falso justamente quando o roteamento esta correto.
 
 ## A resposta sobrevive ao cliente
 
-Quem grava a resposta do assistente e o FRONTEND, depois de consumir o stream SSE. Enquanto o
-navegador fica aberto isso funciona; quando a conexao cai, nao. Um run de 11 minutos completou com a
-resposta pronta e ela nao existia em lugar nenhum — o cliente tinha desistido 69 segundos antes do
-fim, e o servidor jogou fora o que produziu porque ninguem confirmou o recebimento.
+O backend grava a resposta do assistente antes de publicar o evento terminal. Assim o navegador
+mostra os deltas pelo SSE, mas nao decide se a mensagem existe. `RunReplyPersistenceService`
+acumula apenas o conteúdo visível, persiste uma única `Message` por `runId` e toca o chat na mesma
+transação. A unicidade de `messages.run_id` torna replays do Redis inofensivos.
 
-`OrphanReplyRescue` (avento-agent, pacote `orchestration`) acumula o texto que sai no stream e, ao
-fim do run, agenda uma checagem. Passado o prazo (`avento.agent.orphan-reply-grace`, 20s), se a
-ultima mensagem do chat ainda for do USUARIO, a resposta e gravada ali.
-
-E uma REDE DE SEGURANCA, nao a troca do modelo de persistencia: o caminho normal continua sendo o
-frontend gravar, e so entra aqui o que se perderia. O prazo existe por isso — o frontend grava logo
-depois de o stream fechar, e escrever no mesmo instante criaria mensagem duplicada. Sem repositorio o
-componente vira no-op, que e como os testes montam o orquestrador a mao.
+Se a conexão cair, o hook do chat reconecta usando `Last-Event-ID`; se a recuperação do transporte
+falhar, consulta `GET /api/ai/runs/{runId}/result`. Essa rota primeiro confere a propriedade do job
+e então devolve a resposta durável. Uma falha de ferramenta que gerou relatório continua visível ao
+usuário e preserva a falha detalhada na timeline; somente ausência de resposta segura torna a run
+falha terminal.
 
 Desconexao de cliente tambem deixou de ser erro. `AsyncRequestNotUsableException` ("Broken pipe" numa
 rota SSE) tem tratador proprio no `ApiExceptionHandler`: encerra sem corpo e loga em DEBUG. Antes caia

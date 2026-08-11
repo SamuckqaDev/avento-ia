@@ -14,6 +14,8 @@ export interface ChatStreamContext {
   chatId: number | null;
   requestId: string;
   runId?: string;
+  lastEventId?: string;
+  streamedContent?: string;
   resumed?: boolean;
 }
 
@@ -21,6 +23,14 @@ interface ActiveAgentRun {
   runId: string;
   chatId: number;
   status: 'QUEUED' | 'RUNNING' | 'WAITING_APPROVAL' | 'CANCEL_REQUESTED';
+}
+
+interface AgentRunResult {
+  runId: string;
+  chatId: number;
+  status: 'QUEUED' | 'RUNNING' | 'WAITING_APPROVAL' | 'CANCEL_REQUESTED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  messageId: number | null;
+  content: string | null;
 }
 
 export interface AgentActivityEvent {
@@ -115,6 +125,10 @@ async function fetchStreamWithCookie(input: RequestInfo | URL, init: RequestInit
   return fetch(input, requestInit);
 }
 
+function retryDelay(attempt: number): Promise<void> {
+  return new Promise(resolve => window.setTimeout(resolve, 300 * (attempt + 1)));
+}
+
 export function useChatStream(
   onChunkReceived: (chunk: ChunkData, context: ChatStreamContext) => void,
   onActivityEvent?: (event: AgentActivityEvent, context: ChatStreamContext) => void,
@@ -188,6 +202,10 @@ export function useChatStream(
 
       for (const line of lines) {
         if (line.trim() === '') continue;
+        if (line.startsWith('id:')) {
+          context.lastEventId = line.substring(3).trim();
+          continue;
+        }
         if (line.startsWith('data:')) {
           const dataStr = line.substring(5).trim();
           if (dataStr === '[DONE]') continue;
@@ -250,6 +268,7 @@ export function useChatStream(
               const sanitizedResponse = stripToolMarkup(nextResponse);
               if (looksLikeToolMarkup(visibleChunk) || sanitizedResponse.length < nextResponse.length) {
                 fullResponse = sanitizedResponse;
+                context.streamedContent = fullResponse;
                 const currentDuration = ((Date.now() - startTime) / 1000).toFixed(1);
                 onChunkReceived({
                   content: fullResponse,
@@ -264,6 +283,7 @@ export function useChatStream(
 
               if (visibleChunk) estimatedRoundTokens++;
               fullResponse = nextResponse;
+              context.streamedContent = fullResponse;
               const currentDuration = ((Date.now() - startTime) / 1000).toFixed(1);
 
               onChunkReceived({
@@ -295,8 +315,51 @@ export function useChatStream(
       isFinal: true
     }, context);
 
+    context.streamedContent = fullResponse;
+
     return fullResponse;
   }, [onActivityEvent, onChunkReceived]);
+
+  const readRunEvents = useCallback(async (
+    runId: string,
+    startTime: number,
+    context: ChatStreamContext,
+    signal: AbortSignal,
+  ): Promise<string> => {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await fetchStreamWithCookie(`/api/ai/runs/${runId}/events`, {
+          method: 'GET',
+          signal,
+          headers: context.lastEventId ? { 'Last-Event-ID': context.lastEventId } : undefined,
+        });
+        if (!response.ok) {
+          throw new Error(`Erro do Servidor: ${response.status} ${await response.text()}`);
+        }
+        return await readStreamingResponse(response, startTime, context, context.streamedContent || '');
+      } catch (error) {
+        if ((error as Error)?.name === 'AbortError') throw error;
+        lastError = error;
+        if (attempt < 2) await retryDelay(attempt);
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('Não foi possível reconectar à execução.');
+  }, [readStreamingResponse]);
+
+  const recoverRunResult = useCallback(async (runId: string): Promise<string | undefined> => {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      try {
+        const { data } = await api.get<AgentRunResult>(`/api/ai/runs/${runId}/result`);
+        if (data.content?.trim()) return data.content;
+        if (data.status === 'FAILED' || data.status === 'CANCELLED') return undefined;
+      } catch (error: any) {
+        if (error?.response?.status === 404) return undefined;
+      }
+      if (attempt < 3) await retryDelay(attempt);
+    }
+    return undefined;
+  }, []);
 
 
   const sendMessage = useCallback(async (
@@ -350,23 +413,28 @@ export function useChatStream(
         activeStream.runId = submission.runId;
       }
 
-      const response = await fetchStreamWithCookie(`/api/ai/runs/${submission.runId}/events`, {
-        method: 'GET',
-        signal: abortController.signal
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Erro do Servidor: ${response.status} ${errText}`);
-      }
-
-      fullResponse = await readStreamingResponse(response, startTime, context);
+      fullResponse = await readRunEvents(submission.runId, startTime, context, abortController.signal);
       finishStream(context);
       return fullResponse;
     } catch (error: any) {
       if (error?.name === 'AbortError') {
         finishStream(context);
         return undefined;
+      }
+
+      const recovered = context.runId ? await recoverRunResult(context.runId) : undefined;
+      if (recovered) {
+        fullResponse = recovered;
+        onChunkReceived({
+          content: recovered,
+          thinking: '',
+          newText: '',
+          duration: ((Date.now() - startTime) / 1000).toFixed(1),
+          tokens: 0,
+          isFinal: true,
+        }, context);
+        finishStream(context);
+        return recovered;
       }
 
       console.error('Error in chat stream:', error);
@@ -380,7 +448,7 @@ export function useChatStream(
       }, context);
       finishStream(context);
     }
-  }, [finishStream, readStreamingResponse, onChunkReceived, startStream]);
+  }, [finishStream, onChunkReceived, readRunEvents, recoverRunResult, startStream]);
 
   const sendApproval = useCallback(async (
     approvalId: string,

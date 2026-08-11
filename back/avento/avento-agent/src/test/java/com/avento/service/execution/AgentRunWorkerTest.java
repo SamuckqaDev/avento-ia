@@ -83,7 +83,8 @@ class AgentRunWorkerTest {
                 null,
                 null,
                 null,
-                workspaceAccess);
+                workspaceAccess,
+                null);
     }
 
     @SuppressWarnings("unchecked")

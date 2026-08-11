@@ -4,7 +4,10 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "messages")
+@Table(
+        name = "messages",
+        indexes = {@Index(name = "idx_messages_run_id", columnList = "run_id")},
+        uniqueConstraints = {@UniqueConstraint(name = "uk_messages_run_id", columnNames = "run_id")})
 public class Message {
 
     @Id
@@ -25,6 +28,10 @@ public class Message {
 
     @Column(name = "document_names", columnDefinition = "TEXT")
     private String documentNames;
+
+    /** The asynchronous agent run that produced this assistant reply, when applicable. */
+    @Column(name = "run_id", length = 80)
+    private String runId;
 
     private LocalDateTime timestamp;
 
@@ -83,6 +90,14 @@ public class Message {
 
     public void setDocumentNames(String documentNames) {
         this.documentNames = documentNames;
+    }
+
+    public String getRunId() {
+        return runId;
+    }
+
+    public void setRunId(String runId) {
+        this.runId = runId;
     }
 
     public LocalDateTime getTimestamp() {

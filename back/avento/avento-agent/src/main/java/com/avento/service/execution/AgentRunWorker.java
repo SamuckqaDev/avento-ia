@@ -14,6 +14,7 @@ import com.avento.service.context.ConversationContextCache;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.orchestration.AgentOrchestrator;
 import com.avento.service.orchestration.AgentRunRegistry;
+import com.avento.service.orchestration.RunReplyPersistenceService;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -68,6 +69,7 @@ public class AgentRunWorker {
     private final AgentTimelineService timelineService;
     private final com.avento.service.execution.CronTaskScheduler cronTaskScheduler;
     private final WorkspaceAccessService workspaceAccessService;
+    private final RunReplyPersistenceService replyPersistenceService;
     private final String consumerName = "agent-" + UUID.randomUUID().toString().substring(0, 8);
     private final AtomicBoolean queueFailureLogged = new AtomicBoolean();
 
@@ -86,7 +88,8 @@ public class AgentRunWorker {
             ScheduledTaskRunRepository runRepository,
             AgentTimelineService timelineService,
             com.avento.service.execution.CronTaskScheduler cronTaskScheduler,
-            WorkspaceAccessService workspaceAccessService) {
+            WorkspaceAccessService workspaceAccessService,
+            RunReplyPersistenceService replyPersistenceService) {
         this.jobRepository = jobRepository;
         this.submissionService = submissionService;
         this.cancellationRegistry = cancellationRegistry;
@@ -102,6 +105,7 @@ public class AgentRunWorker {
         this.timelineService = timelineService;
         this.cronTaskScheduler = cronTaskScheduler;
         this.workspaceAccessService = workspaceAccessService;
+        this.replyPersistenceService = replyPersistenceService;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -271,6 +275,7 @@ public class AgentRunWorker {
                 submissionService.markCancelled(current);
             } else if (error.get() != null) {
                 submissionService.markFailed(current, error.get());
+                replyPersistenceService.persistFailureReply(job.getRunId(), job.getChatId(), errorMessage(error.get()));
                 // Publica SEMPRE, não só em timeout. Uma falha que só existe na coluna last_error é
                 // invisível: a interface não mostra nada e o sintoma vira "mandei e não aconteceu
                 // nada", com o motivo real (pasta ausente, modelo inexistente) escondido no banco.
@@ -367,9 +372,11 @@ public class AgentRunWorker {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             submissionService.markFailed(job, exception);
+            replyPersistenceService.persistFailureReply(job.getRunId(), job.getChatId(), errorMessage(exception));
             publishFailure(job, exception);
         } catch (Exception exception) {
             submissionService.markFailed(job, exception);
+            replyPersistenceService.persistFailureReply(job.getRunId(), job.getChatId(), errorMessage(exception));
             publishFailure(job, exception);
             sendToDeadLetter(job, exception);
         } finally {
@@ -451,6 +458,10 @@ public class AgentRunWorker {
                 job.getUserId(),
                 job.getChatId(),
                 contentChunk("\n> ❌ **Execução falhou:** " + detail + "\n"));
+    }
+
+    private String errorMessage(Throwable error) {
+        return error == null || error.getMessage() == null ? "Falha interna na execução." : error.getMessage();
     }
 
     private String contentChunk(String content) {

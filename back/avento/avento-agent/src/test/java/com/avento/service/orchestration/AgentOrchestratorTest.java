@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import reactor.core.publisher.Flux;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
@@ -60,11 +61,10 @@ class AgentOrchestratorTest {
                 mapper,
                 new AgentTimelineService(java.util.Optional.empty()),
                 (runId, userId, chatId, raw) -> published.add(raw),
-                new OrphanReplyRescue(
+                new RunReplyPersistenceService(
                         (com.avento.model.MessageRepository) null,
                         (com.avento.model.ChatRepository) null,
-                        new tools.jackson.databind.ObjectMapper(),
-                        java.time.Duration.ofSeconds(20)));
+                        new tools.jackson.databind.ObjectMapper()));
         ArrayNode messages = mapper.createArrayNode();
         messages.addObject().put("role", "user").put("content", "pesquisa isso pra mim");
 
@@ -75,6 +75,36 @@ class AgentOrchestratorTest {
         assertTrue(
                 published.stream().anyMatch(event -> event.contains("agent.run.failed")),
                 "sem evento terminal o SSE nunca fecha e a interface trava: " + published);
+    }
+
+    @Test
+    void completesForTheUserWhenAToolFailsButTheAgentReturnsAReport() {
+        List<String> published = new ArrayList<>();
+        AgentRunRegistry registry = new AgentRunRegistry(mapper);
+        com.avento.model.MessageRepository messages = Mockito.mock(com.avento.model.MessageRepository.class);
+        Mockito.when(messages.findByRunId("run_report")).thenReturn(java.util.Optional.empty());
+        Mockito.when(messages.saveAndFlush(Mockito.any())).thenAnswer(invocation -> {
+            com.avento.model.Message message = invocation.getArgument(0);
+            message.setId(55L);
+            return message;
+        });
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+                new ToolFailureWithReportEngine(registry),
+                registry,
+                mapper,
+                new AgentTimelineService(java.util.Optional.empty()),
+                (runId, userId, chatId, raw) -> published.add(raw),
+                new RunReplyPersistenceService(messages, null, mapper));
+        ArrayNode input = mapper.createArrayNode();
+        input.addObject().put("role", "user").put("content", "verifique o projeto");
+
+        orchestrator.streamWithRunId(
+                        "run_report", "qwen", input, List.of(), "", ImageGenerationOptions.defaults(), 9L, null)
+                .collectList()
+                .block();
+
+        assertTrue(published.stream().anyMatch(event -> event.contains("agent.run.completed")));
+        assertTrue(published.stream().noneMatch(event -> event.contains("agent.run.failed")));
     }
 
     /** Emite falha de ferramenta e encerra sem erro — o caminho que travava. */
@@ -97,6 +127,40 @@ class AgentOrchestratorTest {
                 UUID userId) {
             return Flux.just("{\"avento_event\":{\"type\":\"agent.tool.repeated_failure\"}}")
                     .doOnNext(chunk -> registry.fail(runId));
+        }
+
+        @Override
+        public Flux<String> approveTool(String approvalId, String comment) {
+            return Flux.empty();
+        }
+
+        @Override
+        public Flux<String> rejectTool(String approvalId, String comment) {
+            return Flux.empty();
+        }
+    }
+
+    private static class ToolFailureWithReportEngine implements AgentExecutionEngine {
+        private final AgentRunRegistry registry;
+
+        ToolFailureWithReportEngine(AgentRunRegistry registry) {
+            this.registry = registry;
+        }
+
+        @Override
+        public Flux<String> streamChat(
+                String model,
+                ArrayNode messages,
+                List<String> workspaceRoots,
+                String imageModel,
+                ImageGenerationOptions imageOptions,
+                String runId,
+                Long chatId,
+                UUID userId) {
+            return Flux.just(
+                            "{\"avento_event\":{\"type\":\"tool.failed\"}}",
+                            "{\"choices\":[{\"delta\":{\"content\":\"O caminho não foi autorizado.\"}}]}")
+                    .doOnNext(chunk -> registry.observe(runId, chunk));
         }
 
         @Override

@@ -38,6 +38,10 @@ function sseData(payload: unknown): string {
   return `data: ${JSON.stringify(payload)}\n`;
 }
 
+function sseEvent(id: string, payload: unknown): string {
+  return `id: ${id}\n${sseData(payload)}`;
+}
+
 function contentDelta(content: string): string {
   return sseData({ choices: [{ delta: { content } }] });
 }
@@ -138,6 +142,46 @@ describe('useChatStream — leitura do stream SSE', () => {
     expect(response).toBe('feito');
     expect(events.map(event => event.type)).toEqual(['agent.round.started', 'tool.approval.required']);
     expect(events[1].approvalId).toBe('ap_1');
+  });
+
+  it('guarda o último id SSE para reconectar sem repetir eventos', async () => {
+    const hook = setup(streamOf(sseEvent('173-0', { choices: [{ delta: { content: 'feito' } }] })));
+
+    await send(hook);
+
+    expect(finalChunk().content).toBe('feito');
+  });
+
+  it('reconecta a stream usando o último evento recebido e preserva o texto parcial', async () => {
+    const encoder = new TextEncoder();
+    let reads = 0;
+    const interrupted = {
+      ok: true,
+      status: 200,
+      body: {
+        getReader: () => ({
+          read: async () => {
+            reads += 1;
+            if (reads === 1) {
+              return { done: false, value: encoder.encode(sseEvent('17-0', { choices: [{ delta: { content: 'parte 1 ' } }] })) };
+            }
+            throw new TypeError('conexão interrompida');
+          },
+        }),
+      },
+    } as unknown as Response;
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(interrupted)
+      .mockResolvedValueOnce(streamOf(sseEvent('18-0', { choices: [{ delta: { content: 'parte 2' } }] })));
+    vi.stubGlobal('fetch', fetch);
+    chunks = [];
+    events = [];
+    const hook = renderHook(() => useChatStream(chunk => chunks.push(chunk)));
+
+    const response = await send(hook);
+
+    expect(response).toBe('parte 1 parte 2');
+    expect(fetch.mock.calls[1][1]?.headers).toEqual({ 'Last-Event-ID': '17-0' });
   });
 
   // O contador mostrava chunks como se fossem tokens. eval_count é o número real, e quando ele

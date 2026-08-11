@@ -24,13 +24,17 @@ class ScheduledTaskExecutionReporterTest {
     @Mock
     private ScheduledTaskRunRepository runRepository;
 
+    @Mock
+    private ScheduledTaskLifecycleService lifecycleService;
+
     @Test
     void recordsTheExactFailureStageAndReasonInTheTaskAndItsHistory() {
         ScheduledTask task = new ScheduledTask();
         ScheduledTaskRun run = new ScheduledTaskRun();
         when(taskRepository.findById(62L)).thenReturn(Optional.of(task));
         when(runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(62L)).thenReturn(List.of(run));
-        ScheduledTaskExecutionReporter reporter = new ScheduledTaskExecutionReporter(taskRepository, runRepository);
+        ScheduledTaskExecutionReporter reporter =
+                new ScheduledTaskExecutionReporter(taskRepository, runRepository, lifecycleService);
 
         reporter.recordFailure(
                 62L,
@@ -49,5 +53,6 @@ class ScheduledTaskExecutionReporterTest {
         assertThat(run.getError()).isEqualTo("Google Chrome não respondeu ao AppleScript.");
         verify(taskRepository).save(task);
         verify(runRepository).save(run);
+        verify(lifecycleService).archiveAfterTerminalResult(62L);
     }
 }

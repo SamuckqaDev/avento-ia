@@ -82,6 +82,7 @@ public class AgentService implements AgentExecutionEngine {
     private final Set<String> thinkingCapableModels;
     private static final Pattern TEXTUAL_FUNCTION_PATTERN =
             Pattern.compile("\\{\\s*function\\s+<([A-Za-z0-9_-]+)>\\s+(\\{.*})\\s*}", Pattern.DOTALL);
+    private static final Pattern HTTP_URL_PATTERN = Pattern.compile("https?://[^\\s<>()]+", Pattern.CASE_INSENSITIVE);
     // The model-facing instructions live in editable resource files rather than a
     // large Java string. Keep this loader as the single authoritative composition
     // point because frontend system messages are intentionally discarded later.
@@ -2685,6 +2686,10 @@ public class AgentService implements AgentExecutionEngine {
         if (wantsNewBrowserTab(normalized) && isKnownBrowser(appName)) {
             ObjectNode arguments = mapper.createObjectNode();
             arguments.put("browserName", appName);
+            String url = requestedBrowserUrl(lastUserMessage, normalized);
+            if (url != null) {
+                arguments.put("url", url);
+            }
             return new ToolCall(
                     "call_direct_" + UUID.randomUUID().toString().substring(0, 8), "open_browser_tab", arguments);
         }
@@ -2748,7 +2753,24 @@ public class AgentService implements AgentExecutionEngine {
                 "new tab",
                 "new page",
                 "nova pagina",
-                "novo separador");
+                "novo separador",
+                "abra uma aba",
+                "abre uma aba",
+                "abrir uma aba",
+                "abra uma guia",
+                "abre uma guia",
+                "abrir uma guia");
+    }
+
+    private String requestedBrowserUrl(String directRequest, String normalizedRequest) {
+        Matcher urlMatcher = HTTP_URL_PATTERN.matcher(directRequest);
+        if (urlMatcher.find()) {
+            return urlMatcher.group();
+        }
+        if (MessageText.containsAny(normalizedRequest, "youtube", "youtu be")) {
+            return "https://www.youtube.com";
+        }
+        return null;
     }
 
     private boolean wantsBrowserTabClose(String normalizedMessage) {

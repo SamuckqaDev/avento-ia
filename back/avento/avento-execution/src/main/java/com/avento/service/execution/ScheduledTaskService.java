@@ -40,6 +40,7 @@ public class ScheduledTaskService {
             Long chatId,
             String projectPath,
             Long onSuccessTaskId,
+            boolean runOnce,
             UUID userId) {
         ScheduledTask task = new ScheduledTask();
         task.setName(name);
@@ -49,6 +50,7 @@ public class ScheduledTaskService {
         task.setChatId(chatId);
         task.setProjectPath(projectPath);
         task.setOnSuccessTaskId(onSuccessTaskId);
+        task.setRunOnce(runOnce);
         task.setUserId(userId);
         task.setStatus(ScheduledTask.TaskStatus.ACTIVE);
         task.setLastRunStatus(ScheduledTask.RunStatus.IDLE);
@@ -57,7 +59,11 @@ public class ScheduledTaskService {
         task.setNextRunAt(nextRun);
 
         logger.info(
-                "Criando tarefa repetitiva '{}' com cron '{}'. Próxima execução: {}", name, cronExpression, nextRun);
+                "Criando tarefa {} '{}' com cron '{}'. Próxima execução: {}",
+                runOnce ? "pontual" : "recorrente",
+                name,
+                cronExpression,
+                nextRun);
         return repository.save(task);
     }
 
@@ -70,7 +76,7 @@ public class ScheduledTaskService {
             Long chatId,
             String projectPath,
             UUID userId) {
-        return createTask(name, description, cronExpression, prompt, chatId, projectPath, null, userId);
+        return createTask(name, description, cronExpression, prompt, chatId, projectPath, null, false, userId);
     }
 
     @Transactional
@@ -82,6 +88,7 @@ public class ScheduledTaskService {
             String prompt,
             String projectPath,
             Long onSuccessTaskId,
+            boolean runOnce,
             UUID userId) {
         ScheduledTask task = repository
                 .findByIdAndUserId(id, userId)
@@ -93,6 +100,8 @@ public class ScheduledTaskService {
         task.setPrompt(prompt);
         task.setProjectPath(projectPath);
         task.setOnSuccessTaskId(onSuccessTaskId);
+        task.setRunOnce(runOnce);
+        task.setStatus(ScheduledTask.TaskStatus.ACTIVE);
 
         LocalDateTime nextRun = calculateNextRun(cronExpression);
         task.setNextRunAt(nextRun);
@@ -109,7 +118,7 @@ public class ScheduledTaskService {
             String prompt,
             String projectPath,
             UUID userId) {
-        return updateTask(id, name, description, cronExpression, prompt, projectPath, null, userId);
+        return updateTask(id, name, description, cronExpression, prompt, projectPath, null, false, userId);
     }
 
     @Transactional
@@ -117,6 +126,10 @@ public class ScheduledTaskService {
         ScheduledTask task = repository
                 .findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Tarefa agendada não encontrada"));
+
+        if (task.getStatus() == ScheduledTask.TaskStatus.COMPLETED) {
+            throw new IllegalStateException("Tarefa pontual concluída. Edite-a para agendá-la novamente.");
+        }
 
         if (task.getStatus() == ScheduledTask.TaskStatus.ACTIVE) {
             task.setStatus(ScheduledTask.TaskStatus.PAUSED);

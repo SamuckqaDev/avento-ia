@@ -42,7 +42,8 @@ public class ScheduledTaskController {
             String prompt,
             Long chatId,
             String projectPath,
-            Long onSuccessTaskId) {}
+            Long onSuccessTaskId,
+            boolean runOnce) {}
 
     public record UpdateTaskRequest(
             String name,
@@ -50,7 +51,8 @@ public class ScheduledTaskController {
             String cronExpression,
             String prompt,
             String projectPath,
-            Long onSuccessTaskId) {}
+            Long onSuccessTaskId,
+            boolean runOnce) {}
 
     @GetMapping
     public ResponseEntity<List<ScheduledTask>> listTasks(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -81,6 +83,7 @@ public class ScheduledTaskController {
                 req.chatId(),
                 req.projectPath(),
                 req.onSuccessTaskId(),
+                req.runOnce(),
                 principal.userId());
         return ResponseEntity.ok(created);
     }
@@ -99,6 +102,7 @@ public class ScheduledTaskController {
                 req.prompt(),
                 req.projectPath(),
                 req.onSuccessTaskId(),
+                req.runOnce(),
                 principal.userId());
         return ResponseEntity.ok(updated);
     }

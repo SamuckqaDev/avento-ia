@@ -43,6 +43,15 @@ historico com o `runId`, a etapa em que falhou, o motivo retornado e a trilha da
 tambem vale para tarefas de automacao do macOS sem projeto associado: sem workspace, as ferramentas
 de arquivo seguem bloqueadas pelo sandbox, mas abrir uma aba ou aplicativo pode ser executado.
 
+Uma tarefa criada como **Data Específica** é pontual (`runOnce`). Depois de receber sucesso ou
+falha, ela sai da agenda ativa e fica como concluída, sem perder o último retorno nem o histórico.
+Se o Avento estiver desligado e o horário pontual vencer por mais de um minuto, ela também é
+arquivada sem ser executada, com o motivo registrado no histórico. Agendamentos diários, por
+intervalo e Cron manual continuam recorrentes. Para automações diretas do navegador, o Cowork marca
+o pedido original no envelope; assim “abra uma aba no YouTube no Chrome” chama a ferramenta de aba
+com `Google Chrome` e `https://www.youtube.com`, em vez de confundir a instrução interna com um
+comando de Terminal.
+
 ## Indicador visual de voz
 
 Durante a reproducao de TTS, o chat mostra o mascote flutuante do Avento. Ele combina movimento

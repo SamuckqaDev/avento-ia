@@ -23,7 +23,8 @@ export interface ScheduledTask {
   chatId?: number;
   projectPath?: string;
   onSuccessTaskId?: number | null;
-  status: 'ACTIVE' | 'PAUSED';
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+  runOnce: boolean;
   lastRunStatus: 'IDLE' | 'RUNNING' | 'SUCCESS' | 'FAILED';
   lastRunAt?: string;
   nextRunAt?: string;
@@ -201,7 +202,7 @@ export function CoworkView() {
     try {
       if (isInitialLoad) setIsLoading(true);
       const { data } = await api.get<ScheduledTask[]>('/api/scheduled-tasks');
-      setTasks(data);
+      setTasks(data.filter(task => task.status !== 'COMPLETED'));
     } catch (e) {
       console.error('Erro ao carregar tarefas agendadas', e);
     } finally {
@@ -287,7 +288,8 @@ export function CoworkView() {
                   cronExpression: t.cronExpression,
                   prompt: t.prompt,
                   projectPath: t.projectPath || '',
-                  onSuccessTaskId: t.onSuccessTaskId || null
+                  onSuccessTaskId: t.onSuccessTaskId || null,
+                  runOnce: Boolean(t.runOnce)
                 });
               }
             }
@@ -347,7 +349,8 @@ export function CoworkView() {
           cronExpression: computedCron,
           prompt,
           projectPath,
-          onSuccessTaskId: targetChainedId
+          onSuccessTaskId: targetChainedId,
+          runOnce: freqMode === 'specific_date'
         });
       } else {
         await api.post('/api/scheduled-tasks', {
@@ -356,7 +359,8 @@ export function CoworkView() {
           cronExpression: computedCron,
           prompt,
           projectPath,
-          onSuccessTaskId: targetChainedId
+          onSuccessTaskId: targetChainedId,
+          runOnce: freqMode === 'specific_date'
         });
       }
       handleCloseModal();
@@ -935,7 +939,7 @@ export function CoworkView() {
                       </div>
                     </div>
                     <div className="cron-hint">
-                      Converte para expressão Cron: <code>{computedCron}</code>
+                      Executa uma única vez e sai da agenda ativa após terminar. Cron: <code>{computedCron}</code>
                     </div>
                   </SubInputPanel>
                 )}

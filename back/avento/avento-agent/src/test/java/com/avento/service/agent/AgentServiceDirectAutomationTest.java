@@ -1368,6 +1368,20 @@ class AgentServiceDirectAutomationTest {
     }
 
     @Test
+    void opensYoutubeInChromeWhenTheCoworkPromptContainsTheUserRequestMarker() throws Exception {
+        Object toolCall = detectToolCall("""
+                MODO AUTÔNOMO AGENDADO (Avento Cowork):
+                Tarefa: Chrome test
+                Instruções de execução: use terminal_run somente para comandos de projeto.
+                [Pedido do Usuário]
+                Abra uma aba no YouTube no navegador Google Chrome.
+                """);
+
+        assertToolCallArgument(toolCall, "open_browser_tab", "browserName", "Google Chrome");
+        assertToolCallArgument(toolCall, "open_browser_tab", "url", "https://www.youtube.com");
+    }
+
+    @Test
     void closesBrowserTabInsteadOfWholeBrowserForTabRequests() throws Exception {
         Object toolCall = detectToolCall("Fecha a aba da pesquisa no Brave.");
 

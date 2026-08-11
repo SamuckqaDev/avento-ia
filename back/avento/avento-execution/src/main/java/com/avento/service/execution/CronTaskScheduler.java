@@ -28,6 +28,7 @@ public class CronTaskScheduler {
     private final NotificationService notificationService;
     private final ScheduledTaskRunRepository runRepository;
     private final ObjectMapper objectMapper;
+    private final ScheduledTaskLifecycleService lifecycleService;
 
     public CronTaskScheduler(
             ScheduledTaskRepository repository,
@@ -35,18 +36,24 @@ public class CronTaskScheduler {
             AgentRunSubmissionService submissionService,
             NotificationService notificationService,
             ScheduledTaskRunRepository runRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ScheduledTaskLifecycleService lifecycleService) {
         this.repository = repository;
         this.taskService = taskService;
         this.submissionService = submissionService;
         this.notificationService = notificationService;
         this.runRepository = runRepository;
         this.objectMapper = objectMapper;
+        this.lifecycleService = lifecycleService;
     }
 
     @Scheduled(fixedDelay = 10000)
     public void processDueScheduledTasks() {
         LocalDateTime now = LocalDateTime.now();
+        int archivedTasks = lifecycleService.archiveExpiredOneShotTasks(now.minusMinutes(1));
+        if (archivedTasks > 0) {
+            logger.info("Arquivadas {} tarefa(s) pontual(is) cujo horário expirou.", archivedTasks);
+        }
         List<ScheduledTask> dueTasks = repository.findByStatusAndNextRunAtBefore(ScheduledTask.TaskStatus.ACTIVE, now);
 
         if (dueTasks.isEmpty()) {
@@ -77,11 +84,12 @@ public class CronTaskScheduler {
                     "prompt",
                     "MODO AUTÔNOMO AGENDADO (Avento Cowork):\n"
                             + "Tarefa: " + task.getName() + "\n"
-                            + "Instrução: " + task.getPrompt() + "\n"
                             + "Instruções de execução: use as ferramentas nativas para agir — `terminal_run`"
                             + " para comandos curtos (git, mvn, npm), `read_file`/`directory_tree` para ler o"
                             + " projeto, `fetch` para dados da web e `open_browser_tab` para abrir uma aba em"
-                            + " um navegador macOS. Mostre o resultado bruto retornado pelas ferramentas.");
+                            + " um navegador macOS. Mostre o resultado bruto retornado pelas ferramentas.\n"
+                            + "[Pedido do Usuário]\n"
+                            + task.getPrompt());
             payload.put("agentMode", true);
             ArrayNode roots = objectMapper.createArrayNode();
             // Sem pasta configurada não se inventa uma: o worker falha com uma mensagem que diz ao

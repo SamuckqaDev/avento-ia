@@ -18,17 +18,22 @@ public class ScheduledTaskExecutionReporter {
 
     private final ScheduledTaskRepository taskRepository;
     private final ScheduledTaskRunRepository runRepository;
+    private final ScheduledTaskLifecycleService lifecycleService;
 
     public ScheduledTaskExecutionReporter(
-            ScheduledTaskRepository taskRepository, ScheduledTaskRunRepository runRepository) {
+            ScheduledTaskRepository taskRepository,
+            ScheduledTaskRunRepository runRepository,
+            ScheduledTaskLifecycleService lifecycleService) {
         this.taskRepository = taskRepository;
         this.runRepository = runRepository;
+        this.lifecycleService = lifecycleService;
     }
 
     @Transactional
     public void recordSuccess(long taskId, String runId, String activityLog) {
         updateTask(taskId, ScheduledTask.RunStatus.SUCCESS, null, successDiagnosis(runId), activityLog);
         updateLatestRun(taskId, ScheduledTask.RunStatus.SUCCESS, activityLog, null);
+        lifecycleService.archiveAfterTerminalResult(taskId);
     }
 
     @Transactional
@@ -36,14 +41,11 @@ public class ScheduledTaskExecutionReporter {
         String report = failureReport(runId, stage, reason, activityLog);
         updateTask(taskId, ScheduledTask.RunStatus.FAILED, reason, report, report);
         updateLatestRun(taskId, ScheduledTask.RunStatus.FAILED, report, reason);
+        lifecycleService.archiveAfterTerminalResult(taskId);
     }
 
     private void updateTask(
-            long taskId,
-            ScheduledTask.RunStatus status,
-            String error,
-            String diagnosis,
-            String output) {
+            long taskId, ScheduledTask.RunStatus status, String error, String diagnosis, String output) {
         taskRepository.findById(taskId).ifPresent(task -> {
             task.setLastRunStatus(status);
             task.setLastRunError(error);
@@ -71,9 +73,15 @@ public class ScheduledTaskExecutionReporter {
 
     private String failureReport(String runId, String stage, String reason, String activityLog) {
         StringBuilder report = new StringBuilder("EXECUÇÃO AUTÔNOMA — FALHOU\n")
-                .append("Run: ").append(runId).append('\n')
-                .append("Onde falhou: ").append(stage).append('\n')
-                .append("Motivo: ").append(reason).append('\n');
+                .append("Run: ")
+                .append(runId)
+                .append('\n')
+                .append("Onde falhou: ")
+                .append(stage)
+                .append('\n')
+                .append("Motivo: ")
+                .append(reason)
+                .append('\n');
         if (activityLog != null && !activityLog.isBlank()) {
             report.append("\nTrilha da execução:\n").append(activityLog);
         }

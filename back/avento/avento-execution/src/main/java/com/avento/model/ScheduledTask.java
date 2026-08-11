@@ -26,7 +26,8 @@ public class ScheduledTask {
 
     public enum TaskStatus {
         ACTIVE,
-        PAUSED
+        PAUSED,
+        COMPLETED
     }
 
     public enum RunStatus {
@@ -63,6 +64,11 @@ public class ScheduledTask {
 
     @Column(name = "on_success_task_id")
     private Long onSuccessTaskId;
+
+    // A coluna aceita nulo na transição para que tarefas antigas continuem carregando; o getter
+    // as interpreta como recorrentes.
+    @Column(name = "run_once")
+    private Boolean runOnce = false;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -175,6 +181,14 @@ public class ScheduledTask {
 
     public void setOnSuccessTaskId(Long onSuccessTaskId) {
         this.onSuccessTaskId = onSuccessTaskId;
+    }
+
+    public boolean isRunOnce() {
+        return Boolean.TRUE.equals(runOnce);
+    }
+
+    public void setRunOnce(boolean runOnce) {
+        this.runOnce = runOnce;
     }
 
     public TaskStatus getStatus() {

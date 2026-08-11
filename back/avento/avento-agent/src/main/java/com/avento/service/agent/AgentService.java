@@ -3057,7 +3057,7 @@ public class AgentService implements AgentExecutionEngine {
             if (toolResult.has("error")) {
                 String error = toolResult.get("error").asText();
                 timelineService.record(runId, "tool.failed", toolCall.name(), error, toolResult);
-                sink.next(eventChunk("tool.failed", "Ferramenta indisponivel", toolCall.name() + ": " + error));
+                sink.next(eventChunk("tool.failed", toolFailureTitle(error), toolCall.name() + ": " + error));
                 return toolResult;
             }
             timelineService.record(
@@ -3078,6 +3078,21 @@ public class AgentService implements AgentExecutionEngine {
             error.put("error", e.getMessage());
             return error;
         }
+    }
+
+    private String toolFailureTitle(String error) {
+        return isInvalidPathError(error) ? "Caminho inválido" : "Ferramenta falhou";
+    }
+
+    private boolean isInvalidPathError(String error) {
+        if (error == null || error.isBlank()) {
+            return false;
+        }
+        String normalized = error.toLowerCase(Locale.ROOT);
+        return normalized.contains("path is not a directory")
+                || normalized.contains("path is not a file")
+                || normalized.contains("no such file")
+                || normalized.contains("does not exist");
     }
 
     private void emitGeneratedMediaCompletion(ToolCall toolCall, JsonNode toolResult, FluxSink<String> sink) {
@@ -3375,10 +3390,11 @@ public class AgentService implements AgentExecutionEngine {
         // Rodada final, sem ferramentas: responder com o contexto ja coletado em vez de descartar
         // tudo ao bater o limite. Marcada uma unica vez, senao o proprio fecho viraria outro loop.
         boolean finalSynthesis = false;
-        // Guarda contra insistir numa ferramenta quebrada: nome da última ferramenta que falhou e
-        // quantas vezes seguidas. Um sucesso zera. Ao bater no limite, o Avento para e explica em
-        // vez de gastar mais rodadas (~50s cada no modelo local) repetindo a mesma falha.
+        // Guarda contra insistir numa ferramenta quebrada: nome, detalhe e quantidade de falhas
+        // seguidas. Um sucesso zera. Ao bater no limite, o Avento para e explica em vez de gastar
+        // mais rodadas (~50s cada no modelo local) repetindo a mesma falha.
         String lastFailedTool = "";
+        String lastToolFailureDetail = "";
         int consecutiveToolFailures = 0;
         String lastToolCallSignature = "";
         int consecutiveIdenticalToolCalls = 0;

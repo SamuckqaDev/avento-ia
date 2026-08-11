@@ -22,6 +22,19 @@ Quando a conversa nao possui workspace, o backend nao injeta um bloco de ausenci
 evita que modelos locais pequenos desviem uma conversa comum para um aviso irrelevante; ferramentas
 de arquivos continuam bloqueadas pela autorizacao validada no backend.
 
+## Recuperacao de erros de ferramenta
+
+O agente aceita ate tres falhas consecutivas da mesma ferramenta. Entre a primeira e a segunda
+falha de caminho, ele recebe uma correcao no contexto: o caminho informado nao existe com o tipo
+esperado, a ferramenta continua disponivel e o proximo caminho deve vir somente de um resultado
+anterior de `directory_tree`, dentro das raizes autorizadas. Assim, um erro como `Path is not a
+directory` nao e comunicado ao modelo como indisponibilidade do servidor e ele pode se recuperar
+pela estrutura real do projeto.
+
+Na terceira falha consecutiva, a execucao termina de forma segura. O evento e a resposta final
+dizem se foram caminhos inexistentes ou uma falha tecnica da ferramenta, preservando o motivo para
+o chat e evitando continuar por caminhos inventados.
+
 ## Skills embutidas
 
 O `SkillRegistry` carrega procedimentos em `agent/skills/*.md` e skills pessoais em

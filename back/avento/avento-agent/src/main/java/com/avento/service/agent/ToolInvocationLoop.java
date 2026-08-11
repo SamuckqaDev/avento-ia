@@ -16,7 +16,7 @@ import tools.jackson.databind.node.ArrayNode;
  */
 final class ToolInvocationLoop {
 
-    private static final int REPEATED_TOOL_FAILURE_LIMIT = 2;
+    private static final int REPEATED_TOOL_FAILURE_LIMIT = 3;
 
     private final AgentPermissionService permissionService;
     private final AgentTimelineService timelineService;
@@ -87,6 +87,7 @@ final class ToolInvocationLoop {
                     state.executedToolCalls++;
                     JsonNode toolResult = operations.executeToolCall(messages, sink, toolCall, state.runId, state.userId);
                     recordToolOutcome(state, toolCall, toolResult);
+                    addPathRecoveryGuidance(messages, state, toolCall, toolResult);
                     operations.emitGeneratedMediaCompletion(toolCall, toolResult, sink);
                     if (operations.isMediaGenerationTool(toolCall)) {
                         mediaGenerationAttempted = true;
@@ -103,6 +104,7 @@ final class ToolInvocationLoop {
             state.executedToolCalls++;
             JsonNode toolResult = operations.executeToolCall(messages, sink, toolCall, state.runId, state.userId);
             recordToolOutcome(state, toolCall, toolResult);
+            addPathRecoveryGuidance(messages, state, toolCall, toolResult);
             operations.emitGeneratedMediaCompletion(toolCall, toolResult, sink);
             if (operations.isMediaGenerationTool(toolCall)) {
                 mediaGenerationAttempted = true;
@@ -126,15 +128,13 @@ final class ToolInvocationLoop {
         if (state.consecutiveToolFailures >= REPEATED_TOOL_FAILURE_LIMIT) {
             planApprovedRuns.remove(state.runId);
             String failedTool = state.lastFailedTool;
+            boolean invalidPath = isInvalidPathFailure(state.lastToolFailureDetail);
             sink.next(operations.eventChunk(
                     "agent.tool.repeated_failure",
-                    "Ferramenta falhando repetidamente",
-                    "A ferramenta " + failedTool + " falhou " + state.consecutiveToolFailures
-                            + " vezes seguidas; parando para não insistir."));
-            sink.next(operations.contentChunk("\n> A ferramenta `" + failedTool + "` falhou "
-                    + state.consecutiveToolFailures
-                    + " vezes seguidas — provavelmente está indisponível ou não conectada. Parei aqui em vez"
-                    + " de insistir. Verifique essa ferramenta ou me peça por outro caminho.\n"));
+                    invalidPath ? "Caminhos inválidos repetidos" : "Ferramenta falhando repetidamente",
+                    repeatedFailureDetail(failedTool, state.consecutiveToolFailures, invalidPath)));
+            sink.next(operations.contentChunk(repeatedFailureMessage(
+                    failedTool, state.consecutiveToolFailures, invalidPath, state.workspaceRoots)));
             sink.complete();
             return;
         }
@@ -164,11 +164,14 @@ final class ToolInvocationLoop {
         boolean failed = toolResult != null && toolResult.has("error");
         if (!failed) {
             state.lastFailedTool = "";
+            state.lastToolFailureDetail = "";
             state.consecutiveToolFailures = 0;
         } else if (toolName.equals(state.lastFailedTool)) {
+            state.lastToolFailureDetail = toolResult.path("error").asText("");
             state.consecutiveToolFailures++;
         } else {
             state.lastFailedTool = toolName;
+            state.lastToolFailureDetail = toolResult.path("error").asText("");
             state.consecutiveToolFailures = 1;
         }
 
@@ -179,6 +182,68 @@ final class ToolInvocationLoop {
             state.lastToolCallSignature = signature;
             state.consecutiveIdenticalToolCalls = 1;
         }
+    }
+
+    private void addPathRecoveryGuidance(
+            ArrayNode messages, AgentService.AgentRunState state, ToolCall toolCall, JsonNode toolResult) {
+        if (state.consecutiveToolFailures >= REPEATED_TOOL_FAILURE_LIMIT
+                || !usesFilesystemPath(toolCall)
+                || toolResult == null
+                || !isInvalidPathFailure(toolResult.path("error").asText(""))) {
+            return;
+        }
+        String attemptedPath = toolCall.arguments().path("path").asText("");
+        String roots = state.workspaceRoots == null || state.workspaceRoots.isEmpty()
+                ? "a raiz autorizada informada no contexto"
+                : String.join(", ", state.workspaceRoots);
+        messages.addObject()
+                .put("role", "user")
+                .put(
+                        "content",
+                        "[Correção de caminho do Avento] `" + attemptedPath
+                                + "` não existe com o tipo esperado. A ferramenta está funcionando. Não invente"
+                                + " variações desse path: use somente uma pasta ou arquivo confirmado pelo resultado"
+                                + " anterior de `directory_tree`. Raiz(es) autorizada(s): "
+                                + roots
+                                + ".");
+    }
+
+    private boolean usesFilesystemPath(ToolCall toolCall) {
+        return toolCall != null
+                && toolCall.arguments() != null
+                && toolCall.arguments().path("path").isTextual();
+    }
+
+    private boolean isInvalidPathFailure(String error) {
+        if (error == null || error.isBlank()) {
+            return false;
+        }
+        String normalized = error.toLowerCase(java.util.Locale.ROOT);
+        return normalized.contains("path is not a directory")
+                || normalized.contains("path is not a file")
+                || normalized.contains("no such file")
+                || normalized.contains("does not exist");
+    }
+
+    private String repeatedFailureDetail(String toolName, int failures, boolean invalidPath) {
+        if (invalidPath) {
+            return "A ferramenta " + toolName + " recebeu " + failures
+                    + " caminhos inexistentes seguidos; parando para não continuar por suposições.";
+        }
+        return "A ferramenta " + toolName + " falhou " + failures + " vezes seguidas; parando para não insistir.";
+    }
+
+    private String repeatedFailureMessage(String toolName, int failures, boolean invalidPath, List<String> workspaceRoots) {
+        if (invalidPath) {
+            String roots = workspaceRoots == null || workspaceRoots.isEmpty()
+                    ? "a pasta de projeto autorizada"
+                    : String.join(", ", workspaceRoots);
+            return "\n> A ferramenta `" + toolName + "` funcionou, mas recebeu " + failures
+                    + " caminhos inexistentes seguidos. Parei para não continuar inventando paths. Use a árvore"
+                    + " do projeto a partir de `" + roots + "` e tente novamente.\n";
+        }
+        return "\n> A ferramenta `" + toolName + "` falhou " + failures
+                + " vezes seguidas. Parei para não insistir; verifique o erro retornado ou tente outro caminho.\n";
     }
 
     interface Operations {

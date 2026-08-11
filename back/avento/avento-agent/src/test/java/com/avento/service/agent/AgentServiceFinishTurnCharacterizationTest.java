@@ -228,21 +228,21 @@ class AgentServiceFinishTurnCharacterizationTest extends AgentServiceCharacteriz
     // ── Ramo 5: guardas de repetição ───────────────────────────────────────────────────────────
 
     /**
-     * Se a MESMA ferramenta falhou duas vezes seguidas ({@code REPEATED_TOOL_FAILURE_LIMIT} = 2), o
+     * Se a MESMA ferramenta falhou três vezes seguidas ({@code REPEATED_TOOL_FAILURE_LIMIT} = 3), o
      * agente para e explica em vez de insistir. Cada rodada custa cerca de 50s no modelo local: um
      * "não deu" rápido e claro vale mais que ficar batendo numa ferramenta indisponível.
      *
      * <p><b>O contador não pode ser plantado de fora.</b> {@code recordToolOutcome} o recalcula
      * DENTRO do laço de execução, e só incrementa quando o nome bate com {@code lastFailedTool} —
      * ferramenta diferente zera para 1. Por isso este teste arma o estado como "read_file já falhou
-     * uma vez" e deixa a execução real levar a contagem a 2. Uma tentativa anterior de setar
-     * {@code consecutiveToolFailures = 3} direto não alcançava o ramo: o próprio laço sobrescrevia.
+     * duas vezes" e deixa a execução real levar a contagem a 3. Uma tentativa anterior de setar
+     * {@code consecutiveToolFailures = 4} direto não alcançava o ramo: o próprio laço sobrescrevia.
      */
     @Test
     void stopsInsteadOfInsistingOnAToolThatKeepsFailing() throws Exception {
         Object state = settledState();
         set(state, "lastFailedTool", "read_file");
-        set(state, "consecutiveToolFailures", 1);
+        set(state, "consecutiveToolFailures", 2);
 
         String emissions = emissionsOf(
                 userMessages("procura a classe AgentService"),
@@ -252,6 +252,7 @@ class AgentServiceFinishTurnCharacterizationTest extends AgentServiceCharacteriz
 
         assertThat(emissions).contains("agent.tool.repeated_failure");
         assertThat(emissions).contains("read_file");
+        assertThat(emissions).contains("falhou 3 vezes seguidas");
     }
 
     /**
@@ -288,9 +289,9 @@ class AgentServiceFinishTurnCharacterizationTest extends AgentServiceCharacteriz
      * <b>Ramo não alcançado, de propósito — registrado para quem vier depois.</b>
      *
      * <p>A orientação de "não repita a mesma chamada" ({@code consecutiveIdenticalToolCalls >= 2})
-     * está DEPOIS da guarda de falha repetida ({@code consecutiveToolFailures >= 2}). Como as duas
+     * está DEPOIS da guarda de falha repetida ({@code consecutiveToolFailures >= 3}). Como as duas
      * contagens sobem juntas quando a mesma ferramenta é chamada de novo e falha de novo, uma
-     * ferramenta que falha identicamente duas vezes sempre cai na guarda de falha e retorna antes.
+     * ferramenta que falha identicamente três vezes sempre cai na guarda de falha e retorna antes.
      *
      * <p>Alcançar a orientação exige uma ferramenta que tenha SUCESSO duas vezes com argumentos
      * idênticos — e no harness nenhuma ferramenta de arquivo tem sucesso, porque o
@@ -304,7 +305,7 @@ class AgentServiceFinishTurnCharacterizationTest extends AgentServiceCharacteriz
     void theRepeatedFailureGuardIsCheckedBeforeTheRepeatedCallGuidance() throws Exception {
         Object state = settledState();
         set(state, "lastFailedTool", "read_file");
-        set(state, "consecutiveToolFailures", 1);
+        set(state, "consecutiveToolFailures", 2);
         set(state, "consecutiveIdenticalToolCalls", 1);
 
         ArrayNode messages = userMessages("lê o arquivo a.txt");

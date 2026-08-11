@@ -99,9 +99,9 @@ Type `/skills` in the chat to list the available procedures. Skills with trigger
 | `/slow-agent-round` | Split prompt evaluation from generation before tuning anything |
 | `/docker-mcp-gateway-down` | The gateway is a Docker Desktop plugin, not a daemon feature |
 
-Built-in skills live in `back/avento/src/main/resources/agent/skills/`. Skills created through the interface are personal, live in `data/skills/`, and take priority without changing the source code.
+Built-in skills live in `back/avento/avento-workspace/src/main/resources/agent/skills/`. Skills created through the interface are personal, live in `data/skills/`, and take priority without changing the source code.
 
-The policies versioned in `back/avento/src/main/resources/agent/policies/` are the project's public configuration. A machine may keep a personal policy in `~/.avento/policies/{mode}.md`; when that file exists, the backend uses it instead of the built-in policy without including its content in Git. The instructions consumed by the model are written in English to improve adherence on local models; the interface and the responses stay in the user's language.
+The policies versioned in `back/avento/avento-agent/src/main/resources/agent/policies/` are the project's public configuration. A machine may keep a personal policy in `~/.avento/policies/{mode}.md`; when that file exists, the backend uses it instead of the built-in policy without including its content in Git. The instructions consumed by the model are written in English to improve adherence on local models; the interface and the responses stay in the user's language.
 
 For agents working on the repository itself, `AGENTS.md` points to the skills versioned in `.agents/skills/`. They cover the Java standard as well as security, database, MCP, async execution, frontend, media, voice, RAG, dependencies, finalization, and release.
 
@@ -297,7 +297,7 @@ The setup installs the ComfyUI runtime in `~/ComfyUI`. `scripts/setup-comfyui-sd
 
 Image and video use jobs persisted in PostgreSQL and separate local workers, both limited to one generation at a time to respect the machine's memory. The agent call returns immediately; the chat shows the step, estimated progress, elapsed time, remaining forecast, and cancellation. On completion, the file is registered in the conversation, the side gallery is refreshed, and the media appears minimized in the balloon itself.
 
-The video workflow lives in `back/avento/src/main/resources/comfyui/workflows/text-to-video-api.json`. It uses hybrid WAN 2.2: by default it animates the most recent image in the conversation; `mode=text` creates a video from scratch and `mode=image` requires a previous image. The backend validates the diffusion model, text encoder, and VAE before enqueueing the generation and saves the result as an animated WebP in `~/Pictures/Avento Generated Images`.
+The video workflow lives in `back/avento/avento-media/src/main/resources/comfyui/workflows/text-to-video-api.json`. It uses hybrid WAN 2.2: by default it animates the most recent image in the conversation; `mode=text` creates a video from scratch and `mode=image` requires a previous image. The backend validates the diffusion model, text encoder, and VAE before enqueueing the generation and saves the result as an animated WebP in `~/Pictures/Avento Generated Images`.
 
 Jobs interrupted by a backend restart are resumed. When a chat is deleted, Avento cancels active image and video jobs and also removes their records and files linked to the conversation.
 

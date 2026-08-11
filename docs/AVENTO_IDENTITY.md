@@ -2,7 +2,7 @@
 
 Este documento e a referencia publica para apresentar o Avento sem inventar autoria, capacidades ou
 estado de servicos. As instrucoes compactas realmente consumidas pelo modelo ficam em
-`back/avento/src/main/resources/agent/instructions/`.
+`back/avento/avento-agent/src/main/resources/agent/instructions/`.
 
 ## Origem e autoria
 

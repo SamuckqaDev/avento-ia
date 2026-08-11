@@ -37,13 +37,13 @@ São **19 ocorrências** de `localStorage` em `front/src`. Nenhuma foi introduzi
 
 | Chave | Onde está | Vai para | Por quê |
 |---|---|---|---|
-| `avento-theme` | [`App.tsx:22`](../../front/src/App.tsx:22), `:27` | **fica em localStorage** | única exceção autorizada |
-| `avento_avatar_url` | [`SettingsModal/index.tsx:129`](../../front/src/modules/layout/SettingsModal/index.tsx:129), `:507`; [`Sidebar/index.tsx:139`](../../front/src/modules/layout/Sidebar/index.tsx:139), `:170` | **banco**, em `UserAccount` | é dado da pessoa |
-| `SELECTED_MODEL_KEY` | [`pages/Home/index.tsx:106`](../../front/src/pages/Home/index.tsx:106), `:776` | **cookie** | preferência de navegador |
+| `avento-theme` | [`App.tsx`](../../front/src/App.tsx#L22), `:27` | **fica em localStorage** | única exceção autorizada |
+| `avento_avatar_url` | [`SettingsModal/index.tsx`](../../front/src/modules/layout/SettingsModal/index.tsx#L129), `:507`; [`Sidebar/index.tsx`](../../front/src/modules/layout/Sidebar/index.tsx#L139), `:170` | **banco**, em `UserAccount` | é dado da pessoa |
+| `SELECTED_MODEL_KEY` | [`pages/Home/index.tsx`](../../front/src/pages/Home/index.tsx#L106), `:776` | **cookie** | preferência de navegador |
 | `VOICE_ENABLED_KEY` | `pages/Home/index.tsx:114`, `:1006` | **cookie** | idem |
 | `IMAGE_PREFERENCES_KEY` | `pages/Home/index.tsx:193`, `:897` | **cookie** | idem |
 | `avento_auto_approve_all` | `pages/Home/index.tsx:812`, `:819`, `:832` | **nada — apagar o espelho** | ver 2.1 |
-| — | [`LoginScreen.tsx:111`](../../front/src/modules/auth/LoginScreen.tsx:111) | **não encoste** | é texto de UI, não armazenamento |
+| — | [`LoginScreen.tsx`](../../front/src/modules/auth/LoginScreen.tsx#L111) | **não encoste** | é texto de UI, não armazenamento |
 
 ### 2.1. O `auto_approve_all` não vai para cookie
 
@@ -91,7 +91,7 @@ perfil. Reduza no cliente antes de enviar.
 
 `AuthController` já expõe `@RequestMapping("/api/auth")` com `GET /me` (`:81`). O usuário logado se
 resolve com `@AuthenticationPrincipal AuthPrincipal principal` → `principal.userId()`, padrão já usado
-em [`UsageController.java:25`](../../back/avento/avento-agent/src/main/java/com/avento/controller/UsageController.java:25).
+em [`UsageController.java`](../../back/avento/avento-agent/src/main/java/com/avento/controller/UsageController.java#L25).
 
 - **upload**: rota nova sob `/api/auth/me`, recebendo o arquivo
 - **leitura**: rota que devolve **os bytes com o content type certo**, para o `<img src>` apontar

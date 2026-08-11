@@ -2,7 +2,7 @@
 
 Este documento guarda as melhorias discutidas para execucao futura. Ele e um plano, nao uma
 afirmacao de que os itens ja foram implementados. O estado real do projeto esta descrito em
-[Arquitetura atual](ARCHITECTURE.md).
+[Arquitetura atual](../ARCHITECTURE.md).
 
 ## Marco implementado - Redis, Outbox, worker e SSE
 
@@ -17,7 +17,7 @@ O primeiro corte vertical da infraestrutura assincrona foi concluido:
 - apagar o chat remove jobs, Outboxes e contexto relacionados;
 - o frontend estatico antigo, assets de template e proxies sem consumidor foram removidos.
 
-O guia completo fica em [Execucao assincrona com Redis](REDIS_EXECUTION.md). Ainda faltam
+O guia completo fica em [Execucao assincrona com Redis](../REDIS_EXECUTION.md). Ainda faltam
 `XAUTOCLAIM`, agrupamento de deltas, resumo incremental e a generalizacao dos jobs de midia.
 
 ## Forma de trabalho

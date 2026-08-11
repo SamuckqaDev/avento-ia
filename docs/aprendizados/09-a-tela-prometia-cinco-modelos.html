@@ -166,6 +166,11 @@
   Uma pergunta sobre cotação de moedas voltou como um plano para criar um projeto NestJS. Puxando
   esse fio apareceram quatro defeitos diferentes, e nenhum deles era o que parecia.
 </p>
+<p class="plain"><strong>Nota de contexto (estado atual):</strong> esta página preserva a investigação
+daquela versão. O Avento atual mantém apenas quatro papéis configuráveis — conversa, planejamento,
+visão e imagem. Embeddings são fixos em <code>nomic-embed-text</code>, no índice
+<code>avento_index_nomic_embed_text</code>; não existe seletor nem troca de modelo de embedding.
+</p>
 
 <div class="divider"></div>
 
@@ -260,9 +265,10 @@
   declarada ou, pior, devolve distâncias sem sentido em silêncio.
 </p>
 <p>
-  Por isso o índice passou a carregar o modelo no nome — <code>avento_index_bge_m3_latest</code>.
-  Trocar o modelo passa a apontar para um índice novo e vazio, que o indexador enche; os vetores
-  antigos continuam onde estavam, caso a escolha volte atrás.
+  Na proposta investigada naquela época, o índice carregaria o modelo no nome — por exemplo,
+  <code>avento_index_bge_m3_latest</code>. Essa proposta foi substituída: o Avento atual adotou
+  deliberadamente um único modelo de embedding para evitar a mistura de dimensões e o custo de uma
+  reindexação completa a cada troca.
 </p>
 
 <div class="divider"></div>

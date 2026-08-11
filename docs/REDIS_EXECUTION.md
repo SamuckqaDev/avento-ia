@@ -70,16 +70,16 @@ aguardar aprovacao.
 
 | Responsabilidade | Arquivo principal |
 |---|---|
-| Configuracao e nomes dos Streams | `back/avento/src/main/java/com/avento/config/RedisExecutionProperties.java` |
-| Job duravel e estados | `back/avento/src/main/java/com/avento/model/AgentRunJob.java` |
-| Registro transacional da Outbox | `back/avento/src/main/java/com/avento/model/ExecutionOutboxEvent.java` |
-| Criacao, cancelamento e recuperacao dos jobs | `back/avento/src/main/java/com/avento/service/execution/AgentRunSubmissionService.java` |
-| Publicacao da Outbox no Redis | `back/avento/src/main/java/com/avento/service/execution/RedisOutboxDispatcher.java` |
-| Consumo e execucao do agente | `back/avento/src/main/java/com/avento/service/execution/AgentRunWorker.java` |
-| Publicacao dos eventos do agente | `back/avento/src/main/java/com/avento/service/execution/RedisRunEventPublisher.java` |
-| Redis Streams para SSE | `back/avento/src/main/java/com/avento/service/execution/RunEventStreamService.java` |
-| Cache reconstruivel da conversa | `back/avento/src/main/java/com/avento/service/context/ConversationContextCache.java` |
-| Rotas HTTP autenticadas | `back/avento/src/main/java/com/avento/controller/LocalAiOrchestratorController.java` |
+| Configuracao e nomes dos Streams | `back/avento/avento-core/src/main/java/com/avento/config/RedisExecutionProperties.java` |
+| Job duravel e estados | `back/avento/avento-execution/src/main/java/com/avento/model/AgentRunJob.java` |
+| Registro transacional da Outbox | `back/avento/avento-execution/src/main/java/com/avento/model/ExecutionOutboxEvent.java` |
+| Criacao, cancelamento e recuperacao dos jobs | `back/avento/avento-execution/src/main/java/com/avento/service/execution/AgentRunSubmissionService.java` |
+| Publicacao da Outbox no Redis | `back/avento/avento-execution/src/main/java/com/avento/service/execution/RedisOutboxDispatcher.java` |
+| Consumo e execucao do agente | `back/avento/avento-agent/src/main/java/com/avento/service/execution/AgentRunWorker.java` |
+| Publicacao dos eventos do agente | `back/avento/avento-execution/src/main/java/com/avento/service/execution/RedisRunEventPublisher.java` |
+| Redis Streams para SSE | `back/avento/avento-execution/src/main/java/com/avento/service/execution/RunEventStreamService.java` |
+| Cache reconstruivel da conversa | `back/avento/avento-agent/src/main/java/com/avento/service/context/ConversationContextCache.java` |
+| Rotas HTTP autenticadas | `back/avento/avento-agent/src/main/java/com/avento/controller/LocalAiOrchestratorController.java` |
 | Envio Axios, leitura SSE e cancelamento | `front/src/hooks/useChatStream.ts` |
 
 As tabelas e os indices sao criados pelo Hibernate no ambiente local atual. Antes de distribuir o

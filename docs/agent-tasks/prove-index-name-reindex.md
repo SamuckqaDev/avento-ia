@@ -28,7 +28,7 @@ armadilha é real e já aconteceu neste projeto uma vez.
 
 ### A armadilha, medida
 
-O javadoc em [`RagService.java:436`](../../back/avento/avento-rag/src/main/java/com/avento/service/rag/RagService.java:436) registra o caso
+O javadoc em [`RagService.java`](../../back/avento/avento-rag/src/main/java/com/avento/service/rag/RagService.java#L436) registra o caso
 histórico, com o log de uma subida real: trocar o chunker **não reindexava nada** — o manifesto
 comparava hash de arquivo, os arquivos não tinham mudado, e o índice seguia servindo chunks do método
 antigo. O log dizia *"94 arquivos lidos, 0 chunks atualizados"*.
@@ -38,7 +38,7 @@ manifesto que não conheça o nome do índice faz **todos** os arquivos serem pu
 respondendo **zero, em silêncio**.
 
 O conserto já está no código — `projectKey` inclui o nome do índice
-([`RagService.java:431-433`](../../back/avento/avento-rag/src/main/java/com/avento/service/rag/RagService.java:431)):
+([`RagService.java`](../../back/avento/avento-rag/src/main/java/com/avento/service/rag/RagService.java#L431)):
 
 ```java
 private String projectKey(Path root) {

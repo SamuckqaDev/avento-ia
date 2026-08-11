@@ -248,7 +248,7 @@ O backend compacta historico antigo, remove prompts de sistema duplicados do fro
 
 Ao apagar uma conversa, o Avento remove permanentemente as mensagens, jobs de imagem e video e as imagens ou vídeos gerados naquele chat. Jobs ativos sao cancelados antes da exclusao. Se um artefato estiver bloqueado pelo sistema, a exclusão é interrompida e o modal mostra o erro para evitar que o banco seja apagado enquanto o arquivo permanece órfão. Pastas e documentos externos apenas conectados como contexto são desvinculados, nunca apagados do projeto do usuário.
 
-As instrucoes publicas de politica ficam fora do codigo Java em `back/avento/src/main/resources/agent/policies/`: `maximum.md`, `professional.md` e `protected.md`. O modo padrao e `maximum`, configurado em `avento.agent.policy-mode` ou pela variavel `AVENTO_AGENT_POLICY_MODE`. A politica controla o contexto e a forma de resposta do Avento; limites proprios do modelo local continuam valendo.
+As instrucoes publicas de politica ficam fora do codigo Java em `back/avento/avento-agent/src/main/resources/agent/policies/`: `maximum.md`, `professional.md` e `protected.md`. O modo padrao e `maximum`, configurado em `avento.agent.policy-mode` ou pela variavel `AVENTO_AGENT_POLICY_MODE`. A politica controla o contexto e a forma de resposta do Avento; limites proprios do modelo local continuam valendo.
 
 Os arquivos de politica e os procedimentos internos de imagem e traducao sao escritos em ingles para reduzir ambiguidades de instruction-following nos modelos locais. Isso nao altera o idioma da interface nem das respostas: `agent/instructions/identity.md` continua exigindo que o Avento preserve o idioma do usuario.
 
@@ -269,7 +269,7 @@ O backend roda preso em loopback por padrao, em `127.0.0.1:8000`, para reduzir e
 Para usar ajustes especificos da sua maquina, copie o exemplo:
 
 ```sh
-cp back/avento/src/main/resources/application-local.example.yml back/avento/src/main/resources/application-local.yml
+cp back/avento/avento-app/src/main/resources/application-local.example.yml back/avento/avento-app/src/main/resources/application-local.yml
 ```
 
 Depois rode com o profile local:

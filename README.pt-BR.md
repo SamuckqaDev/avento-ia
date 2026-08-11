@@ -104,10 +104,10 @@ palavra-chave), garantindo, por exemplo, que `/generate-video` chegue ao `genera
 | `/slow-agent-round` | Separa avaliacao de prompt de geracao antes de ajustar qualquer coisa |
 | `/docker-mcp-gateway-down` | O gateway e plugin do Docker Desktop, nao recurso do daemon |
 
-As skills embutidas ficam em `back/avento/src/main/resources/agent/skills/`. Skills criadas pela
+As skills embutidas ficam em `back/avento/avento-workspace/src/main/resources/agent/skills/`. Skills criadas pela
 interface são pessoais, ficam em `data/skills/` e têm prioridade sem alterar o código-fonte.
 
-As políticas versionadas em `back/avento/src/main/resources/agent/policies/` são a configuração
+As políticas versionadas em `back/avento/avento-agent/src/main/resources/agent/policies/` são a configuração
 pública do projeto. Uma máquina pode manter uma política pessoal em
 `~/.avento/policies/{modo}.md`; quando esse arquivo existe, o backend o usa no lugar da política
 embutida sem incluir seu conteúdo no Git. As instruções consumidas pelo modelo são escritas em
@@ -296,7 +296,7 @@ O setup instala o runtime do ComfyUI em `~/ComfyUI`. `scripts/setup-comfyui-sdxl
 
 Imagem e vídeo usam jobs persistidos no PostgreSQL e workers locais separados, ambos limitados a uma geração por vez para respeitar a memória da máquina. A chamada do agente retorna imediatamente; o chat mostra etapa, progresso estimado, tempo decorrido, previsão restante e cancelamento. Ao concluir, o arquivo é registrado na conversa, a galeria lateral é atualizada e a mídia aparece minimizada no próprio balão.
 
-O workflow de vídeo fica em `back/avento/src/main/resources/comfyui/workflows/text-to-video-api.json`. Ele usa o WAN 2.2 híbrido: por padrão, anima a imagem mais recente da conversa; `mode=text` cria um vídeo do zero e `mode=image` exige uma imagem anterior. O backend valida diffusion model, text encoder e VAE antes de enfileirar a geração e salva o resultado como WebP animado em `~/Pictures/Avento Generated Images`.
+O workflow de vídeo fica em `back/avento/avento-media/src/main/resources/comfyui/workflows/text-to-video-api.json`. Ele usa o WAN 2.2 híbrido: por padrão, anima a imagem mais recente da conversa; `mode=text` cria um vídeo do zero e `mode=image` exige uma imagem anterior. O backend valida diffusion model, text encoder e VAE antes de enfileirar a geração e salva o resultado como WebP animado em `~/Pictures/Avento Generated Images`.
 
 Jobs interrompidos por uma reinicialização do backend são retomados. Ao apagar um chat, o Avento cancela jobs ativos de imagem e vídeo e remove também seus registros e arquivos vinculados à conversa.
 

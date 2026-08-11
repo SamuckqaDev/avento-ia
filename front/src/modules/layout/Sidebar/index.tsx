@@ -16,6 +16,7 @@ import logoUrl from '../../../assets/avento-logo.svg';
 import { SettingsModal } from '../SettingsModal';
 import { useAuth } from '../../auth/AuthProvider';
 import { api } from '../../../services/apiClient';
+import { profileAvatarUrl } from '../../../services/profileAvatar';
 
 export interface GeneratedMedia {
   id: string;
@@ -120,7 +121,7 @@ function FileTreeNode({ node, selectedFiles, toggleFileSelection }: FileTreeNode
 // relacao, como o nivel de audio do microfone atualizando ~12x/s. Só
 // funciona se quem chama <Sidebar> passar props estaveis (useCallback nos
 // handlers) — ver Home/index.tsx.
-function SidebarComponent({
+export function SidebarComponent({
   isMobileOpen, chats, currentChatId, onNewChat, onLoadChat,
   notifications, unreadNotificationCount, onMarkNotificationRead, onMarkAllNotificationsRead,
   projectPaths, removeProjectPath, homeWorkspaceRoot, clearHomeWorkspaceRoot,
@@ -128,6 +129,7 @@ function SidebarComponent({
   fileTree, selectedFiles, toggleFileSelection, media, onOpenMedia
   ,onDeleteChat, onRenameChat, isDarkMode, toggleTheme, isVoiceEnabled, handleToggleVoice, activeTab, onSelectTab
 }: SidebarProps) {
+  const { user } = useAuth();
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
   const [isProjectContextExpanded, setIsProjectContextExpanded] = useState(true);
@@ -136,7 +138,7 @@ function SidebarComponent({
   const [draftTitle, setDraftTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ chatId: number; chatTitle: string; snippet: string }[] | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string>(() => localStorage.getItem('avento_avatar_url') || '');
+  const [avatarUrl, setAvatarUrl] = useState<string>(() => user?.hasAvatar ? profileAvatarUrl() : '');
 
   useEffect(() => {
     const term = searchQuery.trim();
@@ -164,17 +166,17 @@ function SidebarComponent({
     return chats.filter(chat => chat.title.toLowerCase().includes(term));
   }, [chats, searchQuery, searchResults]);
 
-  // localStorage não é reativo: ouvimos o evento disparado pelo SettingsModal ao trocar a foto,
-  // além do evento nativo `storage` (troca em outra aba).
   useEffect(() => {
-    const sync = () => setAvatarUrl(localStorage.getItem('avento_avatar_url') || '');
+    const sync = () => setAvatarUrl(profileAvatarUrl(Date.now()));
     window.addEventListener('avento:avatar-changed', sync);
-    window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener('avento:avatar-changed', sync);
-      window.removeEventListener('storage', sync);
     };
   }, []);
+
+  useEffect(() => {
+    setAvatarUrl(user?.hasAvatar ? profileAvatarUrl() : '');
+  }, [user?.hasAvatar]);
 
   const commitRename = async (chatId: number) => {
     const title = draftTitle.trim();
@@ -191,7 +193,6 @@ function SidebarComponent({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { user } = useAuth();
 
   const openArtifactSafely = async (item: GeneratedMedia) => {
     const previewWindow = window.open('', '_blank', 'noopener');

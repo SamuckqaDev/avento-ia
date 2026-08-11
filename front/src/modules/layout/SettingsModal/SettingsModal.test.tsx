@@ -8,8 +8,12 @@ vi.mock('../../../services/apiClient', () => ({
   api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
 }));
 
+const authState = vi.hoisted(() => ({
+  user: { email: 'root@avento.local', hasAvatar: false },
+}));
+
 vi.mock('../../auth/AuthProvider', () => ({
-  useAuth: () => ({ user: { email: 'root@avento.local' }, logout: vi.fn() }),
+  useAuth: () => ({ user: authState.user, logout: vi.fn() }),
 }));
 
 import { api } from '../../../services/apiClient';
@@ -22,12 +26,12 @@ const SAVED_PROVIDER = {
   visionModel: 'qwen3.5:35b',
   imageModel: '',
   plannerModel: 'qwen3.5:9b',
-  embeddingModel: 'bge-m3:latest',
   apiKeyMasked: '',
 };
 
 beforeEach(() => {
   vi.mocked(api.get).mockImplementation((url: string) => {
+    if (url === '/api/version') return Promise.resolve({ data: { version: '2.0.0' } });
     if (url === '/api/ai/providers') return Promise.resolve({ data: SAVED_PROVIDER });
     if (url.startsWith('/api/ai/providers/models')) return Promise.resolve({ data: { data: [] } });
     return Promise.resolve({ data: {} });
@@ -37,6 +41,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  authState.user = { email: 'root@avento.local', hasAvatar: false };
 });
 
 function openProviderTab() {
@@ -61,8 +66,6 @@ describe('Aba de provedores com configuração já salva', () => {
 
     // Cada papel aparece com o modelo que o cumpre — era isso que faltava para saber o que
     // estava configurado sem reabrir e reler os campos.
-    await waitFor(() => expect(screen.getByText('Vetores (busca no código)')).toBeTruthy());
-    expect(screen.getByText('bge-m3:latest')).toBeTruthy();
     expect(screen.getByText('Planejamento')).toBeTruthy();
     expect(screen.getByText('qwen3.5:9b')).toBeTruthy();
     // Sem escolha para gerar imagem, o resumo diz de onde vem o valor em vez de ficar em branco.
@@ -82,5 +85,29 @@ describe('Aba de provedores com configuração já salva', () => {
 
     expect(screen.getByText('Salvar provedor')).toBeTruthy();
     expect(screen.getByText('Testar conexão')).toBeTruthy();
+  });
+});
+
+describe('Avatar de perfil', () => {
+  it('usa a rota do avatar armazenado no servidor', () => {
+    authState.user = { email: 'root@avento.local', hasAvatar: true };
+    openProviderTab();
+
+    expect(screen.getByAltText('Avatar').getAttribute('src')).toBe('/api/auth/me/avatar');
+  });
+});
+
+describe('Versão da aplicação', () => {
+  it('renders the version returned by the backend', async () => {
+    openProviderTab();
+
+    expect(await screen.findByText('Versão 2.0.0')).toBeTruthy();
+  });
+
+  it('renders a neutral dash when the version request fails', async () => {
+    vi.mocked(api.get).mockImplementationOnce(() => Promise.reject(new Error('Unavailable')));
+    openProviderTab();
+
+    expect(await screen.findByText('Versão —')).toBeTruthy();
   });
 });

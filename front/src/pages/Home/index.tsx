@@ -15,6 +15,7 @@ import { SkillsManager } from '../../modules/chat/SkillsManager';
 import { McpToolsManager } from '../../modules/chat/McpToolsManager';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import { api, apiErrorMessage } from '../../services/apiClient';
+import { getBrowserCookie, removeBrowserCookie, setBrowserCookie } from '../../services/browserCookie';
 import { List, Folder, Columns, SignOut, BookOpen, Lightning, Plug, SlidersHorizontal, ImageSquare, ShieldCheck } from '@phosphor-icons/react';
 import { 
   AppLayout, 
@@ -101,20 +102,12 @@ const SELECTED_MODEL_KEY = 'avento-selected-model';
  * eleger o `recommended` (o default do backend). Trocar para qwen3:8b e ver qwen3.5:9b de volta no
  * próximo reload era isso.
  */
-function loadSelectedModel(): string {
-  try {
-    return window.localStorage.getItem(SELECTED_MODEL_KEY) || '';
-  } catch {
-    return '';
-  }
+export function loadSelectedModel(): string {
+  return getBrowserCookie(SELECTED_MODEL_KEY) || '';
 }
 
-function loadVoiceEnabled(): boolean {
-  try {
-    return window.localStorage.getItem(VOICE_ENABLED_KEY) !== 'false';
-  } catch {
-    return true;
-  }
+export function loadVoiceEnabled(): boolean {
+  return getBrowserCookie(VOICE_ENABLED_KEY) !== 'false';
 }
 
 interface DocumentExtractionResult {
@@ -168,7 +161,7 @@ interface StoredImagePreferences extends ImageGenerationOptions {
   lockSeed: boolean;
 }
 
-function loadImagePreferences(): StoredImagePreferences {
+export function loadImagePreferences(): StoredImagePreferences {
   const defaults: StoredImagePreferences = {
     qualityPreset: 'balanced',
     aspectRatio: 'square',
@@ -190,7 +183,7 @@ function loadImagePreferences(): StoredImagePreferences {
     seed: 42,
   };
   try {
-    const raw = window.localStorage.getItem(IMAGE_PREFERENCES_KEY);
+    const raw = getBrowserCookie(IMAGE_PREFERENCES_KEY);
     if (!raw) return defaults;
     const stored = JSON.parse(raw) as Partial<StoredImagePreferences>;
     return {
@@ -771,12 +764,10 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   // modelos: quem decide o roteamento e o ModelProviderService, e so ele sabe o endereco e o tipo.
   const [activeProvider, setActiveProvider] = useState<ActiveProvider | null>(null);
   useEffect(() => {
-    try {
-      if (selectedModel) {
-        window.localStorage.setItem(SELECTED_MODEL_KEY, selectedModel);
-      }
-    } catch {
-      // localStorage indisponível (modo privado): a escolha só não sobrevive ao reload.
+    if (selectedModel) {
+      setBrowserCookie(SELECTED_MODEL_KEY, selectedModel);
+    } else {
+      removeBrowserCookie(SELECTED_MODEL_KEY);
     }
   }, [selectedModel]);
 
@@ -808,15 +799,11 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const [lockImageSeed, setLockImageSeed] = useState(initialImagePreferences.lockSeed);
   const [imageSeed, setImageSeed] = useState(initialImagePreferences.seed || 42);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-  const [isAutoApproveAll, setIsAutoApproveAll] = useState<boolean>(() => {
-    const saved = localStorage.getItem('avento_auto_approve_all');
-    return saved !== null ? saved === 'true' : true;
-  });
+  const [isAutoApproveAll, setIsAutoApproveAll] = useState(true);
 
   const handleToggleAutoApproveAll = useCallback(async () => {
     const next = !isAutoApproveAll;
     setIsAutoApproveAll(next);
-    localStorage.setItem('avento_auto_approve_all', String(next));
     try {
       await api.put('/api/settings', { autoApproveAll: next });
     } catch (e) {
@@ -829,7 +816,6 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
       .then(({ data }) => {
         if (typeof data.autoApproveAll === 'boolean') {
           setIsAutoApproveAll(data.autoApproveAll);
-          localStorage.setItem('avento_auto_approve_all', String(data.autoApproveAll));
         }
       })
       .catch(() => {});
@@ -894,7 +880,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     maxAdherenceRetries, poseReference, lockImageSeed, imageSeed]);
 
   useEffect(() => {
-    window.localStorage.setItem(IMAGE_PREFERENCES_KEY, JSON.stringify({
+    setBrowserCookie(IMAGE_PREFERENCES_KEY, JSON.stringify({
       qualityPreset: imageGenerationOptions.qualityPreset,
       aspectRatio: imageGenerationOptions.aspectRatio,
       subjectType: imageGenerationOptions.subjectType,
@@ -1002,11 +988,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     setIsVoiceEnabled(checked);
     setAudioPlaybackEnabled(checked);
     speechBufferRef.current = '';
-    try {
-      window.localStorage.setItem(VOICE_ENABLED_KEY, String(checked));
-    } catch {
-      // O mute continua valendo na sessão mesmo sem acesso ao storage.
-    }
+    setBrowserCookie(VOICE_ENABLED_KEY, String(checked));
   };
 
   useEffect(() => {

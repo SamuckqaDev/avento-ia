@@ -12,6 +12,7 @@ interface AuthUser {
   email: string;
   displayName: string;
   role: 'ROOT' | 'ADMIN' | 'USER';
+  hasAvatar: boolean;
 }
 
 interface AuthContextValue {
@@ -19,6 +20,7 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   bootstrap: (email: string, password: string, displayName: string) => Promise<void>;
+  reloadCurrentUser: () => Promise<void>;
   revalidateSession: () => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -128,9 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     login,
     bootstrap,
+    reloadCurrentUser: loadMe,
     revalidateSession,
     logout,
-  }), [bootstrap, isLoading, login, logout, revalidateSession, user]);
+  }), [bootstrap, isLoading, loadMe, login, logout, revalidateSession, user]);
 
   return (
     <AuthContext.Provider value={value}>

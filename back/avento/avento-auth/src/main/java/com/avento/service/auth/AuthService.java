@@ -329,7 +329,8 @@ public class AuthService {
     }
 
     private UserResponse toUserResponse(UserAccount user) {
-        return new UserResponse(user.getId(), user.getEmail(), user.getDisplayName(), user.getRole());
+        return new UserResponse(
+                user.getId(), user.getEmail(), user.getDisplayName(), user.getRole(), user.getAvatarBytes() != null);
     }
 
     private AuditResponse toAuditResponse(TokenAuditEvent event) {

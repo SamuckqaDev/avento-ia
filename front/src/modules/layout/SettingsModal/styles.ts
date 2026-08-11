@@ -176,6 +176,12 @@ export const Body = styled.div`
       letter-spacing: 0.05em;
       width: fit-content;
     }
+
+    .profile-version {
+      margin-top: 4px;
+      color: #9FB8B1;
+      font-size: 0.75rem;
+    }
   }
 `;
 
@@ -869,4 +875,3 @@ export const TestButton = styled.button`
     cursor: not-allowed;
   }
 `;
-

@@ -21,7 +21,9 @@ public final class AuthDtos {
 
     public record AuthResponse(UserResponse user, Instant expiresAt) {}
 
-    public record UserResponse(UUID id, String email, String displayName, UserRole role) {}
+    public record UserResponse(UUID id, String email, String displayName, UserRole role, boolean hasAvatar) {}
+
+    public record AvatarUploadResponse(boolean hasAvatar) {}
 
     public record AuditResponse(
             UUID id,

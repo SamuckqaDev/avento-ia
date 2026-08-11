@@ -6,6 +6,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -38,6 +39,13 @@ public class UserAccount {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Lob
+    @Column
+    private byte[] avatarBytes;
+
+    @Column(length = 80)
+    private String avatarMediaType;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

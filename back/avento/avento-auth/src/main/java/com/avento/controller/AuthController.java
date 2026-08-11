@@ -5,6 +5,7 @@ import com.avento.dto.BaseResponse;
 import com.avento.dto.OperationResponse;
 import com.avento.dto.api.ApiResponses;
 import com.avento.dto.auth.AuthDtos.AuditResponse;
+import com.avento.dto.auth.AuthDtos.AvatarUploadResponse;
 import com.avento.dto.auth.AuthDtos.AuthResponse;
 import com.avento.dto.auth.AuthDtos.BootstrapRequest;
 import com.avento.dto.auth.AuthDtos.LoginRequest;
@@ -12,6 +13,7 @@ import com.avento.dto.auth.AuthDtos.UserResponse;
 import com.avento.service.auth.AuthCookieService;
 import com.avento.service.auth.AuthPrincipal;
 import com.avento.service.auth.AuthService;
+import com.avento.service.auth.AvatarService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -20,12 +22,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -37,10 +42,14 @@ public class AuthController {
 
     private final AuthCookieService cookieService;
 
-    public AuthController(AuthProperties properties, AuthService authService, AuthCookieService cookieService) {
+    private final AvatarService avatarService;
+
+    public AuthController(
+            AuthProperties properties, AuthService authService, AuthCookieService cookieService, AvatarService avatarService) {
         this.properties = properties;
         this.authService = authService;
         this.cookieService = cookieService;
+        this.avatarService = avatarService;
     }
 
     @PostMapping("/bootstrap")
@@ -81,6 +90,19 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<BaseResponse<UserResponse>> me(@AuthenticationPrincipal AuthPrincipal principal) {
         return ApiResponses.ok(authService.currentUser(principal));
+    }
+
+    @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<BaseResponse<AvatarUploadResponse>> uploadAvatar(
+            @AuthenticationPrincipal AuthPrincipal principal, @RequestPart("file") MultipartFile file) {
+        avatarService.upload(principal.userId(), file);
+        return ApiResponses.ok(new AvatarUploadResponse(true));
+    }
+
+    @GetMapping("/me/avatar")
+    public ResponseEntity<byte[]> avatar(@AuthenticationPrincipal AuthPrincipal principal) {
+        AvatarService.Avatar avatar = avatarService.avatar(principal.userId());
+        return ResponseEntity.ok().contentType(avatar.mediaType()).body(avatar.bytes());
     }
 
     @GetMapping("/access-history")

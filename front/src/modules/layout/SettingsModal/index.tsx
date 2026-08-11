@@ -11,7 +11,9 @@ import {
   AgentForm, AgentField, AgentDefaultToggleRow, AgentDefaultBadge,
   BadgeShared, BadgePrivate, ProviderCard, ProviderGrid, ProviderSectionTitle, TestButton, TestStatusPill
 } from './styles';
-import { api } from '../../../services/apiClient';
+import { api, apiErrorMessage } from '../../../services/apiClient';
+import { profileAvatarUrl, resizeAvatarForUpload } from '../../../services/profileAvatar';
+import { useAppVersion } from '../../../hooks/useAppVersion';
 import { useAuth } from '../../auth/AuthProvider';
 
 interface SettingsModalProps {
@@ -88,6 +90,8 @@ export function SettingsModal({
   isVoiceEnabled,
   handleToggleVoice
 }: SettingsModalProps) {
+  const { user, logout, reloadCurrentUser } = useAuth();
+  const appVersion = useAppVersion();
   const [activeTab, setActiveTab] = useState<'conta' | 'uso' | 'preferencias' | 'provedores' | 'memoria' | 'agentes'>('conta');
   const [ttsEnabled, setTtsEnabled] = useState(false);
   // Thinking é opt-in: o padrão acompanha o backend (avento.agent.enable-thinking = false). Com
@@ -108,7 +112,6 @@ export function SettingsModal({
     visionModel: '',
     imageModel: '',
     plannerModel: '',
-    embeddingModel: '',
     apiKeyMasked: '',
     apiKeyInput: '',
   });
@@ -127,7 +130,8 @@ export function SettingsModal({
   const [isLoadingUsage, setIsLoadingUsage] = useState(true);
   const [usageRange, setUsageRange] = useState<UsageRange>('7d');
   
-  const [avatarUrl, setAvatarUrl] = useState<string>(() => localStorage.getItem('avento_avatar_url') || '');
+  const [avatarUrl, setAvatarUrl] = useState<string>(() => user?.hasAvatar ? profileAvatarUrl() : '');
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [memories, setMemories] = useState<MemoryItem[]>([]);
@@ -140,8 +144,6 @@ export function SettingsModal({
   const [agentForm, setAgentForm] = useState(EMPTY_AGENT_FORM);
   const [agentBusy, setAgentBusy] = useState(false);
   
-  const { user, logout } = useAuth();
-
   useEffect(() => {
     if (activeTab === 'preferencias') {
       const loadSettings = async () => {
@@ -279,7 +281,6 @@ export function SettingsModal({
         visionModel: string;
         imageModel: string;
         plannerModel: string;
-        embeddingModel: string;
         apiKeyMasked: string;
       }>('/api/ai/providers');
       if (data) {
@@ -291,7 +292,6 @@ export function SettingsModal({
           visionModel: data.visionModel || '',
           imageModel: data.imageModel || '',
           plannerModel: data.plannerModel || '',
-          embeddingModel: data.embeddingModel || '',
           apiKeyMasked: data.apiKeyMasked || '',
           apiKeyInput: '',
         }));
@@ -399,7 +399,6 @@ export function SettingsModal({
         visionModel: providerSettings.visionModel,
         imageModel: providerSettings.imageModel,
         plannerModel: providerSettings.plannerModel,
-        embeddingModel: providerSettings.embeddingModel,
         // Só manda a chave quando foi digitada: mandar a mascarada a apagaria no backend.
         apiKey: providerSettings.apiKeyInput || undefined,
       });
@@ -500,19 +499,24 @@ export function SettingsModal({
     return parts[0].substring(0, 2).toUpperCase();
   };
 
-  const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setAvatarUrl(base64);
-      localStorage.setItem('avento_avatar_url', base64);
-      // Avisa a sidebar (e qualquer outro lugar) que o avatar mudou — localStorage não é reativo.
+    setAvatarError(null);
+    try {
+      const avatar = await resizeAvatarForUpload(file);
+      const formData = new FormData();
+      formData.append('file', avatar);
+      await api.post('/api/auth/me/avatar', formData);
+      await reloadCurrentUser();
+      setAvatarUrl(profileAvatarUrl(Date.now()));
+      // A sidebar usa o mesmo recurso do servidor e recarrega ao receber este evento.
       window.dispatchEvent(new Event('avento:avatar-changed'));
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      setAvatarError(apiErrorMessage(error));
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const renderConta = () => (
@@ -537,10 +541,13 @@ export function SettingsModal({
           style={{ display: 'none' }} 
           onChange={handleAvatarChange} 
         />
+        {avatarError && <p role="alert">{avatarError}</p>}
         <div className="profile-info">
           <h3>{user?.displayName || 'Usuário'}</h3>
           <p>{user?.email || '-'}</p>
           <span className="profile-badge">{user?.role || 'USER'}</span>
+          {/* The backend Maven version is the single product-version source; package.json intentionally stays at 0.0.0. */}
+          <span className="profile-version">Versão {appVersion || '—'}</span>
         </div>
       </div>
       <Footer style={{ marginTop: 'auto' }}>
@@ -1005,8 +1012,7 @@ export function SettingsModal({
   // ele que separa "ja resolvi isto" de "ainda preciso preencher".
   const providerConfigured = Boolean(providerSettings.selectedModel);
 
-  // O que cada modelo faz, ao lado do campo. Um <select> chamado "Modelo de embedding" nao diz a
-  // ninguem o que muda ao troca-lo, e o resultado foi configurar achando que mexia noutra coisa.
+  // O que cada modelo configurável faz, ao lado do campo.
   const MODEL_ROLES: { key: keyof typeof providerSettings; label: string; empty: string; help: string }[] = [
     {
       key: 'selectedModel',
@@ -1031,12 +1037,6 @@ export function SettingsModal({
       label: 'Geração de imagem',
       empty: 'Usar o padrão do sistema (ComfyUI no modo local)',
       help: 'Cria imagens novas a partir de um texto.',
-    },
-    {
-      key: 'embeddingModel',
-      label: 'Vetores (busca no código)',
-      empty: 'Usar o padrão do sistema',
-      help: 'Transforma o código do projeto em vetores para a busca por significado, e classifica a intenção da mensagem. Trocar aqui reindexa do zero: cada modelo tem seu próprio índice.',
     },
   ];
 

@@ -7,6 +7,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Locale;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,6 +16,7 @@ public class NeuralSpeechSynthesisService {
     private final VoiceProperties voiceProperties;
     private final HttpClient httpClient;
 
+    @Autowired
     public NeuralSpeechSynthesisService(VoiceProperties voiceProperties) {
         this(
                 voiceProperties,

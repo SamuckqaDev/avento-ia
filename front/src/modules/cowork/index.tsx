@@ -37,6 +37,7 @@ export interface ScheduledTask {
 export interface ScheduledTaskRun {
   id: number;
   taskId: number;
+  taskName?: string;
   status: 'RUNNING' | 'SUCCESS' | 'FAILED';
   prompt?: string;
   output?: string;
@@ -111,7 +112,7 @@ function isTaskScheduledOnDate(task: ScheduledTask, cellDate: Date): boolean {
 }
 
 export function CoworkView() {
-  const [activeTab, setActiveTab] = useState<'calendar' | 'automations'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'automations' | 'history'>('calendar');
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -119,6 +120,9 @@ export function CoworkView() {
   const [selectedLogTask, setSelectedLogTask] = useState<ScheduledTask | null>(null);
   const [taskRuns, setTaskRuns] = useState<ScheduledTaskRun[]>([]);
   const [isLoadingRuns, setIsLoadingRuns] = useState<boolean>(false);
+  const [executionHistory, setExecutionHistory] = useState<ScheduledTaskRun[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const handleViewLogs = async (task: ScheduledTask) => {
     setSelectedLogTask(task);
@@ -132,6 +136,22 @@ export function CoworkView() {
       setIsLoadingRuns(false);
     }
   };
+
+  const fetchExecutionHistory = useCallback(async () => {
+    setIsLoadingHistory(true);
+    setHistoryError(null);
+    try {
+      const response = await api.get<ScheduledTaskRun[]>('/api/scheduled-tasks/history', {
+        params: { limit: 100 }
+      });
+      setExecutionHistory(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar o histórico global de execuções', error);
+      setHistoryError('Não foi possível carregar o histórico agora. Tente novamente.');
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, []);
 
   // Calendar date state
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -217,6 +237,16 @@ export function CoworkView() {
     }, 15000);
     return () => clearInterval(interval);
   }, [fetchTasks]);
+
+  useEffect(() => {
+    if (activeTab !== 'history') return;
+
+    void fetchExecutionHistory();
+    const interval = setInterval(() => {
+      void fetchExecutionHistory();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [activeTab, fetchExecutionHistory]);
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -473,6 +503,13 @@ export function CoworkView() {
             >
               <Robot size={16} /> Automações ({tasks.length})
             </button>
+            <button
+              type="button"
+              className={activeTab === 'history' ? 'active' : ''}
+              onClick={() => setActiveTab('history')}
+            >
+              <FileText size={16} /> Histórico
+            </button>
           </TabNavigation>
 
           <CreateButton onClick={() => { setEditingTask(null); setIsModalOpen(true); }}>
@@ -601,7 +638,7 @@ export function CoworkView() {
             })}
           </CalendarGrid>
         </CalendarWrapper>
-      ) : (
+      ) : activeTab === 'automations' ? (
         <>
           <ToolbarWrapper>
             <div style={{ position: 'relative', width: '100%', maxWidth: 320 }}>
@@ -818,6 +855,84 @@ export function CoworkView() {
             </Grid>
           )}
         </>
+      ) : (
+        <section aria-label="Histórico de execuções do Cowork">
+          <ToolbarWrapper>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Histórico de execuções</h2>
+              <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                Últimas 100 execuções registradas, inclusive as tarefas pontuais que já saíram da agenda.
+              </p>
+            </div>
+            <SecondaryActionButton type="button" onClick={() => void fetchExecutionHistory()} disabled={isLoadingHistory}>
+              <ArrowsClockwise size={16} /> {isLoadingHistory ? 'Atualizando...' : 'Atualizar'}
+            </SecondaryActionButton>
+          </ToolbarWrapper>
+
+          {isLoadingHistory && executionHistory.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)' }}>Carregando histórico de execuções...</p>
+          ) : historyError ? (
+            <EmptyStateWrapper>
+              <Warning size={48} />
+              <h3>Não foi possível carregar o histórico</h3>
+              <p>{historyError}</p>
+              <CreateButton type="button" onClick={() => void fetchExecutionHistory()}>
+                <ArrowsClockwise size={18} /> Tentar novamente
+              </CreateButton>
+            </EmptyStateWrapper>
+          ) : executionHistory.length === 0 ? (
+            <EmptyStateWrapper>
+              <FileText size={48} />
+              <h3>Nenhuma execução registrada ainda</h3>
+              <p>Quando uma atividade do Cowork rodar, o resultado, os logs e eventuais falhas aparecerão aqui.</p>
+            </EmptyStateWrapper>
+          ) : (
+            <Grid>
+              {executionHistory.map(run => (
+                <Card key={run.id} $status={run.status}>
+                  <div className="card-header">
+                    <h3>{run.taskName || `Atividade #${run.taskId}`}</h3>
+                    <span className={`badge ${run.status === 'SUCCESS' ? 'active' : run.status === 'FAILED' ? 'paused' : ''}`}>
+                      {run.status === 'SUCCESS' ? 'Sucesso' : run.status === 'FAILED' ? 'Falha' : 'Em execução'}
+                    </span>
+                  </div>
+
+                  <div className="card-body">
+                    <p style={{ marginBottom: 10, color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                      <Clock size={14} style={{ verticalAlign: 'text-bottom', marginRight: 5 }} />
+                      {new Date(run.createdAt).toLocaleString('pt-BR')}
+                    </p>
+                    {run.prompt && (
+                      <div className="prompt-snippet" title={run.prompt}>
+                        <strong>Pedido:</strong> {run.prompt}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <strong style={{ fontSize: '0.78rem' }}>{run.status === 'FAILED' ? 'Onde falhou / retorno' : 'Resultado da execução'}</strong>
+                    <pre style={{
+                      background: '#0d1117',
+                      color: '#e6edf3',
+                      padding: 12,
+                      borderRadius: 8,
+                      border: '1px solid #30363d',
+                      fontSize: '0.76rem',
+                      fontFamily: 'monospace',
+                      maxHeight: 190,
+                      overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      margin: '6px 0 0'
+                    }}>
+                      {run.output || run.error || 'A execução ainda não retornou detalhes.'}
+                    </pre>
+                  </div>
+                </Card>
+              ))}
+            </Grid>
+          )}
+        </section>
       )}
 
       {isModalOpen && (

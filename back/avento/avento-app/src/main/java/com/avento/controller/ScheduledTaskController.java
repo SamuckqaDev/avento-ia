@@ -1,11 +1,12 @@
 package com.avento.controller;
 
 import com.avento.model.ScheduledTask;
-import com.avento.model.ScheduledTaskRun;
-import com.avento.model.ScheduledTaskRunRepository;
+import com.avento.model.ScheduledTaskExecutionHistoryRow;
 import com.avento.service.auth.AuthPrincipal;
 import com.avento.service.execution.CronTaskScheduler;
+import com.avento.service.execution.ScheduledTaskHistoryService;
 import com.avento.service.execution.ScheduledTaskService;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -24,15 +26,15 @@ public class ScheduledTaskController {
 
     private final ScheduledTaskService taskService;
     private final CronTaskScheduler cronTaskScheduler;
-    private final ScheduledTaskRunRepository runRepository;
+    private final ScheduledTaskHistoryService historyService;
 
     public ScheduledTaskController(
             ScheduledTaskService taskService,
             CronTaskScheduler cronTaskScheduler,
-            ScheduledTaskRunRepository runRepository) {
+            ScheduledTaskHistoryService historyService) {
         this.taskService = taskService;
         this.cronTaskScheduler = cronTaskScheduler;
-        this.runRepository = runRepository;
+        this.historyService = historyService;
     }
 
     public record CreateTaskRequest(
@@ -54,25 +56,56 @@ public class ScheduledTaskController {
             Long onSuccessTaskId,
             boolean runOnce) {}
 
+    public record ScheduledTaskResponse(
+            Long id,
+            String name,
+            String description,
+            String cronExpression,
+            String prompt,
+            Long chatId,
+            String projectPath,
+            Long onSuccessTaskId,
+            ScheduledTask.TaskStatus status,
+            boolean runOnce,
+            ScheduledTask.RunStatus lastRunStatus,
+            LocalDateTime lastRunAt,
+            LocalDateTime nextRunAt,
+            String lastRunError,
+            String lastRunDiagnosis,
+            String lastRunOutput,
+            LocalDateTime createdAt) {}
+
+    public record ScheduledTaskRunResponse(
+            Long id,
+            Long taskId,
+            String taskName,
+            ScheduledTask.RunStatus status,
+            String prompt,
+            String output,
+            String error,
+            LocalDateTime createdAt) {}
+
     @GetMapping
-    public ResponseEntity<List<ScheduledTask>> listTasks(@AuthenticationPrincipal AuthPrincipal principal) {
+    public ResponseEntity<List<ScheduledTaskResponse>> listTasks(@AuthenticationPrincipal AuthPrincipal principal) {
         if (principal == null) return ResponseEntity.status(401).build();
-        List<ScheduledTask> tasks = taskService.listUserTasks(principal.userId());
-        return ResponseEntity.ok(tasks);
+        return ResponseEntity.ok(taskService.listUserTasks(principal.userId()).stream()
+                .map(ScheduledTaskController::toTaskResponse)
+                .toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ScheduledTask> getTask(
+    public ResponseEntity<ScheduledTaskResponse> getTask(
             @PathVariable("id") Long id, @AuthenticationPrincipal AuthPrincipal principal) {
         if (principal == null) return ResponseEntity.status(401).build();
         return taskService
                 .getTask(id, principal.userId())
+                .map(ScheduledTaskController::toTaskResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<ScheduledTask> createTask(
+    public ResponseEntity<ScheduledTaskResponse> createTask(
             @RequestBody CreateTaskRequest req, @AuthenticationPrincipal AuthPrincipal principal) {
         if (principal == null) return ResponseEntity.status(401).build();
         ScheduledTask created = taskService.createTask(
@@ -85,11 +118,11 @@ public class ScheduledTaskController {
                 req.onSuccessTaskId(),
                 req.runOnce(),
                 principal.userId());
-        return ResponseEntity.ok(created);
+        return ResponseEntity.ok(toTaskResponse(created));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ScheduledTask> updateTask(
+    public ResponseEntity<ScheduledTaskResponse> updateTask(
             @PathVariable("id") Long id,
             @RequestBody UpdateTaskRequest req,
             @AuthenticationPrincipal AuthPrincipal principal) {
@@ -104,36 +137,45 @@ public class ScheduledTaskController {
                 req.onSuccessTaskId(),
                 req.runOnce(),
                 principal.userId());
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(toTaskResponse(updated));
     }
 
     @PostMapping("/{id}/toggle")
-    public ResponseEntity<ScheduledTask> toggleTask(
+    public ResponseEntity<ScheduledTaskResponse> toggleTask(
             @PathVariable("id") Long id, @AuthenticationPrincipal AuthPrincipal principal) {
         if (principal == null) return ResponseEntity.status(401).build();
         ScheduledTask toggled = taskService.toggleTaskStatus(id, principal.userId());
-        return ResponseEntity.ok(toggled);
+        return ResponseEntity.ok(toTaskResponse(toggled));
     }
 
     @PostMapping("/{id}/run-now")
-    public ResponseEntity<ScheduledTask> runNow(
+    public ResponseEntity<ScheduledTaskResponse> runNow(
             @PathVariable("id") Long id, @AuthenticationPrincipal AuthPrincipal principal) {
         if (principal == null) return ResponseEntity.status(401).build();
         ScheduledTask task = taskService
                 .getTask(id, principal.userId())
                 .orElseThrow(() -> new IllegalArgumentException("Tarefa não encontrada"));
         cronTaskScheduler.executeScheduledTask(task);
-        return ResponseEntity.ok(task);
+        return ResponseEntity.ok(toTaskResponse(task));
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<List<ScheduledTaskRunResponse>> getExecutionHistory(
+            @RequestParam(name = "limit", required = false) Integer limit,
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        if (principal == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(historyService.listRecentExecutions(principal.userId(), limit).stream()
+                .map(ScheduledTaskController::toRunResponse)
+                .toList());
     }
 
     @GetMapping("/{id}/runs")
-    public ResponseEntity<List<ScheduledTaskRun>> getTaskRuns(
+    public ResponseEntity<List<ScheduledTaskRunResponse>> getTaskRuns(
             @PathVariable("id") Long id, @AuthenticationPrincipal AuthPrincipal principal) {
         if (principal == null) return ResponseEntity.status(401).build();
-        taskService
-                .getTask(id, principal.userId())
-                .orElseThrow(() -> new IllegalArgumentException("Tarefa não encontrada"));
-        return ResponseEntity.ok(runRepository.findTop50ByTaskIdOrderByCreatedAtDesc(id));
+        return ResponseEntity.ok(historyService.listTaskExecutions(id, principal.userId()).stream()
+                .map(ScheduledTaskController::toRunResponse)
+                .toList());
     }
 
     @DeleteMapping("/{id}")
@@ -142,5 +184,38 @@ public class ScheduledTaskController {
         if (principal == null) return ResponseEntity.status(401).build();
         taskService.deleteTask(id, principal.userId());
         return ResponseEntity.noContent().build();
+    }
+
+    private static ScheduledTaskResponse toTaskResponse(ScheduledTask task) {
+        return new ScheduledTaskResponse(
+                task.getId(),
+                task.getName(),
+                task.getDescription(),
+                task.getCronExpression(),
+                task.getPrompt(),
+                task.getChatId(),
+                task.getProjectPath(),
+                task.getOnSuccessTaskId(),
+                task.getStatus(),
+                task.isRunOnce(),
+                task.getLastRunStatus(),
+                task.getLastRunAt(),
+                task.getNextRunAt(),
+                task.getLastRunError(),
+                task.getLastRunDiagnosis(),
+                task.getLastRunOutput(),
+                task.getCreatedAt());
+    }
+
+    private static ScheduledTaskRunResponse toRunResponse(ScheduledTaskExecutionHistoryRow run) {
+        return new ScheduledTaskRunResponse(
+                run.id(),
+                run.taskId(),
+                run.taskName(),
+                run.status(),
+                run.prompt(),
+                run.output(),
+                run.error(),
+                run.createdAt());
     }
 }

@@ -52,6 +52,15 @@ o pedido original no envelope; assim “abra uma aba no YouTube no Chrome” cha
 com `Google Chrome` e `https://www.youtube.com`, em vez de confundir a instrução interna com um
 comando de Terminal.
 
+### Histórico global de execuções
+
+A aba **Histórico** do Cowork mostra as 100 execuções mais recentes do usuário, não apenas as
+atividades ainda visíveis na agenda. Cada entrada reúne a tarefa, data e hora, status, pedido
+enviado e o retorno ou erro bruto da execução. O backend atende essa tela por
+`GET /api/scheduled-tasks/history?limit=100`, aplica a propriedade do usuário na consulta e lê o
+PostgreSQL, que é a fonte durável dos registros `scheduled_task_runs`. Assim, quando uma tarefa
+pontual termina e é arquivada, sua evidência continua disponível para auditoria.
+
 ## Indicador visual de voz
 
 Durante a reproducao de TTS, o chat mostra o mascote flutuante do Avento. Ele combina movimento

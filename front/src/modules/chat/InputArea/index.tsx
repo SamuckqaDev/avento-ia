@@ -28,7 +28,7 @@ import {
   MascotSoundWave,
 } from './styles';
 import { FileText, Microphone, Paperclip, SpinnerGap, StopCircle, PaperPlaneRight, ChatCircleDots, ImageSquare, X, Robot } from '@phosphor-icons/react';
-import speakingMascot from '../../../assets/avento-speaking-mascot.png';
+import speakingMascot from '../../../assets/avento-companion-mascot.png';
 import type { DocumentAttachment, ImageAttachment } from '../MessageBubble';
 import type { QueuedMessage } from '../../../pages/Home';
 import type { Skill } from '../../../hooks/useSkills';

@@ -419,8 +419,8 @@ export const SpeakingMascot = styled.div`
 export const MascotCharacter = styled.div`
   position: relative;
   flex: 0 0 auto;
-  width: 70px;
-  height: 70px;
+  width: 76px;
+  height: 76px;
   animation: ${speakingFloat} 1.2s ease-in-out infinite;
 
   img {
@@ -436,10 +436,10 @@ export const MascotCharacter = styled.div`
 
 export const MascotMouth = styled.span`
   position: absolute;
-  top: 53%;
+  top: 54%;
   left: 50%;
-  width: 13px;
-  height: 6px;
+  width: 12px;
+  height: 5px;
   border-radius: 45% 45% 55% 55%;
   background: radial-gradient(ellipse at 50% 0%, #f7c878 0%, #d9784b 72%);
   box-shadow: 0 0 5px rgba(247, 200, 120, 0.65);

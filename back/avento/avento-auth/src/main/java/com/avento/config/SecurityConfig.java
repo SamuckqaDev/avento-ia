@@ -80,6 +80,8 @@ public class SecurityConfig {
                             .permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/health")
                             .permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/version")
+                            .permitAll()
                             .requestMatchers(
                                     HttpMethod.POST,
                                     "/api/auth/bootstrap",

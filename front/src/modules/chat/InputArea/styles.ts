@@ -27,6 +27,12 @@ const speakingWave = keyframes`
   50% { transform: scaleY(1); filter: brightness(1.25); }
 `;
 
+const speakingMouth = keyframes`
+  0%, 100% { transform: translateX(-50%) scale(0.75, 0.55); }
+  38% { transform: translateX(-50%) scale(1.15, 1.4); }
+  70% { transform: translateX(-50%) scale(0.82, 0.75); }
+`;
+
 export const Container = styled.div`
   position: relative;
   padding: 12px 28px 18px;
@@ -377,10 +383,13 @@ export const VoiceStatus = styled.div`
 `;
 
 export const SpeakingMascot = styled.div`
-  width: fit-content;
-  max-width: min(980px, 100%);
-  margin: 8px auto 0;
-  padding: 5px 10px 5px 6px;
+  position: absolute;
+  z-index: 5;
+  right: max(28px, calc((100% - 980px) / 2));
+  bottom: calc(100% - 4px);
+  width: min(260px, calc(100% - 56px));
+  min-height: 82px;
+  padding: 7px 12px 7px 7px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -394,17 +403,70 @@ export const SpeakingMascot = styled.div`
   font-size: 0.78rem;
   font-weight: 650;
   animation: ${speakingGlow} 1.35s ease-in-out infinite;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
 
-  img {
-    width: 42px;
-    height: 42px;
-    object-fit: contain;
-    animation: ${speakingFloat} 1.2s ease-in-out infinite;
+  @media (max-width: 768px) {
+    right: 14px;
+    bottom: calc(100% - 2px);
+    width: min(230px, calc(100% - 28px));
   }
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-    img { animation: none; }
+  }
+`;
+
+export const MascotCharacter = styled.div`
+  position: relative;
+  flex: 0 0 auto;
+  width: 70px;
+  height: 70px;
+  animation: ${speakingFloat} 1.2s ease-in-out infinite;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
+export const MascotMouth = styled.span`
+  position: absolute;
+  top: 53%;
+  left: 50%;
+  width: 13px;
+  height: 6px;
+  border-radius: 45% 45% 55% 55%;
+  background: radial-gradient(ellipse at 50% 0%, #f7c878 0%, #d9784b 72%);
+  box-shadow: 0 0 5px rgba(247, 200, 120, 0.65);
+  animation: ${speakingMouth} 480ms ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
+export const MascotSpeech = styled.div`
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+
+  strong {
+    color: ${({ theme }) => theme.colors.text};
+    font-size: 0.82rem;
+  }
+
+  span {
+    overflow: hidden;
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-size: 0.7rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 `;
 
@@ -414,6 +476,7 @@ export const MascotSoundWave = styled.div`
   align-items: center;
   gap: 3px;
   padding-left: 2px;
+  flex: 0 0 auto;
 
   i {
     display: block;

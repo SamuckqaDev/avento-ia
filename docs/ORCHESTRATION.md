@@ -35,6 +35,13 @@ Na terceira falha consecutiva, a execucao termina de forma segura. O evento e a 
 dizem se foram caminhos inexistentes ou uma falha tecnica da ferramenta, preservando o motivo para
 o chat e evitando continuar por caminhos inventados.
 
+## Indicador visual de voz
+
+Durante a reproducao de TTS, o chat mostra o mascote flutuante do Avento. Ele combina movimento
+suave, brilho, ondas de audio e boca animada para deixar claro que a fala esta em andamento. O
+indicador desaparece quando a fila de audio termina e respeita a preferencia do sistema por reduzir
+movimentos.
+
 ## Skills embutidas
 
 O `SkillRegistry` carrega procedimentos em `agent/skills/*.md` e skills pessoais em

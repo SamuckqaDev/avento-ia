@@ -6,6 +6,7 @@ import com.avento.controller.McpController;
 import com.avento.service.WorkspaceAccessService;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -216,6 +219,22 @@ class ToolIntegrationTest {
         JsonNode connected = run("connect_mcp_server", "serverId", "memory");
 
         assertSucceeded(connected, "connect_mcp_server(memory)");
+        assertThat(connected.path("connected").asBoolean()).isTrue();
+        assertSucceeded(run("disconnect_mcp_server", "serverId", "memory"), "disconnect_mcp_server(memory)");
+    }
+
+    /**
+     * O agente chama ferramentas no event loop reativo. O SDK MCP bloqueia durante o handshake,
+     * portanto a conexao precisa sair dessa thread antes de initialize e listTools acontecerem.
+     */
+    @Test
+    @EnabledIf("dockerDesktopIsRunning")
+    void connectsMemoryFromAReactiveThread() throws Exception {
+        JsonNode connected = Mono.fromCallable(() -> run("connect_mcp_server", "serverId", "memory"))
+                .subscribeOn(Schedulers.parallel())
+                .block(Duration.ofSeconds(30));
+
+        assertSucceeded(connected, "connect_mcp_server(memory) pela thread reativa");
         assertThat(connected.path("connected").asBoolean()).isTrue();
         assertSucceeded(run("disconnect_mcp_server", "serverId", "memory"), "disconnect_mcp_server(memory)");
     }

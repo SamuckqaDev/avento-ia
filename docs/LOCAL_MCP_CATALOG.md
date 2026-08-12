@@ -147,6 +147,8 @@ AVENTO_MCP_DOCKER_GATEWAY_SERVERS=
 
 O servidor **memory** tambem e independente do Redis Stack do Avento: ele executa o container local `mcp/memory` e persiste seu grafo em `~/.avento/memory.json`. Quando a conexao falhar, `connect_mcp_server` devolve `error` e `details` ao modelo; o chat deve apresentar essa causa literal, sem atribuir o problema ao Redis ou a outro componente sem evidencia da ferramenta.
 
+O cliente MCP oficial e sincrono durante o handshake (`initialize` e `listTools`). O Avento executa esse ciclo fora da thread reativa do chat; assim, conectar qualquer servidor do catalogo nao dispara a protecao contra operacoes bloqueantes do Reactor.
+
 O catalogo usa exclusivamente o SDK Java oficial. Os pacotes npm possuem versoes fixas em
 `application.yml`, sem `@latest`; isso deixa a instalacao reproduzivel e permite atualizar cada
 servidor de forma deliberada.

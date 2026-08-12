@@ -42,10 +42,10 @@ public class McpClientManager {
 
     private final ObjectMapper mapper;
     private final Duration requestTimeout;
-    // O cliente MCP e sincrono (callTool usa Mono.block() por dentro). O loop do agente executa
-    // ferramentas na thread do event-loop reativo (reactor-http-nio), onde bloquear e proibido e
-    // estoura "block() not supported". Rodamos toda chamada MCP neste executor: o bloqueio fica fora
-    // da thread nao-bloqueante e o join() de quem chama nao dispara a deteccao do Reactor.
+    // O cliente MCP e sincrono: initialize, listTools e callTool usam bloqueio internamente. O loop
+    // do agente executa ferramentas na thread reativa (reactor-http-nio), onde isso e proibido e
+    // estoura "block() not supported". Todo o ciclo de conexao e as chamadas MCP rodam neste
+    // executor; o join() de quem chama nao dispara a deteccao do Reactor.
     private final ExecutorService mcpCallExecutor = Executors.newCachedThreadPool(runnable -> {
         Thread thread = new Thread(runnable, "mcp-call");
         thread.setDaemon(true);
@@ -65,7 +65,25 @@ public class McpClientManager {
         return connect(LOCAL_SCOPE, serverName, command, environment, reservedToolNames);
     }
 
-    public synchronized ConnectionResult connect(
+    public ConnectionResult connect(
+            String scope,
+            String serverName,
+            List<String> command,
+            Map<String, String> environment,
+            Set<String> reservedToolNames) {
+        try {
+            return CompletableFuture.supplyAsync(
+                            () -> connectBlocking(scope, serverName, command, environment, reservedToolNames),
+                            mcpCallExecutor)
+                    .join();
+        } catch (Exception exception) {
+            String message = rootMessage(exception);
+            logger.warn("Não foi possível iniciar a conexão MCP {}: {}", serverName, message);
+            return ConnectionResult.failedFor(serverName, message);
+        }
+    }
+
+    private synchronized ConnectionResult connectBlocking(
             String scope,
             String serverName,
             List<String> command,

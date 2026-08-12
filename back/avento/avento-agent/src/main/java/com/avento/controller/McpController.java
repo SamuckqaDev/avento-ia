@@ -979,11 +979,21 @@ public class McpController implements ToolProvider {
 
     private JsonNode executeConnectMcpServer(Map<String, Object> payload) throws IOException {
         String serverId = requiredString(payload, "serverId");
+        List<ConnectionResult> connections =
+                mcpServerCatalogService.connect(List.of(serverId), authorizedProjectPaths(payload));
         ObjectNode result = mapper.createObjectNode();
-        result.set(
-                "results",
-                mapper.valueToTree(
-                        mcpServerCatalogService.connect(List.of(serverId), authorizedProjectPaths(payload))));
+        result.set("results", mapper.valueToTree(connections));
+        boolean connected = connections.stream().anyMatch(ConnectionResult::connected);
+        result.put("connected", connected);
+        if (!connected) {
+            String error = connections.stream()
+                    .map(ConnectionResult::error)
+                    .filter(message -> message != null && !message.isBlank())
+                    .findFirst()
+                    .orElse("O servidor MCP não informou a causa da falha.");
+            result.put("error", error);
+            result.put("details", "Servidor solicitado: " + serverId);
+        }
         return toolResult(result);
     }
 

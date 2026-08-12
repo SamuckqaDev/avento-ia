@@ -207,6 +207,30 @@ class ToolIntegrationTest {
     }
 
     /**
+     * O Memory MCP usa um arquivo local, não o Redis Stack. Esta rodada real protege tanto o
+     * handshake MCP quanto o bind mount que preserva o grafo entre chamadas.
+     */
+    @Test
+    @EnabledIf("dockerDesktopIsRunning")
+    void connectsMemoryAndListsItsKnowledgeGraphTools() throws Exception {
+        JsonNode connected = run("connect_mcp_server", "serverId", "memory");
+
+        assertSucceeded(connected, "connect_mcp_server(memory)");
+        assertThat(connected.path("connected").asBoolean()).isTrue();
+        assertSucceeded(run("disconnect_mcp_server", "serverId", "memory"), "disconnect_mcp_server(memory)");
+    }
+
+    /** Uma falha MCP precisa chegar como erro da ferramenta, nunca como sucesso ambíguo para o modelo. */
+    @Test
+    void exposesTheActualConnectionFailureAtTheToolBoundary() throws Exception {
+        JsonNode result = run("connect_mcp_server", "serverId", "nao-existe");
+
+        assertThat(result.path("connected").asBoolean()).isFalse();
+        assertThat(result.path("error").asText()).contains("desconhecido");
+        assertThat(result.path("details").asText()).contains("nao-existe");
+    }
+
+    /**
      * O gateway participa do boot como qualquer outro servidor.
      *
      * <p>Ele entra por ultimo na lista de propósito: os anteriores ja reservaram seus nomes de

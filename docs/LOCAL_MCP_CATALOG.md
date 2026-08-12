@@ -145,6 +145,8 @@ AVENTO_MCP_DOCKER_GATEWAY_SERVERS=
 
 `Fetch` acessa URLs fornecidas pelo modelo e pode alcancar enderecos internos. Ele nao conecta automaticamente. DBHub conecta automaticamente quando o workspace ativo fornece uma configuracao reconhecida; sem workspace, usa somente o fallback global. Docker Gateway agrega servidores MCP em containers isolados, em vez de processos npx/uvx soltos na maquina. Ele nao tem gatilho de intencao — nao e uma ferramenta sobre Docker, e o transporte que serve outros servidores — entao conecte-o com `connect_mcp_server`. Requer o **Docker Desktop** em execucao: o `docker mcp` e um plugin que vive dentro do Docker.app e conversa com o backend do Desktop, nao com o daemon. Um runtime alternativo (Colima, OrbStack, Rancher) roda containers normalmente — inclusive o Postgres e o Redis do Avento — mas o plugin responde "Docker Desktop is not running" mesmo assim. Nesse caso o catalogo marca o gateway como indisponivel com essa explicacao, e os outros servidores MCP seguem funcionando: nenhum deles depende do gateway.
 
+O servidor **memory** tambem e independente do Redis Stack do Avento: ele executa o container local `mcp/memory` e persiste seu grafo em `~/.avento/memory.json`. Quando a conexao falhar, `connect_mcp_server` devolve `error` e `details` ao modelo; o chat deve apresentar essa causa literal, sem atribuir o problema ao Redis ou a outro componente sem evidencia da ferramenta.
+
 O catalogo usa exclusivamente o SDK Java oficial. Os pacotes npm possuem versoes fixas em
 `application.yml`, sem `@latest`; isso deixa a instalacao reproduzivel e permite atualizar cada
 servidor de forma deliberada.

@@ -30,15 +30,11 @@ avento:
     auto-approve-all: ${AVENTO_AGENT_AUTO_APPROVE_ALL:false}
     max-tool-rounds: ${AVENTO_AGENT_MAX_TOOL_ROUNDS:60}
     max-tool-calls: ${AVENTO_AGENT_MAX_TOOL_CALLS:100}
-    # 32768 e HEADROOM, nao alvo. Acima do num_ctx o llama.cpp descarta o COMECO do prompt em
-    # silencio — foi assim que as paginas buscadas sumiam do contexto e o modelo inventava os dados
-    # (medido: prompt de 49k tokens -> prompt_eval_count 8194). O que mantem o prompt pequeno e o
-    # corte de resultado de ferramenta, nao a janela.
-    # Custo medido nesta maquina de 16GB: ler custa ~4,4ms/token, entao encher a janela seria ~150s
-    # de silencio; e o KV cache e alocado no load, somando com ComfyUI/Postgres/Redis (7GB de swap
-    # em uso durante o teste). Se o Ollama morrer sob pressao ou o tok/s cair:
-    # AVENTO_AGENT_NUM_CTX=16384 sem editar este arquivo.
-    num-ctx: ${AVENTO_AGENT_NUM_CTX:32768}
+    # O modelo declara a janela que suporta; para provedores locais o Avento usa o menor valor entre
+    # essa capacidade e este teto da maquina. 8k evita que o KV cache deixe um Mac de 16 GB em swap
+    # enquanto ainda comporta conversa, ferramentas e trechos RAG. Máquinas com folga podem elevar
+    # o teto por AVENTO_AGENT_NUM_CTX, sem pedir mais do que o modelo anuncia.
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:8192}
     num-predict: ${AVENTO_AGENT_NUM_PREDICT:4096}
     temperature: ${AVENTO_AGENT_TEMPERATURE:0.15}
     top-p: ${AVENTO_AGENT_TOP_P:0.9}

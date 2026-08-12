@@ -1574,16 +1574,6 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     isGeneratingRef.current = isGenerating;
   }, [isGenerating]);
 
-  useEffect(() => {
-    if (!isGenerating || !projectPaths[0]) return;
-    const interval = window.setInterval(() => {
-      if (projectPaths[0]) {
-        void refreshProjectTree(projectPaths[0]);
-      }
-    }, 3500);
-    return () => window.clearInterval(interval);
-  }, [isGenerating, projectPaths, refreshProjectTree]);
-
   // Envia a proxima mensagem da fila assim que o Avento termina de responder.
   // Mensagens mandadas enquanto ele ainda esta gerando nao sao mais
   // descartadas (handleSend as enfileira em vez de ignorar).

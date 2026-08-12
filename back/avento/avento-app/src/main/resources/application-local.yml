@@ -37,12 +37,10 @@ avento:
     # do que já foi lido, então rodada a mais custa tempo, não a resposta inteira.
     max-tool-rounds: 15
     max-tool-calls: 16
-    # 32768 e HEADROOM contra o descarte silencioso: acima do num_ctx o llama.cpp joga fora o COMECO
-    # do prompt sem avisar, e era ali que ficavam as paginas buscadas pelo fetch — o modelo perdia a
-    # pesquisa e inventava. O que mantem o prompt pequeno e max-tool-result-chars, nao a janela.
-    # Custo real medido: ~4,4ms por token de leitura e KV cache alocado no load (7GB de swap com
-    # ComfyUI+Postgres+Redis juntos). Se o tok/s cair ou o Ollama morrer: AVENTO_AGENT_NUM_CTX=16384.
-    num-ctx: ${AVENTO_AGENT_NUM_CTX:32768}
+    # O modelo informa o máximo que suporta, mas numa instância Ollama o contexto também consome
+    # memória desta máquina. 8k é o teto local seguro para manter chat, RAG e interface responsivos;
+    # use AVENTO_AGENT_NUM_CTX para aumentar somente quando a memória disponível justificar.
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:8192}
     num-predict: ${AVENTO_AGENT_NUM_PREDICT:4096}
     # ESTE e o arquivo que vale no profile local (sobrescreve application.yml). Um modelo so, sem troca.
     # qwen3.5:9b existe tanto aqui quanto na maquina de inferencia da rede, entao trocar de uma para

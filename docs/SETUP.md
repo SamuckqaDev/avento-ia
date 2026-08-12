@@ -242,7 +242,7 @@ O detalhamento de pessoas usa detecção por região, ordenação por confiança
 
 Imagem e video sao assincronos. O backend cria registros em `image_generation_jobs` e `video_generation_jobs`, devolve o identificador ao chat e usa um worker unico por tipo para respeitar a memoria da maquina local. A interface consulta `GET /api/images/{jobId}` ou `GET /api/videos/{jobId}` com Axios a cada dois segundos e mostra etapa, progresso estimado e tempo restante. `POST /api/images/{jobId}/cancel` e `POST /api/videos/{jobId}/cancel` cancelam o job; no ComfyUI, o prompt ativo identificado pelo worker tambem e removido ou interrompido. Jobs nao finalizados sao recuperados quando o backend reinicia. O progresso e a previsao sao estimativas calculadas pelas opcoes de qualidade, refinamento, validacao, dimensoes, frames, passos e tempo decorrido.
 
-O backend compacta historico antigo, remove prompts de sistema duplicados do frontend e envia apenas as ferramentas relevantes para o pedido antes de chamar o modelo. Continuacoes curtas preservam o ultimo pedido explicito em `[Conversation Continuity]`. `avento.agent.num-ctx` define a janela compartilhada entre entrada e saida; `avento.agent.num-predict` limita a geracao de cada rodada. Os padroes locais sao 16.384 e 4.096 tokens, respectivamente. Tambem podem ser ajustados `temperature`, `top-p`, `top-k`, `repeat-penalty` e os tres limites de compactacao. O RAG aplica `avento.rag.similarity-threshold` antes de incluir trechos no contexto, reduzindo resultados semanticamente fracos.
+O backend compacta historico antigo, remove prompts de sistema duplicados do frontend e envia apenas as ferramentas relevantes para o pedido antes de chamar o modelo. Continuacoes curtas preservam o ultimo pedido explicito em `[Conversation Continuity]`. `avento.agent.num-ctx` define o teto local da janela compartilhada entre entrada e saida; para modelos locais, o Avento usa o menor valor entre esse teto e a janela declarada pelo modelo. O padrão local é 8.192 tokens, seguro para manter chat, RAG e interface responsivos em uma máquina de 16 GB; `avento.agent.num-predict` limita a geração de cada rodada em 4.096 tokens. Máquinas com memória de sobra podem elevar `AVENTO_AGENT_NUM_CTX`. Também podem ser ajustados `temperature`, `top-p`, `top-k`, `repeat-penalty` e os três limites de compactação. O RAG aplica `avento.rag.similarity-threshold` antes de incluir trechos no contexto, reduzindo resultados semanticamente fracos.
 
 ### Politica e midias geradas
 
@@ -283,7 +283,8 @@ Campos mais comuns para ajustar:
 ```yaml
 avento:
   agent:
-    num-ctx: ${AVENTO_AGENT_NUM_CTX:16384}
+    # Teto seguro da máquina; o Avento respeita também a janela declarada pelo modelo.
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:8192}
     num-predict: ${AVENTO_AGENT_NUM_PREDICT:4096}
     temperature: ${AVENTO_AGENT_TEMPERATURE:0.15}
     top-p: ${AVENTO_AGENT_TOP_P:0.9}

@@ -270,6 +270,11 @@ The backend must be started from the root to find `.env`, `back/whisper.cpp`, `p
 
 ### Chat and RAG
 
+For local models, Avento reads the context window declared by the selected model and uses the lower
+value between it and `AVENTO_AGENT_NUM_CTX`. The local default is 8,192 tokens to keep the KV cache
+from exhausting a 16 GB machine while chat, RAG, and the interface are active. Increase that cap only
+when the machine has enough memory; managed providers keep control of their own declared window.
+
 | Use | Recommendation |
 |---|---|
 | Agent with tools | `qwen3:8b` |

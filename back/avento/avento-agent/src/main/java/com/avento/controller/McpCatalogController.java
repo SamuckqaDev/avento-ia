@@ -5,11 +5,13 @@ import com.avento.dto.BaseResponse;
 import com.avento.dto.ConnectionResult;
 import com.avento.dto.Context;
 import com.avento.dto.ServerDescriptor;
+import com.avento.dto.UnifiedToolCatalog;
 import com.avento.dto.api.ApiResponses;
 import com.avento.service.WorkspaceAccessService;
 import com.avento.service.auth.AuthPrincipal;
 import com.avento.service.mcp.McpServerCatalogService;
 import com.avento.service.tools.ToolExecutionContext;
+import com.avento.service.tools.UnifiedToolCatalogService;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -28,14 +30,17 @@ public class McpCatalogController {
     private final McpServerCatalogService catalogService;
     private final WorkspaceAccessService workspaceAccessService;
     private final ToolExecutionContext executionContext;
+    private final UnifiedToolCatalogService unifiedToolCatalogService;
 
     public McpCatalogController(
             McpServerCatalogService catalogService,
             WorkspaceAccessService workspaceAccessService,
-            ToolExecutionContext executionContext) {
+            ToolExecutionContext executionContext,
+            UnifiedToolCatalogService unifiedToolCatalogService) {
         this.catalogService = catalogService;
         this.workspaceAccessService = workspaceAccessService;
         this.executionContext = executionContext;
+        this.unifiedToolCatalogService = unifiedToolCatalogService;
     }
 
     @GetMapping
@@ -47,6 +52,24 @@ public class McpCatalogController {
         List<ServerDescriptor> catalog = executionContext.call(
                 context(principal, chatId), () -> catalogService.catalog(registerRoots(principal, workspaces)));
         return ApiResponses.ok(catalog);
+    }
+
+    /**
+     * Catálogo operacional: capacidades nativas, MCPs instalados no host e ferramentas que o
+     * Docker MCP já anunciou para o chat atual.
+     *
+     * <p>A chamada é somente leitura. Um servidor desligado aparece como disponível ou
+     * indisponível com o motivo correspondente, mas não é iniciado apenas para preencher a tela.
+     */
+    @GetMapping("/tools")
+    public ResponseEntity<BaseResponse<UnifiedToolCatalog>> tools(
+            @RequestParam(name = "workspace", required = false) List<String> workspaces,
+            @RequestParam(name = "chatId", required = false) Long chatId,
+            @AuthenticationPrincipal AuthPrincipal principal)
+            throws Exception {
+        UnifiedToolCatalog tools = executionContext.call(
+                context(principal, chatId), () -> unifiedToolCatalogService.catalog(registerRoots(principal, workspaces)));
+        return ApiResponses.ok(tools);
     }
 
     @PostMapping("/connect")

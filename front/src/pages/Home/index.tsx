@@ -3254,6 +3254,8 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
           onConnect={connectMcpServer}
           onDisconnect={disconnectMcpServer}
           onNotify={showTemporaryNotice}
+          projectPaths={projectPaths}
+          chatId={currentChatId}
         />
       )}
       {snackbarMessage && (

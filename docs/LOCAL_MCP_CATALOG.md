@@ -62,6 +62,31 @@ O conjunto automatico adicional pode ser alterado sem recompilar:
 AVENTO_MCP_AUTO_CONNECT=filesystem,memory,sequential-thinking,time,desktop-commander,macos-automator,apple,playwright,chrome-devtools,puppeteer,git
 ```
 
+## Catálogo unificado de ferramentas
+
+Além da lista de servidores, o Avento mantém um catálogo operacional único para não confundir
+"existe no computador" com "o modelo consegue chamar agora". A tela **Ferramentas** mostra três
+origens:
+
+| Origem | O que representa | Estado possível |
+| --- | --- | --- |
+| `AVENTO_NATIVE` | Ferramentas implementadas pelo próprio Avento | `READY` |
+| `LOCAL_MCP` | MCPs instalados no host (macOS/PC) | `READY`, `AVAILABLE` ou `UNAVAILABLE` |
+| `DOCKER_MCP` | Perfil ativo do Docker MCP Toolkit | `READY`, `AVAILABLE`, `DEGRADED` ou `UNAVAILABLE` |
+
+`READY` significa que o schema foi descoberto por um `tools/list` real no escopo do chat;
+`AVAILABLE` significa que o servidor existe, mas ainda precisa conectar; `UNAVAILABLE` carrega o
+motivo técnico; e `DEGRADED` significa que conectou, porém não anunciou ferramenta alguma. A
+consulta é só de leitura: ela não inicia containers nem processos locais para preencher a tela.
+
+```http
+GET /api/mcp/catalog/tools?workspace=/caminho/do/projeto&chatId=42
+```
+
+O Docker só mostra ferramentas individuais depois do handshake MCP. Antes disso o catálogo exibe
+o gateway como servidor disponível — uma resposta honesta, em vez de inventar ferramentas pelo
+nome do perfil.
+
 ## Interface web
 
 O botao de plugue no header abre o gerenciador de ferramentas locais. A tela consulta o catalogo com Axios, preserva os workspaces do chat atual e permite buscar, filtrar, conectar, desconectar e atualizar servidores. Estados indisponiveis mostram a configuracao que falta; conexoes bem-sucedidas usam o snackbar temporario da aplicacao.
@@ -111,8 +136,10 @@ AVENTO_MCP_SEARXNG_URL=http://127.0.0.1:8080
 # Fallback global usado apenas quando o chat nao possui workspace.
 AVENTO_MCP_DBHUB_DSN=postgres://avento:senha@127.0.0.1:5432/avento?sslmode=disable
 
-# Opcional. Vazio = usa os servidores habilitados no Docker Desktop (registry.yaml do Toolkit).
-# Preencher fixa um subconjunto: AVENTO_MCP_DOCKER_GATEWAY_SERVERS=github,postgres
+# Opcional. O Docker Desktop 4.62+ organiza os servidores em perfis; o Avento usa "default" por padrão.
+AVENTO_MCP_DOCKER_GATEWAY_PROFILE=default
+
+# Preencher fixa um subconjunto e ignora o perfil.
 AVENTO_MCP_DOCKER_GATEWAY_SERVERS=
 ```
 

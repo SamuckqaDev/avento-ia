@@ -154,22 +154,28 @@ class McpServerCatalogServiceTest {
         }
     }
 
-    /**
-     * O comando do gateway, fixado.
-     *
-     * <p>O codigo de producao chamava {@code docker mcp gateway run --profile <perfil>}, e essa flag
-     * nao existe no CLI do Docker MCP Toolkit — o processo morria em "unknown flag: --profile". O
-     * teste de integracao ao lado ja usava {@code --servers}, o correto, mas esta atras de uma
-     * variavel de ambiente e nunca rodou, entao a divergencia passou batida. Este roda sempre.
-     */
+    /** O gateway atualizado usa o perfil {@code default} quando não há subconjunto configurado. */
     @Test
     @EnabledIf("dockerDesktopRunning")
-    void launchesTheDockerGatewayWithFlagsThatExist() {
+    void launchesTheDockerGatewayWithTheDefaultProfile() {
         RecordingManager manager = new RecordingManager();
         new McpServerCatalogService(manager, configuredEnvironment(), new ProjectDatabaseDiscoveryService())
                 .connect(List.of("docker-gateway"), List.of());
 
-        assertEquals(List.of("docker", "mcp", "gateway", "run"), manager.command);
+        assertEquals(List.of("docker", "mcp", "gateway", "run", "--profile", "default"), manager.command);
+    }
+
+    @Test
+    @EnabledIf("dockerDesktopRunning")
+    void launchesTheDockerGatewayWithTheConfiguredProfile() {
+        RecordingManager manager = new RecordingManager();
+        new McpServerCatalogService(
+                        manager,
+                        configuredEnvironment().withProperty("avento.mcp.docker-gateway.profile", "avento"),
+                        new ProjectDatabaseDiscoveryService())
+                .connect(List.of("docker-gateway"), List.of());
+
+        assertEquals(List.of("docker", "mcp", "gateway", "run", "--profile", "avento"), manager.command);
     }
 
     /** Com a lista configurada, ela vira {@code --servers}; sem ela, o gateway usa o registry. */

@@ -47,6 +47,8 @@ interface McpToolsManagerProps {
   onConnect: (serverId: string) => Promise<McpActionResult>;
   onDisconnect: (serverId: string) => Promise<McpActionResult>;
   onNotify: (message: string) => void;
+  projectPaths: string[];
+  chatId: number | null;
 }
 
 type ProfileFilter = 'all' | McpProfile;
@@ -72,6 +74,8 @@ export function McpToolsManager({
   onConnect,
   onDisconnect,
   onNotify,
+  projectPaths,
+  chatId,
 }: McpToolsManagerProps) {
   const [search, setSearch] = useState('');
   const [profile, setProfile] = useState<ProfileFilter>('all');
@@ -83,7 +87,7 @@ export function McpToolsManager({
     error: toolsError,
     loadTools,
     togglePinned,
-  } = useMcpTools();
+  } = useMcpTools(projectPaths, chatId);
 
   const filteredServers = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('pt-BR');
@@ -97,9 +101,9 @@ export function McpToolsManager({
   const filteredTools = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('pt-BR');
     return tools
-      .filter(tool => !query || `${tool.name} ${tool.description} ${tool.mcpServer}`.toLocaleLowerCase('pt-BR').includes(query))
+      .filter(tool => !query || `${tool.name} ${tool.description} ${tool.source} ${tool.serverId} ${tool.category}`.toLocaleLowerCase('pt-BR').includes(query))
       .sort((left, right) =>
-        Number(pinned.includes(right.name)) - Number(pinned.includes(left.name)) ||
+        Number(pinned.includes(right.name) && right.entryType === 'TOOL') - Number(pinned.includes(left.name) && left.entryType === 'TOOL') ||
         left.name.localeCompare(right.name));
   }, [pinned, search, tools]);
 
@@ -116,8 +120,24 @@ export function McpToolsManager({
 
   const runAction = async (action: () => Promise<McpActionResult>) => {
     const result = await action();
-    if (result.ok) onNotify(result.message);
+    if (result.ok) {
+      onNotify(result.message);
+      await loadTools();
+    }
   };
+
+  const sourceLabel = (source: string) => ({
+    AVENTO_NATIVE: 'Avento',
+    LOCAL_MCP: 'MCP local',
+    DOCKER_MCP: 'Docker MCP',
+  }[source] || source);
+
+  const stateLabel = (availability: string) => ({
+    READY: 'Pronta',
+    AVAILABLE: 'Conecte para usar',
+    DEGRADED: 'Conectada sem ferramentas',
+    UNAVAILABLE: 'Indisponível',
+  }[availability] || availability);
 
   return (
     <Backdrop onClick={onClose}>
@@ -151,7 +171,7 @@ export function McpToolsManager({
             ) : (
               <>
                 <span><PushPin size={17} weight="fill" /> {pinned.length} fixadas</span>
-                <span><Plug size={17} /> {tools.length} disponíveis</span>
+                <span><Plug size={17} /> {tools.filter(tool => tool.availability !== 'UNAVAILABLE').length} no catálogo</span>
               </>
             )}
           </Summary>
@@ -207,26 +227,32 @@ export function McpToolsManager({
               sozinho quando precisa — o que economiza contexto, mas depende dele lembrar de ativar.
             </p>
             {filteredTools.map(tool => {
-              const isPinned = pinned.includes(tool.name);
+              const canPin = tool.entryType === 'TOOL' && tool.availability !== 'UNAVAILABLE';
+              const isPinned = canPin && pinned.includes(tool.name);
               return (
-                <ToolRow key={tool.name} $pinned={isPinned}>
+                <ToolRow key={tool.id} $pinned={isPinned}>
                   <ToolMeta>
                     <div className="tool-title">
                       <strong>{tool.name}</strong>
-                      <code>{tool.mcpServer || 'avento'}</code>
+                      <code>{sourceLabel(tool.source)}</code>
+                      <code>{tool.entryType === 'SERVER' ? 'servidor' : tool.serverId}</code>
+                      <code>{stateLabel(tool.availability)}</code>
                     </div>
                     <p>{tool.description}</p>
+                    {tool.reason && <span className="tool-reason">{tool.reason}</span>}
                   </ToolMeta>
-                  <PinButton
-                    type="button"
-                    $pinned={isPinned}
-                    aria-pressed={isPinned}
-                    title={isPinned ? 'Sair de toda rodada' : 'Manter em toda rodada'}
-                    onClick={() => togglePinned(tool.name)}
-                  >
-                    {isPinned ? <PushPinSlash size={16} /> : <PushPin size={16} />}
-                    <span>{isPinned ? 'Fixada' : 'Fixar'}</span>
-                  </PinButton>
+                  {canPin && (
+                    <PinButton
+                      type="button"
+                      $pinned={isPinned}
+                      aria-pressed={isPinned}
+                      title={isPinned ? 'Sair de toda rodada' : 'Manter em toda rodada'}
+                      onClick={() => togglePinned(tool.name)}
+                    >
+                      {isPinned ? <PushPinSlash size={16} /> : <PushPin size={16} />}
+                      <span>{isPinned ? 'Fixada' : 'Fixar'}</span>
+                    </PinButton>
+                  )}
                 </ToolRow>
               );
             })}

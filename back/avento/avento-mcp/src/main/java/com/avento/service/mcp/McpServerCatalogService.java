@@ -506,15 +506,10 @@ public class McpServerCatalogService {
                                         : "Nenhum banco foi detectado no workspace deste chat."));
             }
             case "docker-gateway" -> {
-                // `--profile` NAO existe no CLI do Docker MCP Toolkit: o comando morria em
-                // "unknown flag: --profile". E como o perfil nunca vinha configurado, o gateway
-                // ficava "indisponivel" antes de chegar a falhar — dois motivos empilhados para
-                // algo que nunca subiu.
-                //
-                // Sem `--servers`, o gateway usa o registry.yaml que o Docker Desktop gerencia, ou
-                // seja, exatamente os servidores que o usuario habilitou na interface do Toolkit.
-                // Esse e o padrao util; a lista explicita continua disponivel para fixar um
-                // subconjunto.
+                // Docker MCP Toolkit 4.62+ organiza servidores em perfis. Usar explicitamente o
+                // perfil evita depender do registry legado e torna o catálogo reproduzível. A lista
+                // de servidores, quando configurada, continua sendo uma alternativa deliberada e é
+                // mutuamente exclusiva com --profile na CLI do Docker.
                 if (!dockerDesktopRunning()) {
                     yield ServerLaunch.unavailable(
                             "O gateway e um plugin do Docker Desktop e exige que ele esteja em execucao."
@@ -529,6 +524,14 @@ public class McpServerCatalogService {
                 if (!servers.isBlank()) {
                     command.add("--servers");
                     command.add(servers);
+                } else {
+                    String profile = environment
+                            .getProperty("avento.mcp.docker-gateway.profile", "default")
+                            .trim();
+                    if (!profile.isBlank()) {
+                        command.add("--profile");
+                        command.add(profile);
+                    }
                 }
                 yield executable("docker", List.copyOf(command), Map.of());
             }

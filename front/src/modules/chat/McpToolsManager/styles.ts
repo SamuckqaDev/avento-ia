@@ -324,6 +324,14 @@ export const ServerMeta = styled.div`
       gap: 2px;
     }
   }
+
+  .tool-reason {
+    display: block;
+    margin-top: 4px;
+    color: ${({ theme }) => theme.colors.warning};
+    font-size: 0.72rem;
+    line-height: 1.4;
+  }
 `;
 
 export const ActionButton = styled.button<{ $connected: boolean }>`

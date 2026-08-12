@@ -234,8 +234,10 @@ avento:
     searxng:
       url: ${AVENTO_MCP_SEARXNG_URL:}
     docker-gateway:
-      # Vazio = usa os servidores habilitados no Docker Desktop (registry.yaml do Toolkit).
-      # Preencher com uma lista separada por virgula fixa um subconjunto.
+      # Docker Desktop 4.62+ organiza servidores em perfis. O perfil default preserva a migracao
+      # de instalacoes antigas; escolha outro para isolar ferramentas por projeto.
+      profile: ${AVENTO_MCP_DOCKER_GATEWAY_PROFILE:default}
+      # Preencher com uma lista separada por virgula fixa um subconjunto e ignora o perfil.
       servers: ${AVENTO_MCP_DOCKER_GATEWAY_SERVERS:}
   voice:
     # Kokoro e o motor neural local do Avento. Piper fica como contingência leve se o processo

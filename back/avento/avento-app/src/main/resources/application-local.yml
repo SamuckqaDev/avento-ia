@@ -73,8 +73,11 @@ avento:
       # gateway, cada um em container isolado. Habilitar/desabilitar e no Docker Desktop.
       auto-connect: ${AVENTO_MCP_AUTO_CONNECT:filesystem,markitdown,macos-automator,apple,chrome-devtools,docker-gateway}
     docker-gateway:
-      # Vazio = os servidores habilitados no Docker Desktop (MCP Toolkit). Nenhum habilitado
-      # significa gateway conectado sem ferramentas — inofensivo — ate voce escolher na interface.
+      # Perfil do Docker MCP Toolkit a conectar. O Docker Desktop atualizado migra os servidores
+      # antigos para "default"; use outro perfil para separar ferramentas por projeto.
+      profile: ${AVENTO_MCP_DOCKER_GATEWAY_PROFILE:default}
+      # Vazio = usa o perfil acima. Preencher fixa um subconjunto e ignora o perfil, conforme a
+      # semântica da CLI do Docker MCP.
       servers: ${AVENTO_MCP_DOCKER_GATEWAY_SERVERS:}
     filesystem:
       enabled: ${AVENTO_MCP_FILESYSTEM_ENABLED:true}

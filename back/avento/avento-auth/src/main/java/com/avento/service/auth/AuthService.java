@@ -5,6 +5,7 @@ import com.avento.dto.auth.AuthDtos.AuditResponse;
 import com.avento.dto.auth.AuthDtos.AuthResponse;
 import com.avento.dto.auth.AuthDtos.BootstrapRequest;
 import com.avento.dto.auth.AuthDtos.LoginRequest;
+import com.avento.dto.auth.AuthDtos.UpdateProfileRequest;
 import com.avento.dto.auth.AuthDtos.UserResponse;
 import com.avento.model.AuthSession;
 import com.avento.model.AuthSessionRepository;
@@ -186,6 +187,15 @@ public class AuthService {
                 .findById(principal.userId())
                 .orElseThrow(() -> new BadCredentialsException("User not found."));
         return toUserResponse(user);
+    }
+
+    @Transactional
+    public UserResponse updateProfile(AuthPrincipal principal, UpdateProfileRequest request) {
+        UserAccount user = userRepository
+                .findById(principal.userId())
+                .orElseThrow(() -> new BadCredentialsException("User not found."));
+        user.setDisplayName(cleanDisplayName(request.displayName(), user.getEmail()));
+        return toUserResponse(userRepository.save(user));
     }
 
     @Transactional(readOnly = true)

@@ -111,7 +111,9 @@ public class ImageGenerationJobWorker {
         repository.saveAndFlush(job);
 
         job.setStatus(Status.GENERATING);
-        job.setStage(job.getModel().startsWith("comfyui:") ? "Gerando no ComfyUI" : "Gerando imagem");
+        job.setStage(job.getModel().startsWith("comfyui:")
+                ? "Gerando no ComfyUI"
+                : "Gerando diretamente pelo modelo");
         job.setProgress(5);
         repository.saveAndFlush(job);
     }

@@ -42,16 +42,20 @@ public class TokenUsageService {
     public UsageSummary summary(UUID userId, String range) {
         String normalizedRange = normalizeRange(range);
         if (userId == null) {
-            return new UsageSummary(normalizedRange, 0, 0, 0, 0, List.of(), List.of(), List.of());
+            return new UsageSummary(normalizedRange, 0, 0, 0, 0, 0, 0, List.of(), List.of(), List.of());
         }
 
         LocalDateTime since = sinceFor(normalizedRange);
+        long modelCallCount = tokenUsageRepository.countSince(userId, since);
         return new UsageSummary(
                 normalizedRange,
                 tokenUsageRepository.sumTotalSince(userId, since),
                 tokenUsageRepository.sumPromptSince(userId, since),
                 tokenUsageRepository.sumCompletionSince(userId, since),
-                tokenUsageRepository.countSince(userId, since),
+                tokenUsageRepository.countDistinctRunsSince(userId, since),
+                modelCallCount,
+                // Campo mantido para clientes antigos. Ele sempre foi contagem de chamadas ao modelo.
+                modelCallCount,
                 tokenUsageRepository.usageByModelSince(userId, since),
                 tokenUsageRepository.sumByDaySince(userId, since),
                 tokenUsageRepository.usageByChatSince(userId, since, PageRequest.of(0, 5)));

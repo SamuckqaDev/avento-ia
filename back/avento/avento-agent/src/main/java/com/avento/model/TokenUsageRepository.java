@@ -27,6 +27,14 @@ public interface TokenUsageRepository extends JpaRepository<TokenUsage, Long> {
     @Query("select count(t) from TokenUsage t where t.userId = :userId and t.createdAt >= :since")
     long countSince(UUID userId, LocalDateTime since);
 
+    /**
+     * A single user request can make several model calls when the agent plans or uses a tool.
+     * This count is the number of logical chat runs, not the number of provider round trips.
+     */
+    @Query("select count(distinct t.runId) from TokenUsage t "
+            + "where t.userId = :userId and t.createdAt >= :since and t.runId is not null and t.runId <> ''")
+    long countDistinctRunsSince(UUID userId, LocalDateTime since);
+
     @Query("select t.model as model, sum(t.promptTokens) as promptTokens, "
             + "sum(t.completionTokens) as completionTokens, sum(t.totalTokens) as total "
             + "from TokenUsage t where t.userId = :userId and t.createdAt >= :since "

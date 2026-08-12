@@ -49,6 +49,8 @@ interface UsageSummary {
   total: number;
   promptTotal: number;
   completionTotal: number;
+  chatRunCount?: number;
+  modelCallCount?: number;
   requestCount: number;
   byModel: ModelUsage[];
   byDay: DayTotal[];
@@ -136,7 +138,14 @@ export function SettingsModal({
   
   const [avatarUrl, setAvatarUrl] = useState<string>(() => user?.hasAvatar ? profileAvatarUrl() : '');
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState(user?.displayName || '');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDisplayName(user?.displayName || '');
+  }, [user?.displayName]);
 
   const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [isLoadingMemory, setIsLoadingMemory] = useState(true);
@@ -523,6 +532,25 @@ export function SettingsModal({
     }
   };
 
+  const handleSaveProfile = async () => {
+    const normalizedName = displayName.trim();
+    if (!normalizedName) {
+      setProfileMessage('Informe como o Avento deve chamar você.');
+      return;
+    }
+    setProfileSaving(true);
+    setProfileMessage('');
+    try {
+      await api.patch('/api/auth/me', { displayName: normalizedName });
+      await reloadCurrentUser();
+      setProfileMessage('Perfil atualizado.');
+    } catch (error) {
+      setProfileMessage(apiErrorMessage(error));
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const renderConta = () => (
     <Body>
       <div className="profile-header">
@@ -554,6 +582,22 @@ export function SettingsModal({
           <span className="profile-version">Versão {appVersion || '—'}</span>
         </div>
       </div>
+      <SettingRow>
+        <AgentField style={{ flex: 1 }}>
+          <span>Como o Avento deve chamar você</span>
+          <input
+            value={displayName}
+            maxLength={120}
+            onChange={(event) => setDisplayName(event.target.value)}
+            aria-label="Nome de exibição"
+          />
+          <span style={{ fontSize: '0.74rem' }}>Seu e-mail e permissões são dados de acesso e não mudam por aqui.</span>
+        </AgentField>
+        <SaveButton type="button" onClick={handleSaveProfile} disabled={profileSaving || !displayName.trim()}>
+          {profileSaving ? 'Salvando...' : 'Salvar'}
+        </SaveButton>
+      </SettingRow>
+      {profileMessage && <p role="status" style={{ color: profileMessage === 'Perfil atualizado.' ? '#66E6C8' : '#F48282', margin: 0 }}>{profileMessage}</p>}
       <Footer style={{ marginTop: 'auto' }}>
         <DestructiveButton onClick={handleLogout}>Sair da Conta</DestructiveButton>
       </Footer>
@@ -596,8 +640,7 @@ export function SettingsModal({
         <Body>
           {renderRangeSelector()}
           <p style={{ color: '#9FB8B1', fontSize: '0.9rem' }}>
-            Nenhum token consumido {rangeLabel}. Os tokens são uma métrica de custo computacional local
-            (Ollama), não financeiro.
+            Nenhum token consumido {rangeLabel}. Tokens medem processamento do modelo, não um valor financeiro.
           </p>
         </Body>
       );
@@ -632,8 +675,12 @@ export function SettingsModal({
             <span className="stat-label">Saída (geração)</span>
           </StatBox>
           <StatBox>
-            <span className="stat-value">{fmt(usageData.requestCount)}</span>
-            <span className="stat-label">Requisições</span>
+            <span className="stat-value">{fmt(usageData.chatRunCount ?? usageData.requestCount)}</span>
+            <span className="stat-label">Pedidos ao Avento</span>
+          </StatBox>
+          <StatBox>
+            <span className="stat-value">{fmt(usageData.modelCallCount ?? usageData.requestCount)}</span>
+            <span className="stat-label">Rodadas do modelo</span>
           </StatBox>
           {metricsData && typeof metricsData.avgDurationSecs === 'number' && metricsData.avgDurationSecs > 0 && (
             <StatBox>
@@ -642,6 +689,14 @@ export function SettingsModal({
             </StatBox>
           )}
         </StatGrid>
+
+        <UsageCard>
+          <p style={{ margin: 0, color: '#9FB8B1', fontSize: '0.8rem', lineHeight: 1.5 }}>
+            <strong style={{ color: '#F2FFFB' }}>Como ler:</strong> um pedido pode virar várias rodadas quando o
+            Avento planeja, chama uma ferramenta e lê o resultado. Todas as rodadas contam tokens reais;
+            “Pedidos ao Avento” mostra a conversa que você iniciou.
+          </p>
+        </UsageCard>
 
         {byDay.length > 0 && (
           <UsageCard>
@@ -1054,9 +1109,9 @@ export function SettingsModal({
     },
     {
       key: 'imageModel',
-      label: 'Geração de imagem',
-      empty: 'Usar o padrão do sistema (ComfyUI no modo local)',
-      help: 'Cria imagens novas a partir de um texto.',
+      label: 'Modelo direto de imagem local',
+      empty: 'Usar o padrão do sistema',
+      help: 'Usado no Ollama local quando você escolher “Modelo direto” no menu rápido. O ComfyUI continua uma opção separada.',
     },
   ];
 
@@ -1143,8 +1198,8 @@ export function SettingsModal({
           ) : (
             <>
             <p style={{ color: '#9FB8B1', fontSize: '0.8rem', margin: '0 0 12px' }}>
-              Escolha de onde vêm as respostas. O sistema passa a listar os modelos desse provedor e a
-              enviar as conversas para ele.
+              Escolha onde o Avento conversa. Só o modelo de conversa é obrigatório; os ajustes de
+              planejamento, visão e imagem são opcionais.
             </p>
 
             <ProviderGrid>
@@ -1266,9 +1321,16 @@ export function SettingsModal({
             </SettingRow>
 
             {/* Todo modelo do provedor sai daqui: trocar modelo de visao ou de imagem nao deveria
-                exigir editar YAML e reiniciar o backend. Vazio significa "usa o padrao do sistema". */}
+                exigir editar YAML e reiniciar o backend. Eles ficam recolhidos porque nao bloqueiam
+                a primeira configuracao. Vazio significa "usa o padrao do sistema". */}
             {providerModels.length > 0 && (
-              <>
+              <details style={{ marginTop: '6px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '12px' }}>
+                <summary style={{ cursor: 'pointer', color: '#66E6C8', fontSize: '0.84rem', fontWeight: 600 }}>
+                  Ajustes avançados de modelos
+                </summary>
+                <p style={{ margin: '8px 0 0', color: '#9FB8B1', fontSize: '0.75rem' }}>
+                  Deixe em branco para usar o padrão. Só altere se tiver um motivo específico.
+                </p>
                 {MODEL_ROLES.filter(role => role.key !== 'selectedModel').map(role => (
                   <SettingRow key={role.key} style={{ borderBottom: 'none', paddingTop: '8px' }}>
                     <AgentField style={{ flex: 1 }}>
@@ -1287,7 +1349,7 @@ export function SettingsModal({
                     </AgentField>
                   </SettingRow>
                 ))}
-              </>
+              </details>
             )}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px', marginBottom: '20px' }}>

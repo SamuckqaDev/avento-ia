@@ -96,6 +96,9 @@ const MAX_DOCUMENT_CONTEXT_CHARS = 5000;
 const IMAGE_PREFERENCES_KEY = 'avento-image-generation-options';
 const VOICE_ENABLED_KEY = 'avento-voice-enabled';
 const SELECTED_MODEL_KEY = 'avento-selected-model';
+const SELECTED_IMAGE_MODEL_KEY = 'avento-selected-image-model';
+const COMFY_IMAGE_MODEL_PREFIX = 'comfyui:';
+const DIRECT_IMAGE_MODEL_PREFIX = 'direct:';
 
 /**
  * A escolha de modelo era só estado React: recarregar a página descartava e a lista voltava a
@@ -104,6 +107,10 @@ const SELECTED_MODEL_KEY = 'avento-selected-model';
  */
 export function loadSelectedModel(): string {
   return getBrowserCookie(SELECTED_MODEL_KEY) || '';
+}
+
+function loadSelectedImageModel(): string {
+  return getBrowserCookie(SELECTED_IMAGE_MODEL_KEY) || '';
 }
 
 export function loadVoiceEnabled(): boolean {
@@ -319,7 +326,7 @@ function describeProvider(kind: string, baseUrl: string): { icon: string; label:
 }
 
 function imageModelLabel(name: string): string {
-  const normalized = name.replace(/^comfyui:/, '');
+  const normalized = name.replace(/^comfyui:/, '').replace(/^direct:/, '');
   if (normalized.toLowerCase() === 'flux-2-klein-4b.safetensors') {
     return 'FLUX.2 Klein 4B · uso geral';
   }
@@ -336,7 +343,15 @@ function imageModelLabel(name: string): string {
 }
 
 function isFlux2ImageModel(name: string): boolean {
-  return name.replace(/^comfyui:/, '').toLowerCase().includes('flux-2-klein');
+  return name.replace(/^comfyui:/, '').replace(/^direct:/, '').toLowerCase().includes('flux-2-klein');
+}
+
+function isComfyImageModel(name: string): boolean {
+  return name.startsWith(COMFY_IMAGE_MODEL_PREFIX);
+}
+
+function selectableImageModelName(name: string): string {
+  return isComfyImageModel(name) ? name : `${DIRECT_IMAGE_MODEL_PREFIX}${name.replace(/^direct:/, '')}`;
 }
 
 
@@ -776,7 +791,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     [availableModels, selectedModel]
   );
   const [selectedChatTitle, setSelectedChatTitle] = useState('Nova conversa');
-  const [selectedImageModel, setSelectedImageModel] = useState('');
+  const [selectedImageModel, setSelectedImageModel] = useState(loadSelectedImageModel);
   const [imageQualityPreset, setImageQualityPreset] = useState(initialImagePreferences.qualityPreset);
   const [imageAspectRatio, setImageAspectRatio] = useState(initialImagePreferences.aspectRatio);
   const [imageSubjectType, setImageSubjectType] = useState(initialImagePreferences.subjectType);
@@ -798,8 +813,17 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const [poseReference, setPoseReference] = useState<{ name: string; dataUrl: string } | null>(null);
   const [lockImageSeed, setLockImageSeed] = useState(initialImagePreferences.lockSeed);
   const [imageSeed, setImageSeed] = useState(initialImagePreferences.seed || 42);
+  const imageGenerationSource = isComfyImageModel(selectedImageModel) ? 'comfyui' : 'direct';
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [isAutoApproveAll, setIsAutoApproveAll] = useState(true);
+
+  useEffect(() => {
+    if (selectedImageModel) {
+      setBrowserCookie(SELECTED_IMAGE_MODEL_KEY, selectedImageModel);
+    } else {
+      removeBrowserCookie(SELECTED_IMAGE_MODEL_KEY);
+    }
+  }, [selectedImageModel]);
 
   const handleToggleAutoApproveAll = useCallback(async () => {
     const next = !isAutoApproveAll;
@@ -1174,11 +1198,12 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
             ))
           : [];
         setAvailableImageModels(imageModels);
-        setSelectedImageModel(current => (
-          current && imageModels.some(model => model.name === current)
-            ? current
-            : imageModels.find(model => model.recommended)?.name || imageModels[0]?.name || ''
-        ));
+        setSelectedImageModel(current => {
+          const selected = imageModels.find(model => selectableImageModelName(model.name) === current
+            || model.name === current);
+          const fallback = imageModels.find(model => model.recommended)?.name || imageModels[0]?.name || '';
+          return selected ? selectableImageModelName(selected.name) : (fallback ? selectableImageModelName(fallback) : '');
+        });
         setSelectedModel(current => {
           if (current && models.some(model => model.name === current)) {
             return current;
@@ -2497,6 +2522,16 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   // O modelo mostrado é o que a requisição vai levar: o escolhido aqui no cabeçalho manda, e o
   // gravado só entra quando não há escolha — a mesma regra que o backend aplica em resolveChatModel.
   const badgeModel = selectedModel || activeProvider?.selectedModel || '';
+  const comfyImageModels = availableImageModels.filter(model => isComfyImageModel(model.name));
+  const directImageModels = availableImageModels.filter(model => !isComfyImageModel(model.name));
+  const visibleImageModels = imageGenerationSource === 'comfyui' ? comfyImageModels : directImageModels;
+
+  const selectImageSource = (source: 'comfyui' | 'direct') => {
+    const models = source === 'comfyui' ? comfyImageModels : directImageModels;
+    const currentSourceMatches = source === imageGenerationSource;
+    if (currentSourceMatches || models.length === 0) return;
+    setSelectedImageModel(selectableImageModelName(models.find(model => model.recommended)?.name || models[0].name));
+  };
 
   const renderModelSelectors = (inMenu = false) => (
     <>
@@ -2548,20 +2583,40 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
         </select>
       </label>
       <label className={inMenu ? 'menu-model-control' : 'model-control image-model-control'}>
+        {inMenu && <span>Origem da imagem</span>}
+        {inMenu && (
+          <select
+            value={imageGenerationSource}
+            onChange={(event) => selectImageSource(event.target.value as 'comfyui' | 'direct')}
+            className="model-select image-model-select"
+            aria-label="Origem da geração de imagem"
+            title="Escolha onde a imagem será gerada"
+          >
+            <option value="comfyui">ComfyUI local</option>
+            <option value="direct" disabled={directImageModels.length === 0}>Modelo direto</option>
+          </select>
+        )}
         <select
           value={selectedImageModel}
           onChange={(event) => setSelectedImageModel(event.target.value)}
           className="model-select image-model-select"
-          disabled={availableImageModels.length === 0}
+          disabled={visibleImageModels.length === 0}
           aria-label="Modelo de imagem"
-          title="Modelo para geração de imagens"
+          title={imageGenerationSource === 'comfyui'
+            ? 'Checkpoint do ComfyUI para geração de imagens'
+            : 'Modelo com API de geração de imagens compatível'}
         >
-          {availableImageModels.length === 0 ? (
-            <option value="">Nenhum modelo de imagem</option>
+          {visibleImageModels.length === 0 ? (
+            <option value="">
+              {imageGenerationSource === 'direct'
+                ? 'Nenhum modelo direto disponível'
+                : 'Nenhum checkpoint do ComfyUI disponível'}
+            </option>
           ) : (
-            availableImageModels.map(model => (
-              <option key={model.name} value={model.name}>
-                Imagem: {imageModelLabel(model.name)}{model.recommended ? ' · padrão' : ''}
+            visibleImageModels.map(model => (
+              <option key={model.name} value={selectableImageModelName(model.name)}>
+                {imageGenerationSource === 'comfyui' ? 'ComfyUI: ' : 'Direto: '}
+                {imageModelLabel(model.name)}{model.recommended ? ' · padrão' : ''}
               </option>
             ))
           )}

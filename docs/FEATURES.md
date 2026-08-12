@@ -29,7 +29,7 @@ The full inventory of what works in Avento today.
 - Action approval through the interface or by voice commands.
 - MCP integration with Git, databases, Docker, filesystem, browser, and macOS.
 - Querying the database discovered in the active project, including inside Docker.
-- Asynchronous image generation via ComfyUI with RealVisXL SDXL, structural or identity reference, pose control, visual review, progress, estimate, cancellation, and parameters adjustable in the frontend.
+- Asynchronous image generation via ComfyUI or a direct image model with a compatible image API, with an explicit source selector in the quick menu, structural or identity reference, pose control, visual review, progress, estimate, cancellation, and frontend-adjustable parameters.
 - Automatic translation of the prompt to English before SDXL (CLIP only understands English) and per-model generation presets (sampler, steps, CFG, and resolution tuned to each checkpoint), overridable by a local file without recompiling.
 - Video generation via ComfyUI with WAN 2.2 TI2V, animation of the most recent image in the chat, background execution, progress, estimate, and cancellation.
 - Media returned inside the chat, with controls to minimize, expand, and copy; the side section is also collapsible and uses a compact per-conversation list. Each file is linked to the conversation in PostgreSQL and is deleted from disk along with the chat.

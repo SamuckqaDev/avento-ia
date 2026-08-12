@@ -7,6 +7,8 @@ public record UsageSummary(
         long total,
         long promptTotal,
         long completionTotal,
+        long chatRunCount,
+        long modelCallCount,
         long requestCount,
         List<ModelUsage> byModel,
         List<DayTotal> byDay,

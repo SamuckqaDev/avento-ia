@@ -105,16 +105,16 @@ public class LocalAiOrchestratorController {
             @AuthenticationPrincipal AuthPrincipal principal) {
         UUID userId = principal == null ? null : principal.userId();
         return modelCatalogService.getImageModelDetails(userId).flatMap(providerModels -> {
-            // Provedor remoto ativo manda sozinho: somar os checkpoints do ComfyUI local aqui faria
-            // o seletor oferecer modelos que o provedor ativo nao conhece — o mesmo defeito que o
-            // seletor de chat tinha.
-            if (!providerModels.isEmpty() && modelCatalogService.usesRemoteProvider(userId)) {
-                return Mono.just(ApiResponses.ok(providerModels));
+            // A geração direta implementada neste host fala a API local do Ollama. Não exponha um
+            // nome de Gemini/Anthropic como se fosse compatível: ele seria enviado ao endpoint
+            // errado. Com chat remoto, imagens continuam podendo usar os checkpoints locais.
+            if (modelCatalogService.usesRemoteProvider(userId)) {
+                return comfyUiImageService.getModels().map(ApiResponses::ok);
             }
             return comfyUiImageService.getModels().map(comfyModels -> {
-                if (comfyUiImageService.isComfyOnly()) {
-                    return ApiResponses.ok(comfyModels);
-                }
+                // Os dois catálogos coexistem no modo local. A interface marca a origem e o
+                // serviço respeita a escolha; esconder modelos diretos quando o default era
+                // ComfyUI tornava a alternativa impossível de selecionar.
                 List<LocalModelInfo> combined = new ArrayList<>(comfyModels);
                 combined.addAll(providerModels);
                 return ApiResponses.ok(combined);

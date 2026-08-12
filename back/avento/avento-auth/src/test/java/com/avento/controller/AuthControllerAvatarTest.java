@@ -7,6 +7,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.avento.config.AuthProperties;
+import com.avento.dto.auth.AuthDtos.UpdateProfileRequest;
+import com.avento.dto.auth.AuthDtos.UserResponse;
 import com.avento.model.UserRole;
 import com.avento.service.auth.AuthCookieService;
 import com.avento.service.auth.AuthPrincipal;
@@ -48,5 +50,21 @@ class AuthControllerAvatarTest {
 
         assertEquals(MediaType.IMAGE_PNG, response.getHeaders().getContentType());
         assertArrayEquals(bytes, response.getBody());
+    }
+
+    @Test
+    void profileEndpointDelegatesTheSignedInUsersDisplayName() {
+        AuthService authService = mock(AuthService.class);
+        AuthPrincipal principal = new AuthPrincipal(
+                UUID.randomUUID(), UUID.randomUUID(), "access-jti", "dev@avento.local", "Avento Dev", UserRole.USER);
+        UpdateProfileRequest request = new UpdateProfileRequest("Novo nome");
+        when(authService.updateProfile(principal, request))
+                .thenReturn(new UserResponse(principal.userId(), principal.email(), "Novo nome", UserRole.USER, false));
+        AuthController controller = new AuthController(
+                new AuthProperties(), authService, mock(AuthCookieService.class), mock(AvatarService.class));
+
+        controller.updateProfile(principal, request);
+
+        verify(authService).updateProfile(principal, request);
     }
 }

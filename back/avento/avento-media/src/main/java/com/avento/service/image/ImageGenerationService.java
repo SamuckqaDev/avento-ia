@@ -26,6 +26,8 @@ import tools.jackson.databind.node.ObjectNode;
 @RequiredArgsConstructor
 public class ImageGenerationService implements ImageGenerator {
 
+    private static final String DIRECT_MODEL_PREFIX = "direct:";
+
     private final ComfyUiImageService comfyUiImageService;
     private final ImagePromptTranslator promptTranslator;
     private final ObjectMapper mapper;
@@ -49,16 +51,15 @@ public class ImageGenerationService implements ImageGenerator {
         String englishPrompt = promptTranslator.toEnglish(prompt);
         ImagePromptPlan promptPlan = ImagePromptPlanner.plan(englishPrompt, imageOptions);
 
-        if (comfyUiImageService.shouldUseComfy(model)) {
+        // A origem é uma escolha do usuário: checkpoints vêm com "comfyui:", enquanto
+        // "direct:" pede a API de imagens do modelo. Antes o provider global "comfyui" capturava
+        // os dois caminhos e tornava impossível usar um modelo direto pela tela.
+        if (comfyUiImageService.isComfyModel(model)) {
             ObjectNode comfyResult = comfyUiImageService.generateImage(promptPlan, model, size, imageOptions);
-            if ("success".equals(comfyResult.path("status").asText())
-                    || comfyUiImageService.isComfyModel(model)
-                    || comfyUiImageService.isComfyOnly()) {
-                return comfyResult;
-            }
+            return comfyResult;
         }
 
-        return generateWithOllama(prompt, model, size, promptPlan, imageOptions);
+        return generateWithOllama(prompt, directModelName(model), size, promptPlan, imageOptions);
     }
 
     /**
@@ -83,7 +84,7 @@ public class ImageGenerationService implements ImageGenerator {
 
     @Override
     public void cancel(Thread worker, String model) {
-        if (worker != null && comfyUiImageService.shouldUseComfy(model)) {
+        if (worker != null && comfyUiImageService.isComfyModel(model)) {
             comfyUiImageService.cancelImageGeneration(worker);
         }
         if (worker != null) {
@@ -231,5 +232,11 @@ public class ImageGenerationService implements ImageGenerator {
 
     private String trimTrailingSlash(String value) {
         return value != null && value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    private String directModelName(String model) {
+        return model != null && model.startsWith(DIRECT_MODEL_PREFIX)
+                ? model.substring(DIRECT_MODEL_PREFIX.length())
+                : model;
     }
 }

@@ -2,6 +2,8 @@ package com.avento.service.image;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.avento.service.ComfyUiImageService;
@@ -41,6 +43,19 @@ class ImageModelPreferenceTest {
         ImageGenerationService service = serviceWithConfigured(null);
 
         assertThat(service.resolveModel(Map.of("prompt", "um gato"))).isEqualTo(YAML_DEFAULT);
+    }
+
+    @Test
+    void modeloDiretoNaoERedirecionadoParaComfyUiQuandoEleEoPadraoGlobal() {
+        ComfyUiImageService comfy = mock(ComfyUiImageService.class);
+        ImagePromptTranslator translator = mock(ImagePromptTranslator.class);
+        when(translator.toEnglish("um gato")).thenReturn("a cat");
+        ImageGenerationService service = new ImageGenerationService(comfy, translator, new ObjectMapper(), mock(ObjectProvider.class));
+        ReflectionTestUtils.setField(service, "ollamaBaseUrl", "http://127.0.0.1:1");
+
+        service.generate(Map.of("prompt", "um gato", "model", "direct:imagem-local:latest"));
+
+        verify(comfy, never()).generateImage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @SuppressWarnings("unchecked")

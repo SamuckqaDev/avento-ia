@@ -60,6 +60,7 @@ class TokenUsageServiceTest {
         when(repository.sumPromptSince(eq(userId), any())).thenReturn(70L);
         when(repository.sumCompletionSince(eq(userId), any())).thenReturn(30L);
         when(repository.countSince(eq(userId), any())).thenReturn(4L);
+        when(repository.countDistinctRunsSince(eq(userId), any())).thenReturn(2L);
         when(repository.usageByModelSince(eq(userId), any())).thenReturn(List.of());
         when(repository.sumByDaySince(eq(userId), any())).thenReturn(List.of());
         when(repository.usageByChatSince(eq(userId), any(), any())).thenReturn(List.of());
@@ -70,6 +71,8 @@ class TokenUsageServiceTest {
         assertThat(summary.total()).isEqualTo(100L);
         assertThat(summary.promptTotal()).isEqualTo(70L);
         assertThat(summary.completionTotal()).isEqualTo(30L);
+        assertThat(summary.chatRunCount()).isEqualTo(2L);
+        assertThat(summary.modelCallCount()).isEqualTo(4L);
         assertThat(summary.requestCount()).isEqualTo(4L);
         verify(repository).sumTotalSince(eq(userId), any());
         verify(repository).usageByChatSince(eq(userId), any(), any());

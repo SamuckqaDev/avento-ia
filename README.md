@@ -359,6 +359,12 @@ capability; a Docker execution error is returned as-is and never falls back sile
 
 Destructive or externally effective tools require approval. Temporary permissions are bound to the user, project, tool, resource, and duration; approvals can also be answered by voice.
 
+When the user knows a project name but not its path, the read-only `find_local_project` tool searches
+directory names under that user's home folder (never the whole filesystem). It skips caches and
+dependency folders such as `Library`, `node_modules`, `.git`, `build`, and `target`, returns at most
+20 matches, and does not grant workspace access. The user still chooses a result before opening,
+indexing, or editing it.
+
 See the [full MCP catalog](docs/LOCAL_MCP_CATALOG.md).
 
 ## Authentication and Data

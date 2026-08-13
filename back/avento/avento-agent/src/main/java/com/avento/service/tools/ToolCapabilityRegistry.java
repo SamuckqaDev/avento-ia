@@ -136,6 +136,14 @@ public class ToolCapabilityRegistry {
                 "Busca arquivos por nome dentro de workspace autorizado.");
         register(
                 definitions,
+                "find_local_project",
+                ToolCategory.FILESYSTEM,
+                ToolRiskLevel.READ_ONLY,
+                ToolApprovalPolicy.AUTO,
+                false,
+                "Localiza uma pasta de projeto pelo nome no diretório do usuário, sem exigir workspace prévio.");
+        register(
+                definitions,
                 "write_file",
                 ToolCategory.FILESYSTEM,
                 ToolRiskLevel.HIGH,

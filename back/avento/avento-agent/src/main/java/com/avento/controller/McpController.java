@@ -467,6 +467,7 @@ public class McpController implements ToolProvider {
             case "delete_directory" -> executeDeleteDirectory(payload);
             case "create_directory" -> executeCreateDirectory(payload);
             case "search_files" -> executeSearchFiles(payload);
+            case "find_local_project" -> executeFindLocalProject(payload);
             case "find_symbol" -> executeFindSymbol(payload);
             case "remember" -> executeRemember(payload);
             case "create_skill" -> executeCreateSkill(payload);
@@ -1228,6 +1229,28 @@ public class McpController implements ToolProvider {
         result.put("pattern", pattern);
         result.put("count", matches.size());
         result.set("matches", matches);
+        return toolResult(result);
+    }
+
+    private JsonNode executeFindLocalProject(Map<String, Object> payload) throws IOException {
+        String query = requiredString(payload, "query");
+        var search = systemAutomationService.findLocalProjects(query);
+
+        ObjectNode result = mapper.createObjectNode();
+        result.put("query", search.query());
+        result.put("count", search.matches().size());
+        result.put("truncated", search.truncated());
+        ArrayNode matches = result.putArray("matches");
+        for (var match : search.matches()) {
+            ObjectNode item = matches.addObject();
+            item.put("name", match.name());
+            item.put("path", match.path());
+        }
+        result.put(
+                "hint",
+                search.matches().isEmpty()
+                        ? "Nenhuma pasta foi encontrada no diretório do usuário. Tente outro nome."
+                        : "A pasta ainda não foi autorizada como workspace; confirme qual resultado deseja abrir ou indexar.");
         return toolResult(result);
     }
 

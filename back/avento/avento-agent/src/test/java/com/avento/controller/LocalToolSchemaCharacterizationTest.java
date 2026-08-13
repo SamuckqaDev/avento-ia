@@ -15,12 +15,12 @@ class LocalToolSchemaCharacterizationTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
-    void keepsTheFortyTwoLocalToolSchemasSemanticallyIdentical() throws Exception {
+    void keepsTheFortyThreeLocalToolSchemasSemanticallyIdentical() throws Exception {
         ArrayNode actual = localToolSnapshot();
         ArrayNode expected = baseline();
 
-        assertThat(actual).hasSize(42);
-        assertThat(expected).hasSize(42);
+        assertThat(actual).hasSize(43);
+        assertThat(expected).hasSize(43);
 
         for (int index = 0; index < expected.size(); index++) {
             JsonNode expectedTool = expected.get(index);

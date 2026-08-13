@@ -308,6 +308,10 @@ public class AgentToolSelector {
             return true;
         }
 
+        if ("find_local_project".equals(toolName)) {
+            return wantsLocalProjectDiscovery(normalizedMessage);
+        }
+
         if (context.forceFullToolset()) {
             return true;
         }
@@ -346,5 +350,23 @@ public class AgentToolSelector {
                 "capturar minha tela",
                 "captura a tela",
                 "capturar a tela");
+    }
+
+    private boolean wantsLocalProjectDiscovery(String normalizedMessage) {
+        boolean asksToFind = MessageText.containsAny(
+                normalizedMessage,
+                "acha",
+                "achar",
+                "busca",
+                "buscar",
+                "encontra",
+                "encontrar",
+                "localiza",
+                "localizar",
+                "procura",
+                "procurar");
+        boolean refersToProjectOrPath = MessageText.containsAny(
+                normalizedMessage, "caminho", "mac", "maquina", "pasta", "path", "projeto", "workspace");
+        return asksToFind && refersToProjectOrPath;
     }
 }

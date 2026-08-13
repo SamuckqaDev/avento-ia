@@ -1,19 +1,26 @@
 package com.avento.service;
 
-import com.avento.dto.*;
+import com.avento.dto.LocalProjectMatch;
+import com.avento.dto.LocalProjectSearchResult;
+import com.avento.dto.MacApplication;
+import com.avento.dto.SystemActionResult;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.text.Normalizer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +30,23 @@ public class SystemAutomationService {
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(12);
     private static final int MAX_LABEL_LENGTH = 120;
     private static final int MAX_OUTPUT_CHARS = 12000;
+    private static final int MAX_PROJECT_SEARCH_DEPTH = 6;
+    private static final int MAX_PROJECT_SEARCH_RESULTS = 20;
     private static final List<String> GENERIC_APP_WORDS = List.of("abre", "abrir", "abra", "open", "app", "aplicativo");
+    private static final Set<String> IGNORED_PROJECT_SEARCH_DIRECTORIES = Set.of(
+            ".git",
+            ".gradle",
+            ".idea",
+            ".npm",
+            ".pnpm-store",
+            ".Trash",
+            ".venv",
+            "Library",
+            "build",
+            "dist",
+            "node_modules",
+            "target",
+            "venv");
 
     public SystemActionResult openApp(String appName) {
         String cleanAppName = resolveMacApplicationName(cleanLabel(appName, "App name"));
@@ -170,6 +193,83 @@ public class SystemAutomationService {
                 .distinct()
                 .sorted(Comparator.comparing(MacApplication::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();
+    }
+
+    /**
+     * Localiza pastas pelo nome dentro do diretório do usuário atual.
+     *
+     * <p>A descoberta é deliberadamente somente de leitura e não segue links simbólicos. Ela não
+     * transforma a pasta encontrada em workspace autorizado: abrir, indexar ou editar continua
+     * exigindo a escolha explícita do usuário no fluxo seguinte.
+     */
+    public LocalProjectSearchResult findLocalProjects(String query) throws IOException {
+        return findLocalProjects(query, Path.of(System.getProperty("user.home")));
+    }
+
+    LocalProjectSearchResult findLocalProjects(String query, Path userHome) throws IOException {
+        String normalizedQuery = normalizeProjectQuery(query);
+        Path root = userHome.toAbsolutePath().normalize();
+        if (!Files.isDirectory(root)) {
+            return new LocalProjectSearchResult(query.trim(), List.of(), false);
+        }
+
+        List<LocalProjectMatch> matches = new ArrayList<>();
+        boolean[] truncated = {false};
+        Files.walkFileTree(root, Set.of(), MAX_PROJECT_SEARCH_DEPTH, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attributes) {
+                if (!directory.equals(root) && shouldIgnoreProjectSearchDirectory(directory)) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+                if (!directory.equals(root) && matchesProjectQuery(directory, normalizedQuery)) {
+                    matches.add(new LocalProjectMatch(directory.getFileName().toString(), directory.toString()));
+                    if (matches.size() >= MAX_PROJECT_SEARCH_RESULTS) {
+                        truncated[0] = true;
+                        return FileVisitResult.TERMINATE;
+                    }
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFileFailed(Path file, IOException exception) {
+                return FileVisitResult.CONTINUE;
+            }
+        });
+
+        List<LocalProjectMatch> orderedMatches = matches.stream()
+                .sorted(Comparator.comparing(LocalProjectMatch::name, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(LocalProjectMatch::path, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+        return new LocalProjectSearchResult(query.trim(), orderedMatches, truncated[0]);
+    }
+
+    private boolean shouldIgnoreProjectSearchDirectory(Path directory) {
+        Path name = directory.getFileName();
+        return name != null && IGNORED_PROJECT_SEARCH_DIRECTORIES.contains(name.toString());
+    }
+
+    private boolean matchesProjectQuery(Path directory, String normalizedQuery) {
+        Path name = directory.getFileName();
+        return name != null && normalizeProjectText(name.toString()).contains(normalizedQuery);
+    }
+
+    private String normalizeProjectQuery(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Project name is required");
+        }
+        String normalized = normalizeProjectText(value);
+        if (normalized.length() < 2 || normalized.length() > MAX_LABEL_LENGTH) {
+            throw new IllegalArgumentException("Project name must have between 2 and " + MAX_LABEL_LENGTH + " characters");
+        }
+        return normalized;
+    }
+
+    private String normalizeProjectText(String value) {
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .trim();
     }
 
     public String resolveMacApplicationName(String appNameOrUserText) {

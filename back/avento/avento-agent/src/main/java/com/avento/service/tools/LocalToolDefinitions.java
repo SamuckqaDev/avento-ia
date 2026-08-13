@@ -22,6 +22,7 @@ public final class LocalToolDefinitions {
             "delete_directory",
             "create_directory",
             "search_files",
+            "find_local_project",
             "find_symbol",
             "remember",
             "create_skill",
@@ -117,6 +118,11 @@ public final class LocalToolDefinitions {
     @Tool(name = "search_files", description = "Procura arquivos por nome dentro de um workspace autorizado, ignorando pastas pesadas como node_modules, .git, build e target.")
     public String searchFiles(@ToolParam(description = "Diretorio absoluto dentro de [Workspace Roots].") String path, @ToolParam(description = "Texto a procurar no nome do arquivo ou pasta.") String pattern, @ToolParam(required = false, description = "Quantidade maxima opcional de resultados, padrao 50.") Double maxResults) throws Exception {
         return execute("search_files", "path", path, "pattern", pattern, "maxResults", maxResults);
+    }
+
+    @Tool(name = "find_local_project", description = "Localiza pastas de projetos pelo nome dentro do diretorio de usuario do macOS. Nao exige workspace previo e so le nomes de pastas. Use quando o usuario quer achar um projeto, mas nao sabe o caminho.")
+    public String findLocalProject(@ToolParam(description = "Nome ou parte do nome do projeto a localizar no Mac, por exemplo Monicare.") String query) throws Exception {
+        return execute("find_local_project", "query", query);
     }
 
     @Tool(name = "find_symbol", description = "Acha ONDE um simbolo e DEFINIDO no projeto (classe, interface, record, enum, funcao, metodo, type, const) — busca a definicao, nao toda mencao. Use para entender o codigo e navegar antes de editar. Retorna arquivo, linha e o texto da definicao.")

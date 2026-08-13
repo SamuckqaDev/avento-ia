@@ -2,6 +2,15 @@
 
 O Avento usa o SDK Java oficial do MCP como cliente e mantem um catalogo de servidores locais. O objetivo e carregar automaticamente apenas o nucleo barato e conectar ferramentas especializadas sob demanda, evitando excesso de schemas no contexto do modelo.
 
+## Descoberta local de projeto
+
+`find_local_project` é uma ferramenta nativa do Avento, não um servidor MCP. Quando o usuário
+informa o nome de um projeto mas não sabe o caminho, ela busca apenas nomes de diretórios dentro da
+pasta de usuário do processo. A busca é somente de leitura, limitada a seis níveis e vinte
+resultados; pula `Library`, `node_modules`, `.git`, caches e diretórios de build. Encontrar uma
+pasta não a autoriza como workspace: o usuário ainda precisa escolher o resultado antes de qualquer
+leitura de arquivos, indexação ou alteração.
+
 ## Leitor universal
 
 A ferramenta local `read_document` valida o caminho contra os workspaces autorizados antes de abrir o arquivo. Textos sao lidos diretamente; PDF, Word, Excel, PowerPoint, EPUB, ZIP, imagens, audio e outros formatos suportados sao convertidos para Markdown pelo Microsoft MarkItDown.

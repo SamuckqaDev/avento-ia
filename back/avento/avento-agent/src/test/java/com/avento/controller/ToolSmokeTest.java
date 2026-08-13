@@ -3,12 +3,17 @@ package com.avento.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.avento.service.FileBackupService;
+import com.avento.service.SystemAutomationService;
 import com.avento.service.WorkspaceAccessService;
 import com.avento.service.tools.ToolExecutionContext;
+import com.avento.dto.LocalProjectMatch;
+import com.avento.dto.LocalProjectSearchResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -128,6 +133,22 @@ class ToolSmokeTest {
         JsonNode found = run("search_files", "path", workspace.toString(), "pattern", "alvo");
         assertSucceeded(found, "search_files");
         assertThat(found.toString()).contains("Alvo.java");
+    }
+
+    @Test
+    void reportsLocalProjectDiscoveryWhenTheSystemServiceIsWired() throws Exception {
+        Path project = Files.createDirectories(workspace.resolve("projetos/Monicare"));
+        ReflectionTestUtils.setField(controller, "systemAutomationService", new SystemAutomationService() {
+            @Override
+            public LocalProjectSearchResult findLocalProjects(String query) throws IOException {
+                return new LocalProjectSearchResult(query, List.of(new LocalProjectMatch("Monicare", project.toString())), false);
+            }
+        });
+
+        JsonNode result = run("find_local_project", "query", "Monicare");
+
+        assertSucceeded(result, "find_local_project");
+        assertThat(result.toString()).contains(project.toString());
     }
 
     @Test
@@ -297,7 +318,7 @@ class ToolSmokeTest {
                 new com.avento.service.rag.DocumentReaderService(
                         (WorkspaceAccessService) ReflectionTestUtils.getField(controller, "workspaceAccessService"),
                         System.getProperty("user.home") + "/.avento/tools/mcp/bin/markitdown",
-                        java.time.Duration.ofSeconds(60),
+                        Duration.ofSeconds(60),
                         200_000,
                         org.springframework.util.unit.DataSize.ofMegabytes(100)));
 

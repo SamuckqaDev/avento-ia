@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -46,6 +47,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +85,11 @@ public class AgentService implements AgentExecutionEngine {
     private static final Pattern TEXTUAL_FUNCTION_PATTERN =
             Pattern.compile("\\{\\s*function\\s+<([A-Za-z0-9_-]+)>\\s+(\\{.*})\\s*}", Pattern.DOTALL);
     private static final Pattern HTTP_URL_PATTERN = Pattern.compile("https?://[^\\s<>()]+", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PROJECT_NAME_PATTERN = Pattern.compile(
+            "(?iu)\\b(?:projeto|project|pasta)\\s+(?:chamado|chamada|nomeado|nomeada)?\\s*['\\\"]?([\\p{L}\\p{N}][\\p{L}\\p{N}_.-]{1,79})");
+    private static final Set<String> PROJECT_NAME_STOP_WORDS = Set.of(
+            "a", "ai", "aquele", "caminho", "com", "da", "de", "do", "esse", "esta", "este",
+            "meu", "na", "no", "para", "que", "um", "uma");
     // The model-facing instructions live in editable resource files rather than a
     // large Java string. Keep this loader as the single authoritative composition
     // point because frontend system messages are intentionally discarded later.
@@ -412,7 +419,7 @@ public class AgentService implements AgentExecutionEngine {
         this.thinkingCapableModels = Arrays.stream(thinkingCapableModels.split(","))
                 .map(name -> name.trim().toLowerCase(Locale.ROOT))
                 .filter(name -> !name.isEmpty())
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     /** Executa uma conclusão textual isolada, sem identidade, heurísticas ou ferramentas do agente. */
@@ -1248,7 +1255,7 @@ public class AgentService implements AgentExecutionEngine {
             Set<String> allowed = Arrays.stream(agent.getAllowedTools().split(","))
                     .map(String::trim)
                     .filter(name -> !name.isEmpty())
-                    .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
             if (!allowed.isEmpty()) {
                 toolPolicyRegistry.allow(state.runId, allowed);
                 logger.debug(
@@ -2668,6 +2675,14 @@ public class AgentService implements AgentExecutionEngine {
                     mapper.createObjectNode());
         }
 
+        String projectName = localProjectNameFromConversation(messages);
+        if (isLocalProjectDiscoveryRequest(normalized, projectName)) {
+            ObjectNode arguments = mapper.createObjectNode();
+            arguments.put("query", projectName);
+            return new ToolCall(
+                    "call_direct_" + UUID.randomUUID().toString().substring(0, 8), "find_local_project", arguments);
+        }
+
         if (wantsMacAppListing(normalized)) {
             ObjectNode arguments = mapper.createObjectNode();
             String query = macAppListQuery(normalized);
@@ -2739,6 +2754,47 @@ public class AgentService implements AgentExecutionEngine {
         arguments.put("appName", appName);
         String toolName = wantsClose ? "close_app" : "open_app";
         return new ToolCall("call_direct_" + UUID.randomUUID().toString().substring(0, 8), toolName, arguments);
+    }
+
+    private boolean isLocalProjectDiscoveryRequest(String normalizedMessage, String projectName) {
+        if (projectName == null) {
+            return false;
+        }
+        boolean asksToFind = MessageText.containsAny(
+                normalizedMessage,
+                "acha",
+                "achar",
+                "busca",
+                "buscar",
+                "encontra",
+                "encontrar",
+                "localiza",
+                "localizar",
+                "procura",
+                "procurar",
+                "se vira");
+        boolean refersToProjectOrPath = MessageText.containsAny(
+                normalizedMessage, "caminho", "mac", "maquina", "pasta", "path", "projeto", "workspace", "se vira");
+        return asksToFind && refersToProjectOrPath;
+    }
+
+    private String localProjectNameFromConversation(ArrayNode messages) {
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            JsonNode message = messages.get(index);
+            if (!"user".equals(message.path("role").asText())) {
+                continue;
+            }
+            String content = MessageText.extractDirectUserRequest(message.path("content").asText(""));
+            Matcher matcher = PROJECT_NAME_PATTERN.matcher(content);
+            String candidate = null;
+            while (matcher.find()) {
+                candidate = matcher.group(1).replaceFirst("[.,;:!?]+$", "");
+            }
+            if (candidate != null && !PROJECT_NAME_STOP_WORDS.contains(candidate.toLowerCase(Locale.ROOT))) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private boolean wantsNewBrowserTab(String normalizedMessage) {
@@ -3172,11 +3228,35 @@ public class AgentService implements AgentExecutionEngine {
                 "\nAba fechada em " + toolCall.arguments().path("browserName").asText("navegador") + ".\n";
             case "capture_screen" ->
                 "\nPrint salvo em: " + toolResult.path("path").asText("arquivo de screenshot") + ".\n";
+            case "find_local_project" -> localProjectDiscoveryMessage(toolResult);
             case "generate_image" -> generatedImageMessage(toolResult);
             case "generate_video" -> generatedVideoMessage(toolResult);
             case "list_macos_apps" -> macAppsListMessage(toolResult);
             default -> formattedGenericToolResult(toolCall, toolResult);
         };
+    }
+
+    private String localProjectDiscoveryMessage(JsonNode toolResult) {
+        String query = toolResult.path("query").asText("projeto");
+        JsonNode matches = toolResult.path("matches");
+        if (!matches.isArray() || matches.isEmpty()) {
+            return "\nNão achei uma pasta chamada `" + query
+                    + "` no seu diretório de usuário. Tente outro nome.\n";
+        }
+
+        StringBuilder message = new StringBuilder("\nEncontrei ")
+                .append(matches.size())
+                .append(" projeto(s) para `")
+                .append(query)
+                .append("` no seu Mac:\n");
+        for (JsonNode match : matches) {
+            message.append("- `").append(match.path("path").asText()).append("`\n");
+        }
+        if (toolResult.path("truncated").asBoolean(false)) {
+            message.append("\nA busca parou nos primeiros resultados para não pesar a máquina.\n");
+        }
+        message.append("\nQual deles você quer abrir ou indexar?\n");
+        return message.toString();
     }
 
     private String formattedGenericToolResult(ToolCall toolCall, JsonNode toolResult) {

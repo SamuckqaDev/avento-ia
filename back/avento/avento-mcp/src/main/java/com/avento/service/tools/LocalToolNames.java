@@ -17,6 +17,7 @@ public final class LocalToolNames {
             "delete_directory",
             "create_directory",
             "search_files",
+            "find_local_project",
             "create_vite_project",
             "list_macos_apps",
             "open_app",

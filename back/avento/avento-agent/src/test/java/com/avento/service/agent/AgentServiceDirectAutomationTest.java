@@ -1295,6 +1295,20 @@ class AgentServiceDirectAutomationTest {
     }
 
     @Test
+    void findsAProjectByTheNameMentionedEarlierWhenTheUserDoesNotKnowThePath() throws Exception {
+        ArrayNode messages = mapper.createArrayNode();
+        messages.addObject().put("role", "user").put("content", "Quero abrir o projeto Monicare.");
+        messages.addObject().put("role", "assistant").put("content", "Me diga o caminho.");
+        messages.addObject().put("role", "user").put("content", "Usa uma ferramenta e se vira para achar o caminho.");
+
+        Method detector = AgentService.class.getDeclaredMethod("detectDirectSystemAutomationRequest", ArrayNode.class);
+        detector.setAccessible(true);
+        Object toolCall = detector.invoke(service, messages);
+
+        assertToolCallArgument(toolCall, "find_local_project", "query", "Monicare");
+    }
+
+    @Test
     void detectsAntigravityAsLocalApplication() throws Exception {
         Object toolCall = detectToolCall("Antigravity IDE cara, abre ele pra mim.");
 
@@ -1309,6 +1323,12 @@ class AgentServiceDirectAutomationTest {
     @Test
     void doesNotExposeExternalMcpToolsForUnrelatedProjectRequest() throws Exception {
         assertFalse(shouldExposeTool("browser_navigate", "Analisa esse projeto para mim."));
+    }
+
+    @Test
+    void exposesLocalProjectDiscoveryOnlyForAnActualDiscoveryRequest() throws Exception {
+        assertTrue(shouldExposeTool("find_local_project", "Procura o projeto Monicare no meu Mac."));
+        assertFalse(shouldExposeTool("find_local_project", "Analisa o projeto Monicare para mim."));
     }
 
     @Test

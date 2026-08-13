@@ -396,6 +396,10 @@
                 <strong>Memoização: Sidebar e bolhas de mensagem</strong>
                 <p><span class="status-pill">Implementado</span> <code>Sidebar</code> e <code>MessageBubble</code> agora usam <code>React.memo</code> — antes, qualquer re-render do <code>Home</code> (inclusive o nível de áudio do microfone atualizando ~12x/s) re-renderizava a sidebar inteira e toda bolha de mensagem da conversa, mesmo sem relação nenhuma com o que mudou. Pré-requisito corrigido junto: <code>handleChunkReceived</code> mutava o objeto da última mensagem no lugar durante o streaming, o que teria quebrado a atualização visual do texto assim que a bolha virou memoizada — agora cria um objeto novo a cada chunk. Handlers passados como prop pra esses dois componentes (<code>onOpenDiff</code>, <code>onOpenMedia</code>, <code>startNewChat</code>, <code>handleLoadChat</code>) foram estabilizados com <code>useCallback</code>, já que uma prop de função nova a cada render invalida o memo mesmo com as outras props iguais.</p>
             </div>
+            <div class="metric-card">
+                <strong>Streaming sem travar a interface</strong>
+                <p><span class="status-pill">Implementado</span> O cliente agrupa deltas muito frequentes antes de recalcular o Markdown, preserva o conteúdo completo para retomada da conversa e entrega o último estado imediatamente. Enquanto o texto cresce, o scroll usa atualização direta em vez de criar animações sobrepostas. Alterações de arquivos também agrupam a atualização da árvore, e o painel de planos só mantém polling de segurança quando existe plano em execução — o SSE continua sendo a fonte normal de eventos.</p>
+            </div>
         </div>
 
         <div class="doc-section" id="redis-execution">

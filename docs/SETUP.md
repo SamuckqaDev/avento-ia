@@ -462,6 +462,12 @@ npm run dev:web
 
 Abra a URL do Vite, normalmente `https://localhost:5173`.
 
+Durante uma resposta, o frontend agrupa deltas muito frequentes do SSE antes de renderizar o
+Markdown, mantém o scroll imediato enquanto o texto cresce e só atualiza a árvore de arquivos uma
+vez após uma sequência de alterações. O painel de plano usa SSE como atualização principal e faz
+polling de segurança somente enquanto há um plano em execução. Isso preserva a interface responsiva
+sem atrasar a resposta final nem esconder falhas do backend.
+
 Os modos de desenvolvimento ficam todos sob `dev:`, um por alvo. **Todos sobem em HTTPS** — ver a
 secao do visor logo abaixo. Da raiz do projeto:
 

@@ -55,6 +55,7 @@ const LIVE_EVENTS = [
   'plan.task.failed',
   'plan.approval.required',
 ];
+const RUNNING_PLAN_FALLBACK_REFRESH_MS = 15_000;
 
 export function PlanExecutionPanel({
   chatId,
@@ -105,9 +106,18 @@ export function PlanExecutionPanel({
 
   useEffect(() => {
     void loadPlans();
-    const interval = window.setInterval(() => void loadPlans(), 3000);
-    return () => window.clearInterval(interval);
   }, [loadPlans]);
+
+  // O stream é a fonte de atualização normal. O polling é apenas uma rede de segurança para uma
+  // execução ativa cujo SSE caiu; manter um GET a cada 3 s para rascunhos e planos pausados fazia
+  // o painel inteiro reconciliar sem mudança alguma enquanto o usuário só conversava no chat.
+  useEffect(() => {
+    if (!plans.some(candidate => candidate.status === 'RUNNING')) {
+      return undefined;
+    }
+    const interval = window.setInterval(() => void loadPlans(), RUNNING_PLAN_FALLBACK_REFRESH_MS);
+    return () => window.clearInterval(interval);
+  }, [loadPlans, plans]);
 
   useEffect(() => {
     if (!plan || plan.status !== 'RUNNING') return;

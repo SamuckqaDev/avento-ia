@@ -99,6 +99,8 @@ const SELECTED_MODEL_KEY = 'avento-selected-model';
 const SELECTED_IMAGE_MODEL_KEY = 'avento-selected-image-model';
 const COMFY_IMAGE_MODEL_PREFIX = 'comfyui:';
 const DIRECT_IMAGE_MODEL_PREFIX = 'direct:';
+const STREAM_RENDER_INTERVAL_MS = 80;
+const PROJECT_TREE_REFRESH_DEBOUNCE_MS = 600;
 
 /**
  * A escolha de modelo era só estado React: recarregar a página descartava e a lista voltava a
@@ -963,6 +965,12 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   const isGeneratingRef = useRef<boolean>(false);
   const messagesRef = useRef<Message[]>(messages);
   const voiceInterruptionActiveRef = useRef<boolean>(false);
+  const streamRenderTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
+  const pendingStreamChunkRef = useRef<ChunkData | undefined>(undefined);
+  const lastStreamRenderAtRef = useRef(0);
+  const applyVisibleStreamChunkRef = useRef<(chunk: ChunkData) => void>(() => {});
+  const projectTreeRefreshTimerRef = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
+  const pendingProjectTreePathRef = useRef<string | undefined>(undefined);
 
   const handleChatScroll = useCallback(() => {
     const container = chatContainerRef.current;
@@ -1010,13 +1018,13 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     queueTextToSpeech
   } = useAudioServices();
 
-  const handleToggleVoice = (checked: boolean) => {
+  const handleToggleVoice = useCallback((checked: boolean) => {
     isVoiceEnabledRef.current = checked;
     setIsVoiceEnabled(checked);
     setAudioPlaybackEnabled(checked);
     speechBufferRef.current = '';
     setBrowserCookie(VOICE_ENABLED_KEY, String(checked));
-  };
+  }, [setAudioPlaybackEnabled]);
 
   useEffect(() => {
     isVoiceEnabledRef.current = isVoiceEnabled;
@@ -1368,14 +1376,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     };
   }, [analyzeProject, currentChatId, loadMcpServers, projectPaths, updateMcpStatus]);
 
-  const handleChunkReceived = (chunkData: ChunkData, streamContext: ChatStreamContext) => {
-    if (streamContext.chatId !== null) {
-      streamDraftsRef.current.set(streamContext.chatId, chunkData);
-    }
-    if (streamContext.chatId !== currentChatIdRef.current) {
-      return;
-    }
-
+  const applyVisibleStreamChunk = useCallback((chunkData: ChunkData) => {
     if (isVoiceEnabledRef.current && isRealtimeVoiceActive && !voiceInterruptionActiveRef.current) {
       speechBufferRef.current += chunkData.newText || '';
       const shouldSpeakSentence = /[.!?]\s*$/.test(speechBufferRef.current) && speechBufferRef.current.length > 30;
@@ -1417,7 +1418,59 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
         tokens: chunkData.tokens.toString()
       }];
     });
-  };
+  }, [isRealtimeVoiceActive, queueTextToSpeech]);
+
+  useEffect(() => {
+    applyVisibleStreamChunkRef.current = applyVisibleStreamChunk;
+  }, [applyVisibleStreamChunk]);
+
+  const flushVisibleStreamChunk = useCallback(() => {
+    streamRenderTimerRef.current = undefined;
+    const pendingChunk = pendingStreamChunkRef.current;
+    pendingStreamChunkRef.current = undefined;
+    if (!pendingChunk) return;
+
+    lastStreamRenderAtRef.current = Date.now();
+    applyVisibleStreamChunkRef.current(pendingChunk);
+  }, []);
+
+  const handleChunkReceived = useCallback((chunkData: ChunkData, streamContext: ChatStreamContext) => {
+    if (streamContext.chatId !== null) {
+      // Mantém o conteúdo completo para retomada de chat mesmo entre dois renders visuais.
+      streamDraftsRef.current.set(streamContext.chatId, chunkData);
+    }
+    if (streamContext.chatId !== currentChatIdRef.current) {
+      return;
+    }
+
+    if (chunkData.isFinal) {
+      if (streamRenderTimerRef.current) {
+        window.clearTimeout(streamRenderTimerRef.current);
+        streamRenderTimerRef.current = undefined;
+      }
+      pendingStreamChunkRef.current = undefined;
+      lastStreamRenderAtRef.current = Date.now();
+      applyVisibleStreamChunkRef.current(chunkData);
+      return;
+    }
+
+    const elapsed = Date.now() - lastStreamRenderAtRef.current;
+    if (!streamRenderTimerRef.current && elapsed >= STREAM_RENDER_INTERVAL_MS) {
+      lastStreamRenderAtRef.current = Date.now();
+      applyVisibleStreamChunkRef.current(chunkData);
+      return;
+    }
+
+    // O transporte pode receber muitos deltas por segundo. Para o usuário basta ver o texto
+    // progredir suavemente; renderizar Markdown e a árvore inteira para cada token bloqueava a UI.
+    pendingStreamChunkRef.current = chunkData;
+    if (!streamRenderTimerRef.current) {
+      streamRenderTimerRef.current = window.setTimeout(
+        flushVisibleStreamChunk,
+        Math.max(0, STREAM_RENDER_INTERVAL_MS - elapsed),
+      );
+    }
+  }, [flushVisibleStreamChunk]);
 
   const stopPollingProcess = useCallback((processId: string) => {
     const timer = processPollTimersRef.current[processId];
@@ -1489,10 +1542,31 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
   useEffect(() => {
     return () => {
       Object.values(processPollTimersRef.current).forEach(clearInterval);
+      if (streamRenderTimerRef.current) {
+        window.clearTimeout(streamRenderTimerRef.current);
+      }
+      if (projectTreeRefreshTimerRef.current) {
+        window.clearTimeout(projectTreeRefreshTimerRef.current);
+      }
     };
   }, []);
 
-  const handleActivityEvent = (event: AgentActivityEvent, streamContext: ChatStreamContext) => {
+  const scheduleProjectTreeRefresh = useCallback((path: string) => {
+    pendingProjectTreePathRef.current = path;
+    if (projectTreeRefreshTimerRef.current) {
+      window.clearTimeout(projectTreeRefreshTimerRef.current);
+    }
+    projectTreeRefreshTimerRef.current = window.setTimeout(() => {
+      projectTreeRefreshTimerRef.current = undefined;
+      const pathToRefresh = pendingProjectTreePathRef.current;
+      pendingProjectTreePathRef.current = undefined;
+      if (pathToRefresh) {
+        void refreshProjectTree(pathToRefresh);
+      }
+    }, PROJECT_TREE_REFRESH_DEBOUNCE_MS);
+  }, [refreshProjectTree]);
+
+  const handleActivityEvent = useCallback((event: AgentActivityEvent, streamContext: ChatStreamContext) => {
     if (streamContext.chatId !== currentChatIdRef.current) {
       return;
     }
@@ -1503,7 +1577,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
     }
 
     if (event.type === 'tool.completed' && event.toolName && FILESYSTEM_MUTATING_TOOLS.has(event.toolName) && projectPaths[0]) {
-      void refreshProjectTree(projectPaths[0]);
+      scheduleProjectTreeRefresh(projectPaths[0]);
     }
 
     if (event.type === 'tool.approval.required' && event.approvalId) {
@@ -1552,7 +1626,7 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
       setPendingApproval(null);
       setApprovalLoadingId(null);
     }
-  };
+  }, [pendingApproval, projectPaths, scheduleProjectTreeRefresh, startPollingProcess]);
 
   const handleResumedRunCompleted = useCallback(async (response: string, context: ChatStreamContext) => {
     if (context.chatId === null || !response.trim()) return;
@@ -1612,9 +1686,12 @@ export function Home({ isDarkMode, toggleTheme }: HomeProps) {
 
   useEffect(() => {
     if (!isUserScrolledUpRef.current) {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      // Durante streaming, iniciar uma animação smooth para cada delta deixa o navegador tentando
+      // alcançar um alvo que muda o tempo todo. O salto instantâneo mantém a conversa acompanhável
+      // sem acumular animações; fora do stream a transição continua suave.
+      chatEndRef.current?.scrollIntoView({ behavior: isGenerating ? 'auto' : 'smooth' });
     }
-  }, [messages]);
+  }, [isGenerating, messages]);
 
   const handleApproveAction = useCallback(async (approvalId: string, comment: string) => {
     const approvalChatId = currentChatId;

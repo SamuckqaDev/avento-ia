@@ -96,4 +96,37 @@ describe('PlanExecutionPanel', () => {
 
     await waitFor(() => expect(planApi.runPlan).toHaveBeenCalledWith(1));
   });
+
+  it('does not keep polling while every visible plan is inactive', async () => {
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+    render(
+      <ThemeProvider theme={lightTheme}>
+        <PlanExecutionPanel chatId={7} workspaceRoots={['/tmp/project']} />
+      </ThemeProvider>,
+    );
+
+    await screen.findByRole('option', { name: /Corrigir autenticação/ });
+
+    expect(setIntervalSpy.mock.calls.filter(([, delay]) => delay === 15_000)).toHaveLength(0);
+  });
+
+  it('keeps a slow fallback refresh only for a running plan', async () => {
+    class EventSourceStub {
+      addEventListener() {}
+      removeEventListener() {}
+      close() {}
+    }
+    vi.stubGlobal('EventSource', EventSourceStub);
+    vi.mocked(planApi.listPlans).mockResolvedValue([{ ...currentPlan, status: 'RUNNING' }]);
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+    render(
+      <ThemeProvider theme={lightTheme}>
+        <PlanExecutionPanel chatId={7} workspaceRoots={['/tmp/project']} />
+      </ThemeProvider>,
+    );
+
+    await screen.findByRole('option', { name: /Corrigir autenticação/ });
+
+    expect(setIntervalSpy.mock.calls.filter(([, delay]) => delay === 15_000)).toHaveLength(1);
+  });
 });

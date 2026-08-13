@@ -80,6 +80,27 @@ class UnifiedToolCatalogServiceTest {
     }
 
     @Test
+    void replacesTheNativeEntryWhenDockerAnnouncesTheSameTool() {
+        when(mcpServerCatalogService.catalog(List.of())).thenReturn(List.of(server("docker-gateway", true, true, "")));
+        when(mcpClientManager.listTools("local"))
+                .thenReturn(List.of(new ToolDefinition(
+                        "docker-gateway__read_file",
+                        "read_file",
+                        "docker-gateway",
+                        "Le um arquivo dentro do container.",
+                        Map.of())));
+
+        UnifiedToolCatalog catalog = service().catalog(List.of());
+
+        assertThat(catalog.entries().stream().filter(entry -> entry.name().equals("read_file")))
+                .singleElement()
+                .satisfies(entry -> {
+                    assertThat(entry.source()).isEqualTo(UnifiedToolCatalogEntry.SOURCE_DOCKER_MCP);
+                    assertThat(entry.serverId()).isEqualTo("docker-gateway");
+                });
+    }
+
+    @Test
     void reportsAConnectedGatewayThatAnnouncedNoToolsAsDegraded() {
         when(mcpServerCatalogService.catalog(List.of())).thenReturn(List.of(server("docker-gateway", true, true, "")));
         when(mcpClientManager.listTools("local")).thenReturn(List.of());

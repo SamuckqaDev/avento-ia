@@ -1,7 +1,10 @@
 package com.avento.service.agent;
 
 import com.avento.dto.SelectableTool;
+import com.avento.dto.ServerDescriptor;
+import com.avento.dto.ToolDefinition;
 import com.avento.service.mcp.McpServerCatalogService;
+import com.avento.service.tools.DockerMcpToolPrecedence;
 import com.avento.service.tools.ToolCapabilityRegistry;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -58,7 +61,12 @@ public class SelectableToolCatalog {
         List<SelectableTool> tools = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
 
+        McpServerCatalogService mcpCatalog = mcpCatalogProvider.getIfAvailable();
+        List<ServerDescriptor> servers = mcpCatalog == null ? List.of() : mcpCatalog.catalog(List.of());
+        Set<String> dockerReplacements = dockerReplacements(mcpCatalog, servers);
+
         localTools.all().stream()
+                .filter(capability -> !dockerReplacements.contains(capability.name()))
                 .sorted(java.util.Comparator.comparing(capability -> capability.name()))
                 .forEach(capability -> {
                     if (seen.add(capability.name())) {
@@ -77,18 +85,18 @@ public class SelectableToolCatalog {
                     }
                 });
 
-        McpServerCatalogService mcpCatalog = mcpCatalogProvider.getIfAvailable();
         if (mcpCatalog == null) {
             return List.copyOf(tools);
         }
 
-        for (var descriptor : mcpCatalog.catalog(List.of())) {
+        for (var descriptor : servers) {
             // Do cache por digest: responde sem subir container. Sem isto, montar a tela custaria
             // iniciar todas as imagens so para perguntar o que elas tem.
             for (var tool : mcpCatalog.knownTools(descriptor.id())) {
-                if (seen.add(tool.exposedName())) {
+                String canonicalName = DockerMcpToolPrecedence.canonicalName(tool).orElse(tool.exposedName());
+                if (seen.add(canonicalName)) {
                     tools.add(new SelectableTool(
-                            tool.exposedName(),
+                            canonicalName,
                             SelectableTool.SOURCE_CONTAINER,
                             descriptor.id(),
                             "",
@@ -100,5 +108,17 @@ public class SelectableToolCatalog {
         }
 
         return List.copyOf(tools);
+    }
+
+    private Set<String> dockerReplacements(
+            McpServerCatalogService mcpCatalog, List<ServerDescriptor> servers) {
+        if (mcpCatalog == null) {
+            return Set.of();
+        }
+        List<ToolDefinition> dockerTools = servers.stream()
+                .filter(server -> DockerMcpToolPrecedence.DOCKER_GATEWAY_SERVER_ID.equals(server.id()))
+                .flatMap(server -> mcpCatalog.knownTools(server.id()).stream())
+                .toList();
+        return DockerMcpToolPrecedence.nativeReplacements(dockerTools).keySet();
     }
 }

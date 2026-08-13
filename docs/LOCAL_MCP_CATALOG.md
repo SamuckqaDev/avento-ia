@@ -87,6 +87,13 @@ O Docker só mostra ferramentas individuais depois do handshake MCP. Antes disso
 o gateway como servidor disponível — uma resposta honesta, em vez de inventar ferramentas pelo
 nome do perfil.
 
+Quando o `tools/list` de uma conexão real do gateway anuncia uma ferramenta cujo `originalName` é
+exatamente igual ao de uma ferramenta nativa, o catálogo e o modelo enxergam apenas uma capacidade:
+a do `DOCKER_MCP`. A chamada pelo nome canônico é roteada para a rota MCP com namespace interno
+(`docker-gateway__nome`), sem expor esse detalhe ao modelo. A nativa continua visível se o gateway
+não estiver conectado ou não declarar a equivalência exata; se a chamada Docker falhar, o erro é
+devolvido ao run e não há fallback silencioso para o host.
+
 ## Interface web
 
 O botao de plugue no header abre o gerenciador de ferramentas locais. A tela consulta o catalogo com Axios, preserva os workspaces do chat atual e permite buscar, filtrar, conectar, desconectar e atualizar servidores. Estados indisponiveis mostram a configuracao que falta; conexoes bem-sucedidas usam o snackbar temporario da aplicacao.

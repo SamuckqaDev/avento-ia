@@ -350,6 +350,13 @@ The catalog uses the official MCP Java SDK 2.x, pinned versions of the npm serve
 
 Repeated connections are idempotent: an already active MCP is not restarted on every message. Desktop Commander remains available in the catalog but must be connected on demand because its startup can be slow on some machines. The SDK's default timeout is 10 seconds and can be changed via `AVENTO_MCP_SDK_REQUEST_TIMEOUT`.
 
+Tools are disclosed progressively: the model starts with the lightweight `search_capabilities` and
+`activate_tools` pair, then receives schemas only for the capabilities relevant to the current
+request. When a connected Docker MCP Gateway announces an exact native tool name through
+`tools/list`, the model sees one canonical tool and Avento routes it to Docker. The native host
+implementation stays available only when the gateway is absent or did not announce that exact
+capability; a Docker execution error is returned as-is and never falls back silently to the host.
+
 Destructive or externally effective tools require approval. Temporary permissions are bound to the user, project, tool, resource, and duration; approvals can also be answered by voice.
 
 See the [full MCP catalog](docs/LOCAL_MCP_CATALOG.md).

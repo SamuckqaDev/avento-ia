@@ -25,8 +25,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class UnifiedToolCatalogService {
 
-    private static final String DOCKER_GATEWAY_SERVER_ID = "docker-gateway";
-
     private final ToolCapabilityRegistry localTools;
     private final McpServerCatalogService mcpServerCatalogService;
     private final McpClientManager mcpClientManager;
@@ -45,15 +43,17 @@ public class UnifiedToolCatalogService {
 
     public UnifiedToolCatalog catalog(List<String> workspaceRoots) {
         List<UnifiedToolCatalogEntry> entries = new ArrayList<>();
-        addNativeTools(entries);
-
         String scope = toolExecutionContext.current().scopeKey();
         List<ToolDefinition> connectedTools = mcpClientManager.listTools(scope);
+        Set<String> dockerReplacements = DockerMcpToolPrecedence
+                .nativeReplacements(connectedTools)
+                .keySet();
+        addNativeTools(entries, dockerReplacements);
         Set<String> connectedServerIds = connectedTools.stream()
                 .map(ToolDefinition::serverName)
                 .collect(Collectors.toSet());
 
-        addConnectedMcpTools(entries, connectedTools);
+        addConnectedMcpTools(entries, DockerMcpToolPrecedence.prioritize(connectedTools));
         addInstalledMcpServers(entries, workspaceRoots, connectedServerIds);
 
         entries.sort(Comparator.comparingInt(this::sourceOrder)
@@ -62,8 +62,9 @@ public class UnifiedToolCatalogService {
         return new UnifiedToolCatalog(List.copyOf(entries));
     }
 
-    private void addNativeTools(List<UnifiedToolCatalogEntry> entries) {
+    private void addNativeTools(List<UnifiedToolCatalogEntry> entries, Set<String> dockerReplacements) {
         localTools.all().stream()
+                .filter(tool -> !dockerReplacements.contains(tool.name()))
                 .sorted(Comparator.comparing(ToolCapability::name))
                 .forEach(tool -> entries.add(new UnifiedToolCatalogEntry(
                         "avento:" + tool.name(),
@@ -80,14 +81,19 @@ public class UnifiedToolCatalogService {
     }
 
     private void addConnectedMcpTools(List<UnifiedToolCatalogEntry> entries, List<ToolDefinition> connectedTools) {
+        Set<String> representedNames = new HashSet<>();
         for (ToolDefinition tool : connectedTools) {
-            String source = DOCKER_GATEWAY_SERVER_ID.equals(tool.serverName())
+            String source = DockerMcpToolPrecedence.DOCKER_GATEWAY_SERVER_ID.equals(tool.serverName())
                     ? UnifiedToolCatalogEntry.SOURCE_DOCKER_MCP
                     : UnifiedToolCatalogEntry.SOURCE_LOCAL_MCP;
+            String canonicalName = DockerMcpToolPrecedence.canonicalName(tool).orElse(tool.exposedName());
+            if (!representedNames.add(canonicalName)) {
+                continue;
+            }
             entries.add(new UnifiedToolCatalogEntry(
-                    source.toLowerCase() + ":" + tool.serverName() + ":" + tool.exposedName(),
+                    source.toLowerCase() + ":" + tool.serverName() + ":" + canonicalName,
                     UnifiedToolCatalogEntry.ENTRY_TYPE_TOOL,
-                    tool.exposedName(),
+                    canonicalName,
                     source,
                     tool.serverName(),
                     nullToEmpty(tool.description()),
@@ -174,16 +180,16 @@ public class UnifiedToolCatalogService {
     }
 
     private String sourceFor(String serverId) {
-        return DOCKER_GATEWAY_SERVER_ID.equals(serverId)
+        return DockerMcpToolPrecedence.DOCKER_GATEWAY_SERVER_ID.equals(serverId)
                 ? UnifiedToolCatalogEntry.SOURCE_DOCKER_MCP
                 : UnifiedToolCatalogEntry.SOURCE_LOCAL_MCP;
     }
 
     private int sourceOrder(UnifiedToolCatalogEntry entry) {
         return switch (entry.source()) {
-            case UnifiedToolCatalogEntry.SOURCE_AVENTO_NATIVE -> 0;
-            case UnifiedToolCatalogEntry.SOURCE_LOCAL_MCP -> 1;
-            case UnifiedToolCatalogEntry.SOURCE_DOCKER_MCP -> 2;
+            case UnifiedToolCatalogEntry.SOURCE_DOCKER_MCP -> 0;
+            case UnifiedToolCatalogEntry.SOURCE_AVENTO_NATIVE -> 1;
+            case UnifiedToolCatalogEntry.SOURCE_LOCAL_MCP -> 2;
             default -> 3;
         };
     }

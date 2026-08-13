@@ -102,8 +102,11 @@ AVENTO_MCP_SDK_ENABLED=true
 AVENTO_MCP_SDK_REQUEST_TIMEOUT=60s
 ```
 
-Ferramentas externas que colidem com nomes locais recebem namespace no formato
-`servidor__ferramenta`.
+Ferramentas externas que colidem com nomes locais recebem namespace interno no formato
+`servidor__ferramenta`. Para uma equivalência estrita anunciada pelo `docker-gateway` no
+`tools/list`, esse namespace fica escondido: o modelo recebe uma única ferramenta canônica e a
+execução é roteada ao Docker. Falhas dessa rota continuam visíveis no resultado da ferramenta; o
+orquestrador não tenta a nativa como fallback.
 
 O Avento nao possui mais transporte JSON-RPC manual. O SDK negocia o protocolo com o servidor; o
 alvo de conformidade documentado pelo backend e `2025-11-25`. Pacotes npm do catalogo sao

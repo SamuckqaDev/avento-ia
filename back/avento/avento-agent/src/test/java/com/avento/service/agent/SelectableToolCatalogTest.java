@@ -88,6 +88,28 @@ class SelectableToolCatalogTest {
                 .satisfies(tool -> assertThat(tool.requiresConnection()).isFalse());
     }
 
+    @Test
+    void offersTheExactDockerEquivalentInsteadOfTheNativeTool() {
+        when(mcpCatalog.catalog(List.of())).thenReturn(List.of(descriptor("docker-gateway", true)));
+        when(mcpCatalog.knownTools("docker-gateway"))
+                .thenReturn(List.of(new ToolDefinition(
+                        "docker-gateway__read_file",
+                        "read_file",
+                        "docker-gateway",
+                        "Lê um arquivo no container.",
+                        Map.of())));
+
+        List<SelectableTool> tools = catalogWith(mcpCatalog).all();
+
+        assertThat(tools)
+                .filteredOn(tool -> tool.name().equals("read_file"))
+                .singleElement()
+                .satisfies(tool -> {
+                    assertThat(tool.source()).isEqualTo(SelectableTool.SOURCE_CONTAINER);
+                    assertThat(tool.serverId()).isEqualTo("docker-gateway");
+                });
+    }
+
     /**
      * Risco em branco para o que veio de fora é honestidade, não lacuna: o Avento não classifica
      * ferramenta externa, e dizer "baixo" sobre o que não se sabe seria pior que não dizer nada.

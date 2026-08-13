@@ -351,9 +351,12 @@ backend tem. E o unico caminho possivel para quem depende do host:
 (`no-new-privileges`, 1 CPU, 2Gb), levantado sob demanda e removido depois. Por ele passam `fetch`,
 `time`, `memory`, `sequential-thinking`, `playwright`, `puppeteer` e `git`.
 
-O gateway conecta **por ultimo** no boot, de proposito: quem conecta antes reserva o nome da
-ferramenta, e o que agrega servidores de terceiros nunca deve tomar um nome ja usado. Colisao nao e
-rejeitada — o `McpClientManager` renomeia com prefixo (`servidor__ferramenta`).
+O `McpClientManager` preserva rotas sem ambiguidade usando um prefixo interno
+(`servidor__ferramenta`). Depois de um `tools/list` real, se o gateway anunciar exatamente o
+`originalName` de uma ferramenta nativa, `DockerMcpToolPrecedence` expõe uma única capacidade com o
+nome canônico e a rota para o gateway. Isso substitui a nativa somente naquele escopo conectado;
+sem anúncio exato, ela continua sendo a opção do host. Um erro do gateway é devolvido ao agente —
+nunca é mascarado por uma segunda execução nativa.
 
 Ele e um plugin do **Docker Desktop**: vive dentro do `Docker.app` e fala com o backend do Desktop,
 nao com o daemon. Sob Colima, OrbStack ou Rancher os containers rodam normalmente, mas o plugin

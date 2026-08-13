@@ -503,7 +503,7 @@
                 <tbody>
                     <tr><td>Git MCP (<code>@cyanheads/git-mcp-server</code>)</td><td>Hub</td><td><span class="status-pill">Implementado</span></td><td>Diff, commit, branch e stage nativos, além da allowlist fixa de <code>git status/diff/log</code>.</td></tr>
                     <tr><td>Postgres MCP (<code>@modelcontextprotocol/server-postgres</code>)</td><td>Hub</td><td><span class="status-pill">Implementado</span></td><td>Inspeção/consulta somente-leitura de bancos. Exige <code>avento.mcp.postgres.connection-string</code> configurado.</td></tr>
-                    <tr><td>Docker MCP Gateway oficial</td><td>Docker CLI</td><td><span class="status-pill">Implementado</span></td><td>Usa o servidor <code>docker</code> do gateway oficial, com preparação automática e compatibilidade com Colima.</td></tr>
+                    <tr><td>Docker MCP Gateway oficial</td><td>Docker Desktop</td><td><span class="status-pill">Implementado</span></td><td>Descobre ferramentas reais por <code>tools/list</code>. Requer Docker Desktop; Colima executa a stack, mas não fornece o plugin do gateway.</td></tr>
                     <tr><td>Apple MCP (<code>apple-mcp</code>)</td><td>Hub (macOS)</td><td><span class="status-pill">Implementado</span></td><td>Contatos, Notas, Mensagens, Calendário. Projeto recomenda rodar via <code>bun</code>; pode falhar via <code>npx</code> puro se o Bun não estiver instalado.</td></tr>
                     <tr><td>Chrome DevTools MCP (<code>chrome-devtools-mcp</code>)</td><td>Hub</td><td><span class="status-pill">Implementado</span></td><td>Controla um Chrome real via CDP — ainda não o navegador com as sessões logadas do cliente (isso depende do Agente de Dispositivo).</td></tr>
                     <tr><td>Fetch MCP</td><td>Hub</td><td>Planejado — P2</td><td>Converte uma URL em markdown limpo para leitura de docs/links.</td></tr>
@@ -520,6 +520,10 @@
                 <strong>Orquestrador único e SDK MCP oficial</strong>
                 <p><span class="status-pill">Implementado</span> Toda solicitação cria um <code>runId</code> no <code>AgentOrchestrator</code>, atravessa o mesmo gateway de ferramentas e fica em <code>RUNNING</code>, <code>AWAITING_APPROVAL</code>, <code>COMPLETED</code>, <code>FAILED</code> ou <code>CANCELLED</code>. Servidores externos usam o SDK Java oficial do MCP por stdio; descoberta, colisão de nomes e execução deixam de depender do parser manual legado. O resultado de comandos, escrita de arquivo e scaffolds é verificado antes de o agente anunciar sucesso.</p>
                 <p>Use <code>AVENTO_MCP_SDK_ENABLED=false</code> apenas como fallback temporário e <code>AVENTO_MCP_SDK_REQUEST_TIMEOUT=10s</code> para ajustar o tempo de inicialização e chamada. Conexões repetidas são idempotentes e não reiniciam um servidor já ativo. O Desktop Commander continua no catálogo para conexão manual, sem bloquear a subida automática.</p>
+            </div>
+            <div class="metric-card">
+                <strong>Catálogo progressivo e prioridade Docker comprovada</strong>
+                <p><span class="status-pill">Implementado</span> O modelo começa com <code>search_capabilities</code> e <code>activate_tools</code>, recebendo schemas apenas quando a tarefa pede. Se o <code>docker-gateway</code> conectado declarar no <code>tools/list</code> o mesmo <code>originalName</code> de uma ferramenta nativa, o Avento mostra uma capacidade canônica e a executa no Docker. Sem anúncio exato, a ferramenta nativa permanece; falha do Docker volta como erro para o run, sem fallback silencioso para o host.</p>
             </div>
             <div class="metric-card">
                 <strong>Geração de imagem: instrução direta, não só política</strong>

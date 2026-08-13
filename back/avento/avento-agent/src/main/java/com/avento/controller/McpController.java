@@ -31,6 +31,7 @@ import com.avento.service.memory.UserMemoryService;
 import com.avento.service.rag.CodeSearchService;
 import com.avento.service.rag.DocumentReaderService;
 import com.avento.service.rag.WorkspaceIndexingService;
+import com.avento.service.tools.DockerMcpToolPrecedence;
 import com.avento.service.tools.LocalToolNames;
 import com.avento.service.tools.LocalToolDefinitions;
 import com.avento.service.tools.TerminalCommandPolicy;
@@ -324,15 +325,16 @@ public class McpController implements ToolProvider {
 
     public ArrayNode getAvailableToolsInternal() {
         ArrayNode allTools = mapper.createArrayNode();
-        addLocalTools(allTools);
-        Set<String> registeredToolNames = new HashSet<>(LOCAL_TOOL_NAMES);
+        List<ToolDefinition> connectedTools = connectedTools();
+        Set<String> dockerReplacements = DockerMcpToolPrecedence
+                .nativeReplacements(connectedTools)
+                .keySet();
+        Set<String> registeredToolNames = addLocalTools(allTools, dockerReplacements);
 
-        if (mcpSdkEnabled && mcpClientManager != null) {
-            for (ToolDefinition definition :
-                    mcpClientManager.listTools(toolExecutionContext.current().scopeKey())) {
-                if (registeredToolNames.add(definition.exposedName())) {
-                    allTools.add(externalTool(definition));
-                }
+        for (ToolDefinition definition : DockerMcpToolPrecedence.prioritize(connectedTools)) {
+            String canonicalName = DockerMcpToolPrecedence.canonicalName(definition).orElse(definition.exposedName());
+            if (registeredToolNames.add(canonicalName)) {
+                allTools.add(externalTool(definition, canonicalName));
             }
         }
 
@@ -344,15 +346,21 @@ public class McpController implements ToolProvider {
         return getAvailableToolsInternal();
     }
 
-    private void addLocalTools(ArrayNode allTools) {
+    private Set<String> addLocalTools(ArrayNode allTools, Set<String> dockerReplacements) {
         Map<String, ObjectNode> annotatedTools = annotatedLocalTools();
+        Set<String> added = new HashSet<>();
         for (String toolName : LocalToolDefinitions.NAMES) {
+            if (dockerReplacements.contains(toolName)) {
+                continue;
+            }
             ObjectNode tool = annotatedTools.get(toolName);
             if (tool == null) {
                 throw new IllegalStateException("Missing annotated local tool definition: " + toolName);
             }
             allTools.add(tool);
+            added.add(toolName);
         }
+        return added;
     }
 
     private Map<String, ObjectNode> annotatedLocalTools() {
@@ -412,6 +420,13 @@ public class McpController implements ToolProvider {
     }
 
     public JsonNode executeToolInternal(String name, Map<String, Object> payload) throws Exception {
+        ToolDefinition dockerReplacement = DockerMcpToolPrecedence
+                .nativeReplacements(connectedTools())
+                .get(name);
+        if (dockerReplacement != null && mcpClientManager != null) {
+            return mcpClientManager.callTool(
+                    toolExecutionContext.current().scopeKey(), dockerReplacement.exposedName(), payload);
+        }
         if (LOCAL_TOOL_NAMES.contains(name)) {
             return executeLocalTool(name, payload);
         }
@@ -428,9 +443,9 @@ public class McpController implements ToolProvider {
         return executeToolInternal(toolName, arguments);
     }
 
-    private ObjectNode externalTool(ToolDefinition definition) {
+    private ObjectNode externalTool(ToolDefinition definition, String exposedName) {
         ObjectNode tool = mapper.createObjectNode();
-        tool.put("name", definition.exposedName());
+        tool.put("name", exposedName);
         tool.put("description", definition.description());
         tool.set("inputSchema", mapper.valueToTree(definition.inputSchema()));
         tool.put("mcpServer", definition.serverName());
@@ -525,13 +540,21 @@ public class McpController implements ToolProvider {
     private JsonNode executeSearchCapabilities(Map<String, Object> payload) throws IOException {
         String query = requiredString(payload, "query");
         List<ToolCatalogService.CapabilitySummary> extras = new ArrayList<>();
+        List<ToolDefinition> connectedTools = connectedTools();
+        Set<String> dockerReplacements = DockerMcpToolPrecedence
+                .nativeReplacements(connectedTools)
+                .keySet();
         // External tools currently connected for this chat scope.
         if (mcpSdkEnabled && mcpClientManager != null) {
-            for (ToolDefinition definition :
-                    mcpClientManager.listTools(toolExecutionContext.current().scopeKey())) {
+            Set<String> exposedCapabilities = new HashSet<>();
+            for (ToolDefinition definition : DockerMcpToolPrecedence.prioritize(connectedTools)) {
+                String canonicalName = DockerMcpToolPrecedence.canonicalName(definition).orElse(definition.exposedName());
+                if (!exposedCapabilities.add(canonicalName)) {
+                    continue;
+                }
                 extras.add(new ToolCatalogService.CapabilitySummary(
-                        definition.exposedName(),
-                        definition.exposedName(),
+                        canonicalName,
+                        canonicalName,
                         "MCP_EXTERNAL:" + definition.serverName(),
                         definition.description() == null ? "" : definition.description()));
             }
@@ -575,7 +598,8 @@ public class McpController implements ToolProvider {
             }
         }
 
-        List<ToolCatalogService.CapabilitySummary> matches = toolCatalogService.searchCapabilities(query, extras);
+        List<ToolCatalogService.CapabilitySummary> matches =
+                toolCatalogService.searchCapabilities(query, extras, dockerReplacements);
         ObjectNode result = mapper.createObjectNode();
         result.put("query", query);
         ArrayNode capabilities = result.putArray("capabilities");
@@ -647,14 +671,18 @@ public class McpController implements ToolProvider {
     }
 
     private Set<String> collectAvailableToolNames() {
-        Set<String> names = new HashSet<>(LOCAL_TOOL_NAMES);
-        if (mcpSdkEnabled && mcpClientManager != null) {
-            for (ToolDefinition definition :
-                    mcpClientManager.listTools(toolExecutionContext.current().scopeKey())) {
-                names.add(definition.exposedName());
-            }
+        Set<String> names = new HashSet<>();
+        for (JsonNode tool : getAvailableToolsInternal()) {
+            names.add(tool.path("name").asText());
         }
         return names;
+    }
+
+    private List<ToolDefinition> connectedTools() {
+        if (!mcpSdkEnabled || mcpClientManager == null) {
+            return List.of();
+        }
+        return mcpClientManager.listTools(toolExecutionContext.current().scopeKey());
     }
 
     private JsonNode executeSearchCode(Map<String, Object> payload) throws IOException {

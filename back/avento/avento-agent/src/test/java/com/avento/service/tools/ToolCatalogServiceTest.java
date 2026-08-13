@@ -50,6 +50,19 @@ class ToolCatalogServiceTest {
                 .isLessThanOrEqualTo(1);
     }
 
+    @Test
+    void searchUsesTheDockerCapabilityInsteadOfTheReplacedNativeEntry() {
+        CapabilitySummary dockerReadFile = new CapabilitySummary(
+                "read_file", "read_file", "MCP_EXTERNAL:docker-gateway", "Le um arquivo no workspace do container.");
+
+        List<CapabilitySummary> results =
+                newService().searchCapabilities("arquivo", List.of(dockerReadFile), Set.of("read_file"));
+
+        assertThat(results.stream().filter(summary -> summary.toolId().equals("read_file")))
+                .singleElement()
+                .satisfies(summary -> assertThat(summary.category()).isEqualTo("MCP_EXTERNAL:docker-gateway"));
+    }
+
     // A validação contra o registro local rejeitava toda ferramenta externa — activate_tools não
     // conseguia ativar exatamente as ferramentas que mais dependem dela.
     @Test

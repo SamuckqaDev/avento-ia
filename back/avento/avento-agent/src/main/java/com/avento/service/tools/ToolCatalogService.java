@@ -56,9 +56,21 @@ public class ToolCatalogService {
      * marca a capacidade — uma consulta como "gerar pdf relatorio" não pode exigir a frase inteira.
      */
     public List<CapabilitySummary> searchCapabilities(String query, List<CapabilitySummary> extras) {
+        return searchCapabilities(query, extras, Set.of());
+    }
+
+    /**
+     * Busca o catálogo leve excluindo nativas já substituídas por um Docker MCP conectado na
+     * sessão atual.
+     */
+    public List<CapabilitySummary> searchCapabilities(
+            String query, List<CapabilitySummary> extras, Set<String> excludedNativeToolIds) {
         List<CapabilitySummary> catalog = new ArrayList<>();
         capabilityRegistry
                 .all()
+                .stream()
+                .filter(definition -> excludedNativeToolIds == null
+                        || !excludedNativeToolIds.contains(definition.name()))
                 .forEach(def -> catalog.add(new CapabilitySummary(
                         def.name(),
                         def.name(),

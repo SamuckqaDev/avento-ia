@@ -858,11 +858,12 @@ workflows necessarios para encontra-los ou prepara-los na maquina local.
   expostas preenchem as vagas restantes). Se uma rodada terminar sem texto e sem chamada de
   ferramenta, o agente repete uma unica vez com instrucao explicita antes de avisar o usuario,
   em vez de completar a execucao em silencio.
-  O padrão local usa um teto de 8.192 tokens e `num-predict=4096` por rodada. Para modelos locais,
+  O padrão local usa um teto de 16.384 tokens e `num-predict=4096` por rodada. Para modelos locais,
   o Avento usa o menor valor entre esse teto e a janela declarada pelo modelo; provedores gerenciados
-  controlam a própria janela. Esse limite de geração evita uma resposta sem teto, mas não é uma
-  reserva separada: prompt e resposta ainda compartilham `num-ctx`, portanto schemas e histórico
-  continuam sendo compactados.
+  controlam a própria janela. Antes de enviar a rodada, o agente reserva todo o `num-predict` para
+  texto visível e Thinking, com uma pequena margem adicional, e compacta mensagens históricas caso
+  a estimativa do prompt invada esse orçamento. Assim schemas e histórico não roubam o espaço de
+  conclusão da resposta.
 - O ambiente foi desenhado primeiro para macOS e loopback; acesso remoto exige outra camada de
   seguranca e operacao.
 

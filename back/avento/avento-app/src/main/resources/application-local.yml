@@ -37,10 +37,10 @@ avento:
     # do que já foi lido, então rodada a mais custa tempo, não a resposta inteira.
     max-tool-rounds: 15
     max-tool-calls: 16
-    # O modelo informa o máximo que suporta, mas numa instância Ollama o contexto também consome
-    # memória desta máquina. 8k é o teto local seguro para manter chat, RAG e interface responsivos;
-    # use AVENTO_AGENT_NUM_CTX para aumentar somente quando a memória disponível justificar.
-    num-ctx: ${AVENTO_AGENT_NUM_CTX:8192}
+    # O modelo informa o máximo que suporta; o Avento usa o menor valor entre ele e este teto local.
+    # 16k deixa espaço para RAG, ferramentas e para a resposta/Thinking. A reserva de num-predict
+    # nunca entra no prompt. Ajuste AVENTO_AGENT_NUM_CTX só após observar a memória da máquina.
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:16384}
     num-predict: ${AVENTO_AGENT_NUM_PREDICT:4096}
     # ESTE e o arquivo que vale no profile local (sobrescreve application.yml). Um modelo so, sem troca.
     # qwen3.5:9b existe tanto aqui quanto na maquina de inferencia da rede, entao trocar de uma para

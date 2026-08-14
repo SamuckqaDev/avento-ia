@@ -30,11 +30,11 @@ avento:
     auto-approve-all: ${AVENTO_AGENT_AUTO_APPROVE_ALL:false}
     max-tool-rounds: ${AVENTO_AGENT_MAX_TOOL_ROUNDS:60}
     max-tool-calls: ${AVENTO_AGENT_MAX_TOOL_CALLS:100}
-    # O modelo declara a janela que suporta; para provedores locais o Avento usa o menor valor entre
-    # essa capacidade e este teto da maquina. 8k evita que o KV cache deixe um Mac de 16 GB em swap
-    # enquanto ainda comporta conversa, ferramentas e trechos RAG. Máquinas com folga podem elevar
-    # o teto por AVENTO_AGENT_NUM_CTX, sem pedir mais do que o modelo anuncia.
-    num-ctx: ${AVENTO_AGENT_NUM_CTX:8192}
+    # O contexto efetivo e o menor valor entre esta protecao local e o que o modelo declara suportar.
+    # 16k acomoda politicas, RAG e schemas sem espremer a resposta; a reserva de num-predict fica
+    # fora do prompt, inclusive com Thinking ligado. Nao use a janela teorica de 128k/262k direto
+    # num Mac de 16 GB: o KV cache cresce junto e pode levar o sistema ao swap.
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:16384}
     num-predict: ${AVENTO_AGENT_NUM_PREDICT:4096}
     temperature: ${AVENTO_AGENT_TEMPERATURE:0.15}
     top-p: ${AVENTO_AGENT_TOP_P:0.9}

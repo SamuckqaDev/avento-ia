@@ -1046,16 +1046,21 @@ public class AgentService implements AgentExecutionEngine {
         ObjectNode ollamaRequest = mapper.createObjectNode();
         ollamaRequest.put("model", model);
         ArrayNode guardedMessages = withBackendIdentityPrompt(messages, state.workspaceRoots, state.userId);
+        boolean thinkingEnabled = thinkingEnabledForRequest(state.userId, model);
+        ContextWindowBudget contextBudget =
+                ContextWindowBudget.forWindow(effectiveContextTokens(state.userId), numPredict);
         ollamaRequest.put("stream", true);
         // Sem isso, o roteamento do raciocinio pro campo dedicado message.thinking (ver
         // handleModelChunk) fica a criterio do default do Ollama/modelo, que e inconsistente
         // entre versoes para modelos hibridos como qwen3 — o raciocinio pode vazar como
         // message.content normal em vez de ficar isolado no campo de thinking.
-        ollamaRequest.put("think", thinkingEnabledForRequest(state.userId, model));
+        ollamaRequest.put("think", thinkingEnabled);
         ollamaRequest.put("keep_alive", keepAlive);
         ObjectNode options = ollamaRequest.putObject("options");
-        options.put("num_ctx", effectiveContextTokens(state.userId));
-        options.put("num_predict", numPredict);
+        options.put("num_ctx", contextBudget.contextTokens());
+        // Thinking também consome num_predict. Reservar o valor inteiro impede que o prompt invada
+        // a margem de raciocínio e deixe a resposta visível pela metade.
+        options.put("num_predict", contextBudget.generationTokens());
         options.put("temperature", temperature);
         options.put("top_p", topP);
         options.put("top_k", topK);
@@ -1144,7 +1149,82 @@ public class AgentService implements AgentExecutionEngine {
             ollamaRequest.set("tools", openAiTools);
         }
 
+        compactHistoryToFitContext(ollamaRequest, contextBudget, state, model, thinkingEnabled);
+
         return ollamaRequest;
+    }
+
+    /**
+     * Remove somente turnos antigos quando a estimativa indica que prompt + geração pode exceder a
+     * janela solicitada. O último pedido do usuário e as instruções de sistema nunca são removidos.
+     * A estimativa é conservadora porque o Ollama só informa a contagem exata depois da geração.
+     */
+    private void compactHistoryToFitContext(
+            ObjectNode request,
+            ContextWindowBudget budget,
+            AgentRunState state,
+            String model,
+            boolean thinkingEnabled) {
+        ArrayNode requestMessages = request.withArray("messages");
+        int estimatedPromptTokens = estimatePromptTokens(request);
+        int latestUserIndex = latestUserMessageIndex(requestMessages);
+        boolean compacted = false;
+
+        while (estimatedPromptTokens > budget.promptTokens()) {
+            int removableIndex = oldestHistoricalMessageIndex(requestMessages, latestUserIndex);
+            if (removableIndex < 0) {
+                break;
+            }
+            requestMessages.remove(removableIndex);
+            latestUserIndex--;
+            compacted = true;
+            estimatedPromptTokens = estimatePromptTokens(request);
+        }
+
+        if (compacted || estimatedPromptTokens > budget.promptTokens()) {
+            logger.info(
+                    "Context budget: run={} model={} thinking={} estimatedPromptTokens={} promptBudget={} "
+                            + "generationReserve={} contextWindow={} compacted={}",
+                    state.runId,
+                    model,
+                    thinkingEnabled,
+                    estimatedPromptTokens,
+                    budget.promptTokens(),
+                    budget.generationTokens(),
+                    budget.contextTokens(),
+                    compacted);
+        }
+    }
+
+    private int latestUserMessageIndex(ArrayNode messages) {
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            if ("user".equals(messages.get(index).path("role").asText(""))) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private int oldestHistoricalMessageIndex(ArrayNode messages, int latestUserIndex) {
+        for (int index = 1; index < latestUserIndex; index++) {
+            if (!"system".equals(messages.get(index).path("role").asText(""))) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private int estimatePromptTokens(ObjectNode request) {
+        int promptCharacters = 160;
+        for (JsonNode message : request.withArray("messages")) {
+            promptCharacters += message.path("content").asText("").length() + 24;
+        }
+        for (JsonNode tool : request.withArray("tools")) {
+            promptCharacters += tool.toString().length();
+        }
+        // JSON de schemas, nomes técnicos e português ficam mais densos que texto natural. Usar
+        // 3,2 caracteres/token deixa margem para o tokenizer nativo do modelo sem contar base64 de imagem.
+        return (int) Math.ceil(promptCharacters / 3.2d);
     }
 
     private ObjectNode buildOllamaRequest(String model, ArrayNode messages, List<String> workspaceRoots) {

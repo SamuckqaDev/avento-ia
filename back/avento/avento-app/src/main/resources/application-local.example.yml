@@ -27,8 +27,9 @@ avento:
   agent:
     max-tool-rounds: ${AVENTO_AGENT_MAX_TOOL_ROUNDS:60}
     max-tool-calls: ${AVENTO_AGENT_MAX_TOOL_CALLS:100}
-    # Limite seguro da máquina; o Avento respeita também a janela declarada pelo modelo.
-    num-ctx: ${AVENTO_AGENT_NUM_CTX:8192}
+    # Teto local; o Avento usa também a janela declarada pelo modelo e reserva num-predict para
+    # resposta e Thinking antes de preencher o prompt.
+    num-ctx: ${AVENTO_AGENT_NUM_CTX:16384}
     num-predict: ${AVENTO_AGENT_NUM_PREDICT:4096}
     temperature: ${AVENTO_AGENT_TEMPERATURE:0.15}
     top-p: ${AVENTO_AGENT_TOP_P:0.9}

@@ -115,6 +115,19 @@ class WorkspaceIndexingServiceTest {
         assertThat(indexer.stateOf(project)).isEqualTo(WorkspaceIndexingService.IndexState.UNKNOWN);
     }
 
+    /** A button explicitly pressed by the user must work even when background indexing is disabled. */
+    @Test
+    void queuesAnExplicitReindexWhenAutomaticIndexingIsOff() throws Exception {
+        RagService ragService = mock(RagService.class);
+        WorkspaceIndexingService indexer = new WorkspaceIndexingService(ragService, false, 0, "");
+        Path project = Files.createDirectory(tempDir.resolve("projeto-manual"));
+
+        assertThat(indexer.requestReindexing(project)).isTrue();
+
+        verify(ragService, timeout(AWAIT_MILLIS)).indexProject(List.of(project.toString()));
+        assertThat(awaitReady(indexer, project)).isTrue();
+    }
+
     /** With a project checked out inside another, a file belongs to the closest root, not the outer one. */
     @Test
     void attributesAFileToTheDeepestProjectThatContainsIt() throws Exception {

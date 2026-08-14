@@ -659,6 +659,23 @@ As ferramentas locais essenciais do agente ficam disponiveis pelo backend mesmo 
 
 Mensagens casuais curtas, como `oi`, `bom dia`, `tudo bem` ou `como voce esta`, nao recebem contexto de projeto, nao disparam RAG e nao devem acionar ferramentas. O backend tambem ignora tool calls nesse tipo de conversa para evitar chamadas como `directory_tree` sem pedido explicito.
 
+## Vault de conhecimento no Obsidian
+
+Em **Configurações → Conhecimento**, clique em **Criar vault e indexar**. O Avento cria, por ação
+explícita, o vault Markdown em `~/.avento/obsidian-vault`; para usar outro lugar, defina
+`AVENTO_OBSIDIAN_VAULT_PATH` antes de iniciar o backend. Abra a pasta escolhida no Obsidian, escreva
+as notas em Markdown e use **Reindexar notas** depois de editar.
+
+O vault usa o mesmo Redis Vector Store do RAG de projetos, mas é uma fonte própria: a busca filtra
+os chunks pela raiz do vault e a reindexação compara hashes, portanto arquivos sem alteração não são
+embeddados novamente. A indexação corre em uma única fila de baixa prioridade, junto com a dos
+projetos, para não disputar RAM com o chat.
+
+As notas recuperadas entram no chat como referências locais, com o caminho da nota. Elas **não** são
+prompt de sistema, não concedem permissão de ferramenta e não substituem políticas internas. As
+memórias confirmadas do Avento continuam no PostgreSQL por usuário; a pasta `30-Memory` do vault é
+apenas uma área de revisão manual.
+
 Se um modelo local escrever uma pseudo-chamada textual como `{function <directory_tree> ...}` em vez de usar tool-call nativo, o backend tenta interpretar isso como chamada interna e suprime o markup do stream. Chamadas com `path: "/"` sao rejeitadas com uma mensagem segura, porque ferramentas de arquivo so podem operar dentro de workspaces autorizados.
 
 Ao abrir uma conversa pelo historico, as pastas salvas no contexto do chat sao revalidadas com `/api/fs/authorize` antes de voltarem para o prompt e para as ferramentas. Se uma pasta foi movida ou apagada, ela nao e restaurada como workspace ativo.

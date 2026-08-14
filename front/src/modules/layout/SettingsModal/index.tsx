@@ -77,6 +77,13 @@ interface AgentItem {
   isDefault: boolean;
 }
 
+interface ObsidianVaultStatus {
+  available: boolean;
+  path: string;
+  indexState: 'UNKNOWN' | 'INDEXING' | 'READY' | 'FAILED';
+  message: string;
+}
+
 const EMPTY_AGENT_FORM = { name: '', specialty: '', systemInstructions: '', triggers: '', isDefault: false };
 
 type UsageRange = 'today' | '7d' | '30d';
@@ -98,7 +105,7 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const { user, logout, reloadCurrentUser } = useAuth();
   const appVersion = useAppVersion();
-  const [activeTab, setActiveTab] = useState<'conta' | 'uso' | 'preferencias' | 'provedores' | 'memoria' | 'agentes'>('conta');
+  const [activeTab, setActiveTab] = useState<'conta' | 'uso' | 'preferencias' | 'provedores' | 'memoria' | 'conhecimento' | 'agentes'>('conta');
   const [ttsEnabled, setTtsEnabled] = useState(false);
   // Thinking é opt-in: o padrão acompanha o backend (avento.agent.enable-thinking = false). Com
   // `true` aqui, o menu mostrava "ligado" antes de a preferência real chegar, e desligar não tinha
@@ -151,6 +158,10 @@ export function SettingsModal({
   const [isLoadingMemory, setIsLoadingMemory] = useState(true);
   const [newMemory, setNewMemory] = useState('');
   const [memoryBusy, setMemoryBusy] = useState(false);
+
+  const [obsidianVault, setObsidianVault] = useState<ObsidianVaultStatus | null>(null);
+  const [isLoadingObsidian, setIsLoadingObsidian] = useState(false);
+  const [obsidianBusy, setObsidianBusy] = useState(false);
 
   const [agents, setAgents] = useState<AgentItem[]>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(true);
@@ -212,6 +223,39 @@ export function SettingsModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  const loadObsidianVault = async () => {
+    setIsLoadingObsidian(true);
+    try {
+      const { data } = await api.get<ObsidianVaultStatus>('/api/knowledge/obsidian');
+      setObsidianVault(data);
+    } catch (error) {
+      console.error('Erro ao carregar o vault do Obsidian', error);
+    } finally {
+      setIsLoadingObsidian(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'conhecimento') {
+      loadObsidianVault();
+    }
+    // loadObsidianVault deliberately runs only when the tab is opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const handleObsidianAction = async (action: 'initialize' | 'reindex') => {
+    setObsidianBusy(true);
+    try {
+      const { data } = await api.post<ObsidianVaultStatus>(`/api/knowledge/obsidian/${action}`);
+      setObsidianVault(data);
+    } catch (error) {
+      const operation = action === 'initialize' ? 'inicializar' : 'reindexar';
+      console.error(`Erro ao ${operation} o vault do Obsidian`, error);
+    } finally {
+      setObsidianBusy(false);
+    }
+  };
 
   const loadMemories = async () => {
     setIsLoadingMemory(true);
@@ -1052,6 +1096,56 @@ export function SettingsModal({
     );
   };
 
+  const renderConhecimento = () => (
+    <Body>
+      <MemoryIntro>
+        Conecte um vault Markdown ao RAG local. O Avento encontra notas relevantes e mostra a origem
+        no contexto da conversa. Ele não trata notas como comandos: políticas escritas no vault são
+        referência, não autorização para executar ferramentas.
+      </MemoryIntro>
+      {isLoadingObsidian ? (
+        <p style={{ color: '#9FB8B1', fontSize: '0.9rem' }}>Carregando vault do Obsidian...</p>
+      ) : (
+        <UsageCard>
+          <h3>Vault do Obsidian</h3>
+          <p>{obsidianVault?.message || 'Não foi possível consultar o vault agora.'}</p>
+          {obsidianVault && (
+            <>
+              <p><strong>Caminho:</strong> {obsidianVault.path}</p>
+              <p><strong>Índice:</strong> {obsidianVault.indexState}</p>
+            </>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+            {!obsidianVault?.available ? (
+              <MemoryActionButton
+                $variant="confirm"
+                onClick={() => handleObsidianAction('initialize')}
+                disabled={obsidianBusy}
+              >
+                {obsidianBusy ? 'Preparando...' : 'Criar vault e indexar'}
+              </MemoryActionButton>
+            ) : (
+              <MemoryActionButton
+                $variant="confirm"
+                onClick={() => handleObsidianAction('reindex')}
+                disabled={obsidianBusy || obsidianVault.indexState === 'INDEXING'}
+              >
+                {obsidianVault.indexState === 'INDEXING' ? 'Indexando...' : 'Reindexar notas'}
+              </MemoryActionButton>
+            )}
+            <MemoryActionButton onClick={loadObsidianVault} disabled={isLoadingObsidian || obsidianBusy}>
+              Atualizar status
+            </MemoryActionButton>
+          </div>
+        </UsageCard>
+      )}
+      <MemoryIntro>
+        As memórias confirmadas do Avento continuam protegidas no banco por usuário. Se quiser que
+        uma anotação do Obsidian ajude numa resposta, escreva em Markdown e reindexe o vault.
+      </MemoryIntro>
+    </Body>
+  );
+
   const selectStyle = {
     background: 'rgba(16, 42, 38, 0.55)',
     border: '1px solid rgba(255, 255, 255, 0.12)',
@@ -1404,6 +1498,7 @@ export function SettingsModal({
           <TabButton $active={activeTab === 'provedores'} onClick={() => setActiveTab('provedores')}>Modelos & Provedores</TabButton>
           <TabButton $active={activeTab === 'agentes'} onClick={() => setActiveTab('agentes')}>Agentes</TabButton>
           <TabButton $active={activeTab === 'memoria'} onClick={() => setActiveTab('memoria')}>Memória</TabButton>
+          <TabButton $active={activeTab === 'conhecimento'} onClick={() => setActiveTab('conhecimento')}>Conhecimento</TabButton>
           <TabButton $active={activeTab === 'preferencias'} onClick={() => setActiveTab('preferencias')}>Preferências</TabButton>
         </Tabs>
 
@@ -1412,6 +1507,7 @@ export function SettingsModal({
         {activeTab === 'provedores' && renderProvedores()}
         {activeTab === 'agentes' && renderAgentes()}
         {activeTab === 'memoria' && renderMemoria()}
+        {activeTab === 'conhecimento' && renderConhecimento()}
         {activeTab === 'preferencias' && renderPreferencias()}
 
       </ModalContainer>

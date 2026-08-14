@@ -2,6 +2,7 @@ package com.avento.service.rag;
 
 import com.avento.service.event.WorkspaceRootRegisteredEvent;
 import jakarta.annotation.PreDestroy;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Comparator;
@@ -95,6 +96,35 @@ public class WorkspaceIndexingService {
         }
         states.put(normalized, IndexState.INDEXING);
         worker.execute(() -> index(normalized));
+    }
+
+    /**
+     * Schedules an explicit incremental pass, even when automatic workspace indexing is disabled.
+     *
+     * <p>This is used by an intentional user action such as "Reindex my Obsidian vault". It shares
+     * the same single worker as project indexing, so a manual knowledge refresh never races the chat
+     * model or another embedding job for RAM.
+     *
+     * @return {@code true} when a pass was queued; {@code false} when the root is invalid, too broad,
+     *     or already being indexed
+     */
+    public boolean requestReindexing(Path root) {
+        if (root == null) {
+            return false;
+        }
+        Path normalized = normalize(root);
+        if (!Files.isDirectory(normalized)
+                || tooBroadToIndex(normalized)
+                || states.get(normalized) == IndexState.INDEXING) {
+            return false;
+        }
+        ScheduledFuture<?> pending = pendingReindexes.remove(normalized);
+        if (pending != null) {
+            pending.cancel(false);
+        }
+        states.put(normalized, IndexState.INDEXING);
+        worker.execute(() -> index(normalized));
+        return true;
     }
 
     /**

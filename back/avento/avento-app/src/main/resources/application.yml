@@ -138,6 +138,10 @@ avento:
     embedding-batch-size: ${AVENTO_RAG_EMBEDDING_BATCH_SIZE:32}
     # Silêncio de escrita antes de reindexar. Junta uma rajada de edições numa passada só.
     reindex-debounce-millis: ${AVENTO_RAG_REINDEX_DEBOUNCE_MILLIS:15000}
+  obsidian:
+    # Vault Markdown consultado como conhecimento local. A criação só acontece por ação explícita
+    # em Configurações → Conhecimento; alterar o caminho não concede acesso a outras pastas.
+    vault-path: ${AVENTO_OBSIDIAN_VAULT_PATH:${user.home}/.avento/obsidian-vault}
   documents:
     markitdown-command: ${AVENTO_MARKITDOWN_COMMAND:${user.home}/.avento/tools/mcp/bin/markitdown}
     markitdown-mcp-command: ${AVENTO_MARKITDOWN_MCP_COMMAND:${user.home}/.avento/tools/mcp/bin/markitdown-mcp}

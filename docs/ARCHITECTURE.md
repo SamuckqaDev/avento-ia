@@ -653,6 +653,19 @@ embedding model does not truncate at that ceiling: replacing the final 1,200 / 2
 characters moved cosine similarity to 0.986 / 0.963 / 0.923, whereas truncation would have kept it
 at 1.000000.
 
+### Vault Obsidian como fonte de conhecimento
+
+`ObsidianKnowledgeService` trata `AVENTO_OBSIDIAN_VAULT_PATH` (padrão:
+`~/.avento/obsidian-vault`) como uma raiz RAG explícita. A inicialização é autenticada e cria apenas
+arquivos Markdown ausentes; pesquisar não escreve no vault. `WorkspaceIndexingService` agenda a
+reindexação manual na mesma fila única usada por projetos e `RagService` reutiliza o manifesto por
+raiz, removendo chunks de notas apagadas e recalculando somente as notas cujo hash mudou.
+
+O React consulta `/api/knowledge/obsidian/search` antes de enviar a rodada ao agente e anexa o nome
+da nota a cada trecho. O bloco declara que o conteúdo é referência de usuário, não instrução de
+sistema: uma nota de política não aprova uma ferramenta nem altera as políticas internas. Memória
+durável confirmada continua no PostgreSQL por `userId`; o Obsidian é complementar e revisável.
+
 ## Modo Plano de Implementacao (planejar antes de codar)
 
 Para uma tarefa de codigo, a skill `implementation-plan` coloca o agente em MODO PLANO: ela declara

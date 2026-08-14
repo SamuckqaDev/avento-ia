@@ -284,6 +284,18 @@ when the machine has enough memory; managed providers keep control of their own 
 
 The model chosen in the interface travels with the request. `AVENTO_AGENT_DEFAULT_MODEL` is used only when no model is provided. The backend sends explicit inference parameters to Ollama (`temperature=0.15`, `top_p=0.9`, `top_k=30`, and `repeat_penalty=1.08` by default), all overridable via `AVENTO_AGENT_*` variables. Short continuations such as "continue" or "try again" receive the last substantive request in a continuity block to avoid a goal switch when the history is compacted.
 
+### Obsidian knowledge vault
+
+Open **Settings → Knowledge** and choose **Create vault and index**. Avento creates a regular local
+Markdown vault at `~/.avento/obsidian-vault` (or at `AVENTO_OBSIDIAN_VAULT_PATH`), with folders for
+inbox, knowledge, projects, reviewable notes, and policy references. Open that same folder as a vault
+in Obsidian, write notes, and request a reindex after editing. Reindexing is incremental: unchanged
+files keep their existing vectors in Redis.
+
+Vault notes are retrieved as cited reference material in the chat. They never become system prompts,
+do not grant tool permissions, and do not replace Avento's authenticated long-term memory, which
+remains stored per user in PostgreSQL.
+
 ### Image and video
 
 **ComfyUI generates Avento's images and videos.** It is separate from the Ollama models: Ollama drives the conversation and can interpret images with a multimodal model, while ComfyUI runs the visual generation workflows and returns the files to the chat. Visual generation requires no workspace or MCP server. Explicit requests and standalone visual descriptions with enough style and composition signals are routed directly to `generate_image`; requests to analyze, explain, or improve a prompt stay in the conversation.

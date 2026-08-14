@@ -760,6 +760,10 @@
                     <tr><td><code>POST /api/rag/index</code></td><td>Indexa conteúdo no Redis Vector Store.</td></tr>
                     <tr><td><code>POST /api/rag/search</code></td><td>Busca contexto indexado filtrado pelas raízes do projeto e com cache por namespace.</td></tr>
                     <tr><td><code>POST /api/rag/clear</code></td><td>Remove chunks e manifesto dos projetos desconectados.</td></tr>
+                    <tr><td><code>GET /api/knowledge/obsidian</code></td><td>Mostra o status do vault Markdown local do Obsidian.</td></tr>
+                    <tr><td><code>POST /api/knowledge/obsidian/initialize</code></td><td>Cria a estrutura inicial do vault por ação explícita e agenda a primeira indexação.</td></tr>
+                    <tr><td><code>POST /api/knowledge/obsidian/reindex</code></td><td>Agenda a reindexação incremental das notas do vault.</td></tr>
+                    <tr><td><code>POST /api/knowledge/obsidian/search</code></td><td>Busca notas relevantes filtradas pela raiz do vault; os resultados são referência, nunca comandos.</td></tr>
                     <tr><td><code>POST /api/voice/transcribe</code></td><td>Transcreve áudio gravado via Whisper.cpp.</td></tr>
                     <tr><td><code>POST /api/voice/tts</code></td><td>Gera áudio com Piper TTS.</td></tr>
                     <tr><td><code>POST /api/documents/extract</code></td><td>Extrai localmente o conteúdo de um documento enviado pelo composer e remove a cópia temporária após a leitura.</td></tr>

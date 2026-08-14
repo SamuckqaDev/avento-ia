@@ -61,6 +61,9 @@ avento:
     similarity-threshold: ${AVENTO_RAG_SIMILARITY_THRESHOLD:0.62}
     candidate-limit: ${AVENTO_RAG_CANDIDATE_LIMIT:30}
     result-limit: ${AVENTO_RAG_RESULT_LIMIT:5}
+  obsidian:
+    # Opcional. Por padrão, o Avento usa ~/.avento/obsidian-vault.
+    vault-path: ${AVENTO_OBSIDIAN_VAULT_PATH:${user.home}/.avento/obsidian-vault}
   image:
     provider: ${AVENTO_IMAGE_PROVIDER:comfyui}
     default-model: ${AVENTO_IMAGE_DEFAULT_MODEL:comfyui:RealVisXL_V5.0_fp16.safetensors}

@@ -5,6 +5,7 @@ export const GlobalStyle = createGlobalStyle`
     /* Avenir Next já vem no macOS: dá ao Avento uma leitura mais humana sem trazer fonte externa
        ou depender de rede. Os fallbacks mantêm a mesma hierarquia visual fora do Mac. */
     --avento-font-sans: 'Avenir Next', Avenir, 'Segoe UI Variable', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+    --avento-font-display: 'Poppins', var(--avento-font-sans);
   }
 
   * {
@@ -41,6 +42,30 @@ export const GlobalStyle = createGlobalStyle`
   textarea,
   select {
     font: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  button,
+  label,
+  legend {
+    font-family: var(--avento-font-display);
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.025em;
+  }
+
+  button,
+  label,
+  legend {
+    letter-spacing: -0.01em;
   }
 
   button {

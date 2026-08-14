@@ -97,6 +97,22 @@ class PromptPrefixStabilityTest {
                 .isGreaterThan(withRoots.indexOf("[Local Environment]"));
     }
 
+    @Test
+    void makesGenericContinuationResumeBrokenAssistantReplyWithoutRepeatingIt() {
+        ArrayNode messages = MAPPER.createArrayNode();
+        messages.addObject().put("role", "user").put("content", "Me fale suas capacidades.");
+        messages.addObject()
+                .put("role", "assistant")
+                .put("content", "- Desenvolvimento: arquitetura de camadas (DTOs, Models");
+        messages.addObject().put("role", "user").put("content", "continue");
+
+        String prompt = service().systemPrompt(messages, List.of(), null);
+
+        assertThat(prompt)
+                .contains("Continue a partir da próxima palavra")
+                .contains("- Desenvolvimento: arquitetura de camadas (DTOs, Models");
+    }
+
     /**
      * A politica experimental do usuario vive fora do repositorio, em ~/.avento/policies. O prompt
      * tem de preferi-la a versao publica empacotada — sem isso, testar uma politica nova exigiria

@@ -197,8 +197,12 @@ public class PromptAssemblyService {
         }
 
         boolean skippedLatest = false;
+        String previousAssistantReply = "";
         for (int index = messages.size() - 1; index >= 0; index--) {
             JsonNode message = messages.get(index);
+            if (previousAssistantReply.isBlank() && "assistant".equals(message.path("role").asText(""))) {
+                previousAssistantReply = message.path("content").asText("").strip();
+            }
             if (!"user".equals(message.path("role").asText(""))) {
                 continue;
             }
@@ -216,12 +220,47 @@ public class PromptAssemblyService {
             String compactRequest = request.length() <= CONTINUITY_REQUEST_MAX_CHARS
                     ? request
                     : request.substring(0, CONTINUITY_REQUEST_MAX_CHARS) + "...";
-            return "\n\n[Conversation Continuity]\n"
+            String continuity = "\n\n[Conversation Continuity]\n"
                     + "A mensagem atual é uma continuação curta. Preserve este último pedido explícito como objetivo; "
                     + "não invente outro assunto:\n"
                     + compactRequest;
+            if (isStructurallyIncompleteReply(previousAssistantReply)) {
+                continuity += "\n\nA resposta anterior terminou no meio de uma estrutura. Continue a partir da "
+                        + "próxima palavra; não repita a introdução, os itens já enviados ou o pedido. Complete "
+                        + "a estrutura e encerre naturalmente. Último trecho entregue:\n"
+                        + compactAssistantReply(previousAssistantReply);
+            }
+            return continuity;
         }
         return "";
+    }
+
+    private boolean isStructurallyIncompleteReply(String reply) {
+        if (reply == null || reply.isBlank()) {
+            return false;
+        }
+        String text = reply.stripTrailing();
+        if (text.endsWith(",") || text.endsWith(":") || text.endsWith("(") || text.endsWith("`")) {
+            return true;
+        }
+        return unclosedDelimiters(text, '(', ')') || unclosedDelimiters(text, '[', ']');
+    }
+
+    private boolean unclosedDelimiters(String text, char opening, char closing) {
+        int depth = 0;
+        for (int index = 0; index < text.length(); index++) {
+            if (text.charAt(index) == opening) {
+                depth++;
+            } else if (text.charAt(index) == closing && depth > 0) {
+                depth--;
+            }
+        }
+        return depth > 0;
+    }
+
+    private String compactAssistantReply(String reply) {
+        int start = Math.max(0, reply.length() - CONTINUITY_REQUEST_MAX_CHARS);
+        return (start > 0 ? "..." : "") + reply.substring(start);
     }
 
     private boolean isGenericContinuationRequest(String request) {

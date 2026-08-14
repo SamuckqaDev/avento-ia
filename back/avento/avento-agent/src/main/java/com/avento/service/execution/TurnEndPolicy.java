@@ -52,6 +52,54 @@ public class TurnEndPolicy {
     /** Limite acima do qual o texto ja e uma resposta de verdade, nao um preambulo vazio. */
     private static final int ANNOUNCEMENT_MAX_CHARS = 900;
 
+    /**
+     * Identifica apenas finais estruturalmente quebrados — nunca uma resposta breve válida como
+     * "Sim.". A guarda permite uma única retomada antes de persistir uma lista, código ou frase
+     * que terminou no meio.
+     */
+    public static boolean hasStructurallyIncompleteText(String assistantText) {
+        if (assistantText == null || assistantText.isBlank()) {
+            return false;
+        }
+        String text = assistantText.stripTrailing();
+        if (text.endsWith(",")
+                || text.endsWith(":")
+                || text.endsWith("(")
+                || text.endsWith("[")
+                || text.endsWith("{")
+                || text.endsWith("`")
+                || text.endsWith("**")) {
+            return true;
+        }
+        return hasUnclosedDelimiter(text, '(', ')')
+                || hasUnclosedDelimiter(text, '[', ']')
+                || hasUnclosedDelimiter(text, '{', '}')
+                || hasOddMarkdownDelimiter(text, "`");
+    }
+
+    private static boolean hasUnclosedDelimiter(String text, char opening, char closing) {
+        int depth = 0;
+        for (int index = 0; index < text.length(); index++) {
+            char current = text.charAt(index);
+            if (current == opening) {
+                depth++;
+            } else if (current == closing && depth > 0) {
+                depth--;
+            }
+        }
+        return depth > 0;
+    }
+
+    private static boolean hasOddMarkdownDelimiter(String text, String delimiter) {
+        int occurrences = 0;
+        int index = 0;
+        while ((index = text.indexOf(delimiter, index)) >= 0) {
+            occurrences++;
+            index += delimiter.length();
+        }
+        return occurrences % 2 != 0;
+    }
+
     // Rede de seguranca contra falso negativo do filtro de intencao (Opcao 2):
     // se a primeira rodada nao chamou nenhuma ferramenta para uma mensagem que
     // nao e conversa casual, tenta de novo uma unica vez com todas as

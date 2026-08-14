@@ -67,4 +67,16 @@ class AgentServiceAnnouncedActionTest {
         assertThat(TurnEndPolicy.announcedActionWithoutCalling(null, false, true))
                 .isFalse();
     }
+
+    @Test
+    void detectsAnswerThatEndsInsideMarkdownStructure() {
+        assertThat(TurnEndPolicy.hasStructurallyIncompleteText(
+                        "- Criar projetos em Node.js com arquitetura de camadas (DTOs, Models"))
+                .isTrue();
+    }
+
+    @Test
+    void keepsValidShortAnswerAsSingleTurn() {
+        assertThat(TurnEndPolicy.hasStructurallyIncompleteText("Sim, está concluído.")).isFalse();
+    }
 }

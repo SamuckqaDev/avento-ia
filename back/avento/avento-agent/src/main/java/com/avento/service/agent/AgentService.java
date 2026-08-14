@@ -8,6 +8,7 @@ import com.avento.dto.SkillResolution;
 import com.avento.dto.ToolCall;
 import com.avento.model.AgentProfile;
 import com.avento.service.SystemAutomationService;
+import com.avento.service.execution.TurnEndPolicy;
 import com.avento.service.image.ImageGenerationOptions;
 import com.avento.service.intent.ImageIntentService;
 import com.avento.service.intent.IntentRouter;
@@ -2059,6 +2060,30 @@ public class AgentService implements AgentExecutionEngine {
                 forward(runTurn(model, messages, state, round + 1), sink, state);
                 return;
             }
+            if (!state.retriedIncompleteAnswer
+                    && TurnEndPolicy.hasStructurallyIncompleteText(capture.assistantText.toString())) {
+                state.retriedIncompleteAnswer = true;
+                // A primeira parte já foi entregue no stream. A retomada não precisa de schemas de
+                // ferramenta e deve concentrar a janela em concluir o texto, sem repetir o que a
+                // pessoa acabou de ler.
+                state.finalSynthesis = true;
+                sink.next(eventChunk(
+                        "agent.response.continuation",
+                        "Resposta interrompida — concluindo",
+                        "O modelo terminou no meio de uma estrutura de texto; retomando uma única vez sem ferramentas."));
+                ArrayNode continuation = (ArrayNode) messages.deepCopy();
+                continuation.addObject().put("role", "assistant").put("content", capture.assistantText.toString());
+                continuation.addObject()
+                        .put("role", "user")
+                        .put(
+                                "content",
+                                "[Retomada obrigatória] A resposta imediatamente anterior terminou no meio. "
+                                        + "Continue EXATAMENTE da próxima palavra, complete a estrutura em aberto e "
+                                        + "encerre a resposta. Não repita título, introdução, itens já enviados nem "
+                                        + "ofereça começar de novo. Responda somente com a continuação.");
+                forward(runTurn(model, continuation, state, round + 1), sink, state);
+                return;
+            }
             emitDeferredAssistantText(capture, sink);
             // O modelo pode descrever uma acao como concluida em texto (com
             // checkmark, "criado com sucesso" etc.) sem ter chamado nenhuma
@@ -3569,6 +3594,7 @@ public class AgentService implements AgentExecutionEngine {
         boolean forceFullToolset = false;
         boolean retriedWithFullToolset = false;
         boolean retriedEmptyTurn = false;
+        boolean retriedIncompleteAnswer = false;
         // Rodada final, sem ferramentas: responder com o contexto ja coletado em vez de descartar
         // tudo ao bater o limite. Marcada uma unica vez, senao o proprio fecho viraria outro loop.
         boolean finalSynthesis = false;

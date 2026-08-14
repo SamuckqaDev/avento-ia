@@ -666,6 +666,12 @@ da nota a cada trecho. O bloco declara que o conteúdo é referência de usuári
 sistema: uma nota de política não aprova uma ferramenta nem altera as políticas internas. Memória
 durável confirmada continua no PostgreSQL por `userId`; o Obsidian é complementar e revisável.
 
+`MemoryExtractionService` é deliberadamente mais estreito: só propõe fatos atômicos, entre 18 e 240
+caracteres, que começam como `PENDING` em PostgreSQL. Fragmentos, linhas Markdown e explicações não
+são memória. Para material maior, o catálogo progressivo expõe `save_knowledge`; ela exige aprovação,
+cria uma nota única no vault e agenda o reindex incremental. Dessa forma memória frequente não infla
+o RAG, e conhecimento detalhado não é injetado em toda rodada de chat.
+
 ## Modo Plano de Implementacao (planejar antes de codar)
 
 Para uma tarefa de codigo, a skill `implementation-plan` coloca o agente em MODO PLANO: ela declara

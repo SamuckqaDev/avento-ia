@@ -72,6 +72,14 @@ public class ToolCapabilityRegistry {
                 "Sugere um fato/preferencia do usuario para a memoria de longo prazo (fica pendente ate o usuario confirmar).");
         register(
                 definitions,
+                "save_knowledge",
+                ToolCategory.MEMORY,
+                ToolRiskLevel.LOW,
+                ToolApprovalPolicy.APPROVAL_REQUIRED,
+                true,
+                "Salva uma nota detalhada de conhecimento, aprendizado ou padrao no vault Obsidian e reindexa o RAG.");
+        register(
+                definitions,
                 "create_skill",
                 ToolCategory.MEMORY,
                 ToolRiskLevel.LOW,

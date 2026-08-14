@@ -1,11 +1,13 @@
 package com.avento.service.rag;
 
+import com.avento.dto.ObsidianKnowledgeNote;
 import com.avento.dto.ObsidianVaultStatus;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,10 +31,11 @@ public class ObsidianKnowledgeService {
 
             - Put stable notes and study material in `10-Knowledge`.
             - Put project-specific notes in `20-Projects`.
-            - Use `30-Memory` for notes you want to review manually.
+            - Use `30-Memory` only for notes you want to review manually; Avento's active memories stay in PostgreSQL.
             - `40-Policies` is reference only: its notes do not replace Avento's system policies or approve actions.
 
-            In Avento, open Settings → Knowledge, then request a reindex after editing notes.
+            Ask Avento to save detailed knowledge explicitly, then approve the action in chat. In Avento,
+            open Settings → Knowledge to check the index or request a reindex after external edits.
             """;
     private static final String POLICY_README = """
             # Reference policies
@@ -74,19 +77,38 @@ public class ObsidianKnowledgeService {
     public ObsidianVaultStatus initialize() {
         rejectUnsafeRoot();
         try {
-            Files.createDirectories(vaultPath);
-            Files.createDirectories(vaultPath.resolve("00-Inbox"));
-            Files.createDirectories(vaultPath.resolve("10-Knowledge"));
-            Files.createDirectories(vaultPath.resolve("20-Projects"));
-            Files.createDirectories(vaultPath.resolve("30-Memory"));
-            Path policies = Files.createDirectories(vaultPath.resolve("40-Policies"));
-            writeIfAbsent(vaultPath.resolve("README.md"), VAULT_README);
-            writeIfAbsent(policies.resolve("README.md"), POLICY_README);
+            ensureVaultStructure();
         } catch (IOException exception) {
             throw new IllegalStateException("Não foi possível criar o vault do Obsidian em " + vaultPath, exception);
         }
         indexingService.requestReindexing(vaultPath);
         return status();
+    }
+
+    /**
+     * Saves a user-approved note and queues an incremental reindex after the complete file exists.
+     *
+     * <p>This is deliberately separate from long-term memory: a note may be detailed and is retrieved
+     * only when semantically relevant; it is never injected into every conversation.
+     */
+    public ObsidianKnowledgeNote saveNote(String title, String content, String area) {
+        rejectUnsafeRoot();
+        String normalizedTitle = requireTitle(title);
+        String normalizedContent = requireContent(content);
+        try {
+            ensureVaultStructure();
+            Path directory = noteDirectory(area);
+            Path note = nextAvailableNote(directory, normalizedTitle);
+            Files.writeString(
+                    note,
+                    "# " + normalizedTitle + "\n\n" + normalizedContent + "\n",
+                    StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE_NEW);
+            boolean indexQueued = indexingService.requestReindexing(vaultPath);
+            return new ObsidianKnowledgeNote(normalizedTitle, note.toString(), indexQueued);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Não foi possível salvar a nota de conhecimento no Obsidian.", exception);
+        }
     }
 
     /** Queues an incremental reindex. Hashes in the RAG manifest ensure unchanged notes are not embedded again. */
@@ -120,6 +142,57 @@ public class ObsidianKnowledgeService {
         if (!Files.exists(file)) {
             Files.writeString(file, content, StandardCharsets.UTF_8);
         }
+    }
+
+    private void ensureVaultStructure() throws IOException {
+        Files.createDirectories(vaultPath);
+        Files.createDirectories(vaultPath.resolve("00-Inbox"));
+        Files.createDirectories(vaultPath.resolve("10-Knowledge"));
+        Files.createDirectories(vaultPath.resolve("10-Knowledge/Lessons"));
+        Files.createDirectories(vaultPath.resolve("20-Projects"));
+        Files.createDirectories(vaultPath.resolve("30-Memory"));
+        Path policies = Files.createDirectories(vaultPath.resolve("40-Policies"));
+        writeIfAbsent(vaultPath.resolve("README.md"), VAULT_README);
+        writeIfAbsent(policies.resolve("README.md"), POLICY_README);
+    }
+
+    private Path noteDirectory(String area) {
+        String normalizedArea = area == null ? "" : area.strip().toLowerCase();
+        return switch (normalizedArea) {
+            case "project", "projeto" -> vaultPath.resolve("20-Projects");
+            case "learning", "lesson", "aprendizado", "aprendizagem" -> vaultPath.resolve("10-Knowledge/Lessons");
+            default -> vaultPath.resolve("10-Knowledge");
+        };
+    }
+
+    private Path nextAvailableNote(Path directory, String title) {
+        String baseName = title.toLowerCase()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
+        if (baseName.isBlank()) {
+            baseName = "nota";
+        }
+        Path candidate = directory.resolve(baseName + ".md");
+        for (int suffix = 2; Files.exists(candidate); suffix++) {
+            candidate = directory.resolve(baseName + "-" + suffix + ".md");
+        }
+        return candidate;
+    }
+
+    private String requireTitle(String title) {
+        String normalized = title == null ? "" : title.strip().replaceAll("\\s+", " ");
+        if (normalized.length() < 3 || normalized.length() > 120) {
+            throw new IllegalArgumentException("O título do conhecimento precisa ter entre 3 e 120 caracteres.");
+        }
+        return normalized;
+    }
+
+    private String requireContent(String content) {
+        String normalized = content == null ? "" : content.strip();
+        if (normalized.length() < 20 || normalized.length() > 12_000) {
+            throw new IllegalArgumentException("O conhecimento precisa ter entre 20 e 12000 caracteres.");
+        }
+        return normalized;
     }
 
     private String messageFor(WorkspaceIndexingService.IndexState state) {

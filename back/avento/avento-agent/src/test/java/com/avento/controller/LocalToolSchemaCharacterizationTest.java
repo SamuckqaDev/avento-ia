@@ -15,16 +15,25 @@ class LocalToolSchemaCharacterizationTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
-    void keepsTheFortyThreeLocalToolSchemasSemanticallyIdentical() throws Exception {
+    void keepsExistingSchemasStableAndAddsTheKnowledgePersistenceSchema() throws Exception {
         ArrayNode actual = localToolSnapshot();
         ArrayNode expected = baseline();
 
-        assertThat(actual).hasSize(43);
+        assertThat(actual).hasSize(44);
         assertThat(expected).hasSize(43);
+
+        int knowledgeIndex = indexOf(actual, "save_knowledge");
+        assertThat(knowledgeIndex).isEqualTo(15);
+        assertThat(actual.get(knowledgeIndex).path("description").asText())
+                .contains("vault do Obsidian")
+                .contains("exige aprovacao");
+        assertThat(actual.get(knowledgeIndex).path("inputSchema").path("required"))
+                .extracting(JsonNode::asText)
+                .containsExactly("title", "content");
 
         for (int index = 0; index < expected.size(); index++) {
             JsonNode expectedTool = expected.get(index);
-            JsonNode actualTool = actual.get(index);
+            JsonNode actualTool = actual.get(index < knowledgeIndex ? index : index + 1);
 
             assertThat(actualTool.path("name").asText()).isEqualTo(expectedTool.path("name").asText());
             assertThat(actualTool.path("description").asText())
@@ -32,6 +41,15 @@ class LocalToolSchemaCharacterizationTest {
             assertThat(mapper.readTree(actualTool.path("inputSchema").toString()))
                     .isEqualTo(mapper.readTree(expectedTool.path("inputSchema").toString()));
         }
+    }
+
+    private int indexOf(ArrayNode tools, String toolName) {
+        for (int index = 0; index < tools.size(); index++) {
+            if (toolName.equals(tools.get(index).path("name").asText())) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private ArrayNode baseline() throws Exception {

@@ -296,6 +296,11 @@ Vault notes are retrieved as cited reference material in the chat. They never be
 do not grant tool permissions, and do not replace Avento's authenticated long-term memory, which
 remains stored per user in PostgreSQL.
 
+Use `remember` only for a short, durable preference or fact; it remains pending until confirmation.
+For an architecture decision, lesson learned, or project convention with context, ask Avento to save
+it as knowledge. The `save_knowledge` tool creates a Markdown note only after an approval card is
+confirmed, then queues the incremental vault reindex.
+
 ### Image and video
 
 **ComfyUI generates Avento's images and videos.** It is separate from the Ollama models: Ollama drives the conversation and can interpret images with a multimodal model, while ComfyUI runs the visual generation workflows and returns the files to the chat. Visual generation requires no workspace or MCP server. Explicit requests and standalone visual descriptions with enough style and composition signals are routed directly to `generate_image`; requests to analyze, explain, or improve a prompt stay in the conversation.

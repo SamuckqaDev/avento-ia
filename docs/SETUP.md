@@ -676,6 +676,13 @@ prompt de sistema, não concedem permissão de ferramenta e não substituem pol�
 memórias confirmadas do Avento continuam no PostgreSQL por usuário; a pasta `30-Memory` do vault é
 apenas uma área de revisão manual.
 
+Para guardar algo, use a regra simples: um fato ou preferência curta e recorrente vira memória
+pendente (`remember`); uma decisão, aprendizado, padrão de projeto ou explicação detalhada vira
+conhecimento. Quando o pedido mencionar documentar ou guardar conhecimento, o agente usa
+`save_knowledge`, mostra a aprovação e só então cria a nota em `10-Knowledge`,
+`10-Knowledge/Lessons` ou `20-Projects`, conforme o tipo. O extrator automático jamais grava notas
+grandes: ele descarta fragmentos, títulos Markdown e explicações longas em vez de poluir a memória.
+
 Se um modelo local escrever uma pseudo-chamada textual como `{function <directory_tree> ...}` em vez de usar tool-call nativo, o backend tenta interpretar isso como chamada interna e suprime o markup do stream. Chamadas com `path: "/"` sao rejeitadas com uma mensagem segura, porque ferramentas de arquivo so podem operar dentro de workspaces autorizados.
 
 Ao abrir uma conversa pelo historico, as pastas salvas no contexto do chat sao revalidadas com `/api/fs/authorize` antes de voltarem para o prompt e para as ferramentas. Se uma pasta foi movida ou apagada, ela nao e restaurada como workspace ativo.

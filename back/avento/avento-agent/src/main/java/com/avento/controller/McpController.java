@@ -30,6 +30,7 @@ import com.avento.service.mcp.McpServerCatalogService;
 import com.avento.service.memory.UserMemoryService;
 import com.avento.service.rag.CodeSearchService;
 import com.avento.service.rag.DocumentReaderService;
+import com.avento.service.rag.ObsidianKnowledgeService;
 import com.avento.service.rag.WorkspaceIndexingService;
 import com.avento.service.tools.DockerMcpToolPrecedence;
 import com.avento.service.tools.LocalToolNames;
@@ -161,6 +162,9 @@ public class McpController implements ToolProvider {
 
     @Autowired(required = false)
     private UserMemoryService userMemoryService;
+
+    @Autowired(required = false)
+    private ObsidianKnowledgeService obsidianKnowledgeService;
 
     @Autowired(required = false)
     private com.avento.service.support.SkillRegistry skillRegistry;
@@ -470,6 +474,7 @@ public class McpController implements ToolProvider {
             case "find_local_project" -> executeFindLocalProject(payload);
             case "find_symbol" -> executeFindSymbol(payload);
             case "remember" -> executeRemember(payload);
+            case "save_knowledge" -> executeSaveKnowledge(payload);
             case "create_skill" -> executeCreateSkill(payload);
             case "list_skills" -> executeListSkills(payload);
             case "delete_skill" -> executeDeleteSkill(payload);
@@ -772,6 +777,23 @@ public class McpController implements ToolProvider {
                 outcome.saved()
                         ? "Sugestão de memória registrada; aguarda confirmação do usuário."
                         : "Essa memória já existia; nada foi duplicado.");
+        return toolResult(result);
+    }
+
+    private JsonNode executeSaveKnowledge(Map<String, Object> payload) throws IOException {
+        if (obsidianKnowledgeService == null) {
+            return toolResult(mapper.createObjectNode().put("error", "Vault de conhecimento indisponível."));
+        }
+        var note = obsidianKnowledgeService.saveNote(
+                requiredString(payload, "title"), requiredString(payload, "content"), optionalString(payload, "area"));
+        ObjectNode result = mapper.createObjectNode();
+        result.put("saved", true);
+        result.put("title", note.title());
+        result.put("path", note.path());
+        result.put("indexQueued", note.indexQueued());
+        result.put(
+                "message",
+                "Conhecimento salvo no vault do Obsidian; a reindexação incremental foi agendada.");
         return toolResult(result);
     }
 

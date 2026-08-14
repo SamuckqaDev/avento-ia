@@ -55,13 +55,31 @@ class MemoryExtractionServiceTest {
     @Test
     void parsesModelLinesIntoSuggestionsDroppingBulletsAndCount() {
         String output =
-                "- Prefere PT-BR informal\n2) Projeto se chama monicare\n* Usa styled-components\nExtra 1\nExtra 2";
+                "- Prefere PT-BR informal\n2) Projeto se chama monicare\n* Usa styled-components\nExplica padrões de forma direta\nExtra 2";
         MemoryExtractionService service = serviceReturning(output, new AtomicReference<>());
 
         // maxSuggestions=4, então corta em 4 e limpa marcadores (-, 2), *).
         assertThat(service.parseFacts(output))
                 .containsExactly(
-                        "Prefere PT-BR informal", "Projeto se chama monicare", "Usa styled-components", "Extra 1");
+                        "Prefere PT-BR informal",
+                        "Projeto se chama monicare",
+                        "Usa styled-components",
+                        "Explica padrões de forma direta");
+    }
+
+    @Test
+    void rejectsFragmentsAndMarkdownThatBelongInKnowledgeInsteadOfMemory() {
+        MemoryExtractionService service = serviceReturning("", new AtomicReference<>());
+
+        assertThat(service.parseFacts("""
+                - cada módulo:
+                - `dto` (Data Transfer Object)
+                - `model` (modelo de dados)
+                - `controller` (lógica de controle)
+                - Fatos duráveis sobre Samuel Adriano:**
+                - O projeto Avento usa DTOs imutáveis para contratos externos.
+                """))
+                .containsExactly("O projeto Avento usa DTOs imutáveis para contratos externos.");
     }
 
     @Test

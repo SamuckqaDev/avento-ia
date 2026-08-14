@@ -43,6 +43,7 @@ public final class LocalToolNames {
             "verify_project",
             "revert_changes",
             "remember",
+            "save_knowledge",
             "create_skill",
             "list_skills",
             "delete_skill",

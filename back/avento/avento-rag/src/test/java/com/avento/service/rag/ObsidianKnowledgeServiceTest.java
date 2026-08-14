@@ -58,6 +58,26 @@ class ObsidianKnowledgeServiceTest {
     }
 
     @Test
+    void savesDetailedKnowledgeInTheRequestedVaultAreaAndQueuesReindexing() throws Exception {
+        RagService ragService = mock(RagService.class);
+        WorkspaceIndexingService indexingService = mock(WorkspaceIndexingService.class);
+        Path vault = tempDir.resolve("vault");
+        when(indexingService.requestReindexing(vault.toAbsolutePath().normalize())).thenReturn(true);
+        ObsidianKnowledgeService service = new ObsidianKnowledgeService(ragService, indexingService, vault.toString());
+
+        var note = service.saveNote(
+                "Arquitetura em camadas do Avento",
+                "Controllers ficam finos, serviços coordenam os casos de uso e DTOs protegem as fronteiras.",
+                "project");
+
+        assertThat(note.indexQueued()).isTrue();
+        assertThat(Files.isRegularFile(Path.of(note.path()))).isTrue();
+        assertThat(Path.of(note.path()).getParent()).isEqualTo(vault.resolve("20-Projects"));
+        assertThat(Files.readString(Path.of(note.path()))).contains("# Arquitetura em camadas do Avento");
+        verify(indexingService).requestReindexing(vault.toAbsolutePath().normalize());
+    }
+
+    @Test
     void returnsNothingBeforeTheVaultExists() {
         RagService ragService = mock(RagService.class);
         WorkspaceIndexingService indexingService = mock(WorkspaceIndexingService.class);

@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.avento.service.FileBackupService;
 import com.avento.service.SystemAutomationService;
 import com.avento.service.WorkspaceAccessService;
+import com.avento.service.rag.ObsidianKnowledgeService;
+import com.avento.service.rag.RagService;
+import com.avento.service.rag.WorkspaceIndexingService;
 import com.avento.service.tools.ToolExecutionContext;
 import com.avento.dto.LocalProjectMatch;
 import com.avento.dto.LocalProjectSearchResult;
@@ -152,6 +155,30 @@ class ToolSmokeTest {
     }
 
     @Test
+    void savesApprovedKnowledgeAsAnObsidianNoteWhenTheServiceIsWired() throws Exception {
+        Path vault = workspace.resolve("obsidian-vault");
+        WorkspaceIndexingService indexing = org.mockito.Mockito.mock(WorkspaceIndexingService.class);
+        org.mockito.Mockito.when(indexing.requestReindexing(vault.toAbsolutePath().normalize())).thenReturn(true);
+        ReflectionTestUtils.setField(
+                controller,
+                "obsidianKnowledgeService",
+                new ObsidianKnowledgeService(org.mockito.Mockito.mock(RagService.class), indexing, vault.toString()));
+
+        JsonNode result = run(
+                "save_knowledge",
+                "title",
+                "Convenções do Avento",
+                "content",
+                "Controllers ficam finos e DTOs protegem as fronteiras externas do projeto.",
+                "area",
+                "project");
+
+        assertSucceeded(result, "save_knowledge");
+        assertThat(Files.exists(Path.of(result.path("path").asText()))).isTrue();
+        assertThat(result.path("indexQueued").asBoolean()).isTrue();
+    }
+
+    @Test
     void runsAnAllowedTerminalCommandAndRefusesADisallowedOne() throws Exception {
         JsonNode allowed = run("terminal_run", "path", workspace.toString(), "command", "pwd");
         assertSucceeded(allowed, "terminal_run");
@@ -209,7 +236,7 @@ class ToolSmokeTest {
     void degradesInsteadOfCrashingWhenAnOptionalServiceIsMissing() throws IOException {
         // Os campos opcionais sao null aqui de proposito. Uma ferramenta que depende deles tem de
         // dizer que nao esta disponivel, nao estourar NullPointerException no meio da rodada.
-        for (String tool : new String[] {"remember", "list_skills", "verify_project", "generate_pdf"}) {
+        for (String tool : new String[] {"remember", "save_knowledge", "list_skills", "verify_project", "generate_pdf"}) {
             try {
                 JsonNode result = run(tool, "path", workspace.toString());
                 assertThat(result).as("%s devolveu null", tool).isNotNull();

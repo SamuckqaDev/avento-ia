@@ -43,6 +43,8 @@ public class MemoryExtractionService {
 
     private static final Logger logger = LoggerFactory.getLogger(MemoryExtractionService.class);
     private static final int MAX_TRACKED_CHATS = 500;
+    private static final int MIN_MEMORY_CHARS = 18;
+    private static final int MAX_MEMORY_CHARS = 240;
 
     private static final String INSTRUCTION =
             com.avento.service.support.PromptResources.load("agent/prompts/memory-extraction.md");
@@ -221,7 +223,14 @@ public class MemoryExtractionService {
         return builder.toString().strip();
     }
 
-    /** Quebra a saída do modelo em fatos limpos, descartando "NADA", marcadores e excesso. */
+    /**
+     * Keeps only short, standalone memory candidates.
+     *
+     * <p>Detailed explanations belong in the Obsidian knowledge vault through {@code save_knowledge},
+     * not in the always-injected user-memory block. The structural checks are intentionally cheap: a
+     * local model occasionally ignores the prompt and returns Markdown headings, glossary fragments,
+     * or a list split over several lines. Saving those fragments used to make the memory review noisy.
+     */
     List<String> parseFacts(String raw) {
         List<String> facts = new ArrayList<>();
         if (raw == null || raw.isBlank()) {
@@ -231,7 +240,7 @@ public class MemoryExtractionService {
             String fact = line.strip().replaceFirst("^[-*•\\d.\\)\\s]+", "").strip();
             // "NOTHING" is the English sentinel from the prompt; "NADA" is kept for robustness in case
             // the local model answers in Portuguese.
-            if (fact.isEmpty() || fact.equalsIgnoreCase("NOTHING") || fact.equalsIgnoreCase("NADA")) {
+            if (!isValidMemoryCandidate(fact)) {
                 continue;
             }
             facts.add(fact);
@@ -240,6 +249,23 @@ public class MemoryExtractionService {
             }
         }
         return facts;
+    }
+
+    private boolean isValidMemoryCandidate(String fact) {
+        if (fact.isEmpty() || fact.equalsIgnoreCase("NOTHING") || fact.equalsIgnoreCase("NADA")) {
+            return false;
+        }
+        if (fact.length() < MIN_MEMORY_CHARS || fact.length() > MAX_MEMORY_CHARS) {
+            return false;
+        }
+        if (fact.startsWith("`")
+                || fact.endsWith(":")
+                || fact.endsWith(",")
+                || fact.contains("**")
+                || fact.contains("\n")) {
+            return false;
+        }
+        return Character.isUpperCase(fact.codePointAt(0));
     }
 
     protected String requestExtraction(String conversation) throws Exception {

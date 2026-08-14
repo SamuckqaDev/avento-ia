@@ -25,6 +25,7 @@ public final class LocalToolDefinitions {
             "find_local_project",
             "find_symbol",
             "remember",
+            "save_knowledge",
             "create_skill",
             "list_skills",
             "delete_skill",
@@ -133,6 +134,15 @@ public final class LocalToolDefinitions {
     @Tool(name = "remember", description = "Guarda na memoria de longo prazo um fato ou preferencia DURAVEL do usuario, para lembrar em conversas futuras (ex.: 'prefere styled-components', 'chama o projeto de monicare', 'gosta de respostas em PT-BR informal'). Use SO para coisas que valem alem desta conversa — nao use para pedidos pontuais nem para o que ja esta no historico. A memoria fica PENDENTE ate o usuario confirmar, entao nao anuncie que ja lembrou em definitivo.")
     public String remember(@ToolParam(required = false, description = "Rotulo opcional: preferencia, projeto, fato ou referencia. Padrao: fato.") String category, @ToolParam(description = "O fato/preferencia em uma frase curta e objetiva, na terceira pessoa (ex.: 'Prefere TypeScript a JavaScript').") String content) throws Exception {
         return execute("remember", "category", category, "content", content);
+    }
+
+    @Tool(name = "save_knowledge", description = "Salva conhecimento detalhado, aprendizado ou convencao de projeto como nota Markdown no vault do Obsidian e agenda a reindexacao do RAG. Use quando o usuario pedir explicitamente para documentar/guardar um aprendizado, decisao, padrao ou explicacao que precise de mais de uma frase. Nao use para preferencias curtas: elas vao para remember. Esta ferramenta exige aprovacao antes de escrever a nota.")
+    public String saveKnowledge(
+            @ToolParam(required = false, description = "Destino da nota: knowledge (padrao), project ou learning.") String area,
+            @ToolParam(description = "Titulo curto e descritivo da nota.") String title,
+            @ToolParam(description = "Conteudo Markdown completo, com contexto e decisoes importantes.") String content)
+            throws Exception {
+        return execute("save_knowledge", "area", area, "title", title, "content", content);
     }
 
     @Tool(name = "create_skill", description = "Cria uma SKILL nova e reutilizavel quando o usuario pede uma capacidade que ele quer repetir depois (ex.: 'cria uma skill de cotacao que busca no fetch e mostra em tabela'). A skill e um procedimento em texto que o Avento passa a seguir automaticamente sempre que a mensagem casar com um dos gatilhos — nao e codigo novo. Use quando o pedido for claramente 'crie/salve uma skill/capacidade/atalho'. Depois de criar, confirme ao usuario o nome e os gatilhos.")

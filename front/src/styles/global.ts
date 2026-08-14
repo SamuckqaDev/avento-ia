@@ -1,6 +1,12 @@
 import { createGlobalStyle } from 'styled-components';
 
 export const GlobalStyle = createGlobalStyle`
+  :root {
+    /* Avenir Next já vem no macOS: dá ao Avento uma leitura mais humana sem trazer fonte externa
+       ou depender de rede. Os fallbacks mantêm a mesma hierarquia visual fora do Mac. */
+    --avento-font-sans: 'Avenir Next', Avenir, 'Segoe UI Variable', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  }
+
   * {
     box-sizing: border-box;
     margin: 0;
@@ -9,7 +15,11 @@ export const GlobalStyle = createGlobalStyle`
 
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--avento-font-sans);
+    font-weight: 400;
+    letter-spacing: 0.005em;
+    font-kerning: normal;
+    font-variant-numeric: tabular-nums;
     background: ${({ theme }) => theme.colors.bg};
     color: ${({ theme }) => theme.colors.text};
     display: flex;
